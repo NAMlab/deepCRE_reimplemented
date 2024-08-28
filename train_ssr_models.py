@@ -7,7 +7,7 @@ from utils import train_deep_cre
 
 def result_summary(failed_trainings: List[Tuple[str, int, Exception]], passed_trainings: List[Tuple[str, int]], input_length: int) -> None:
     print("_______________________________________________________________")
-    print(f"During trianing the following errors occurred:")
+    print(f"During training the following errors occurred:")
     for name, line, err in failed_trainings:
         print(f"output name \"{name}\" (line {line + 1} in the input file) failed with error message:\n{err}")
         print("_______________________________________________________________")
