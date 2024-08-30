@@ -6,7 +6,7 @@ from tensorflow.keras.models import load_model #type:ignore
 import pandas as pd
 import re
 
-from utils import get_filename_from_path, get_time_stamp, load_input_files, one_hot_encode, make_absolute_path, load_annotation
+from utils import get_filename_from_path, get_time_stamp, load_input_files, one_hot_encode, make_absolute_path
 from train_ssr_models import extract_genes
 
 

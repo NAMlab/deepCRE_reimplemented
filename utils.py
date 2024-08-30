@@ -1,23 +1,10 @@
 import datetime
-import os.path
 from typing import Any, Dict
-import pickle
-from importlib import reload
 import numpy as np
-from tensorflow.keras.layers import Dropout, Dense, Input, Conv1D, Activation, MaxPool1D, Flatten#type:ignore
-from tensorflow.keras.optimizers import Adam#type:ignore
-from tensorflow.keras import Model#type:ignore
-from tensorflow.keras.models import load_model#type:ignore
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau#type:ignore
-from tensorflow.keras.metrics import AUC#type:ignore
+import os
 from pyfaidx import Fasta
 import pyranges as pr
 import pandas as pd
-from sklearn.utils import shuffle
-from deeplift.dinuc_shuffle import dinuc_shuffle # type: ignore
-import shap# type: ignore
-import h5py# type: ignore
-import modisco# type: ignore
 
 
 def one_hot_encode(sequence: str,
@@ -39,8 +26,6 @@ def one_hot_encode(sequence: str,
     hash_table[to_uint8(neutral_alphabet)] = neutral_value
     hash_table = hash_table.astype(dtype)
     return hash_table[to_uint8(sequence)]
-
-
 
 
 def get_time_stamp() -> str:
