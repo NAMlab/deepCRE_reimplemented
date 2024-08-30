@@ -1,22 +1,23 @@
+import datetime
 import os.path
-from typing import Any
+from typing import Any, Dict
 import pickle
 from importlib import reload
 import numpy as np
-from tensorflow.keras.layers import Dropout, Dense, Input, Conv1D, Activation, MaxPool1D, Flatten
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras import Model
-from tensorflow.keras.models import load_model
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras.metrics import AUC
+from tensorflow.keras.layers import Dropout, Dense, Input, Conv1D, Activation, MaxPool1D, Flatten#type:ignore
+from tensorflow.keras.optimizers import Adam#type:ignore
+from tensorflow.keras import Model#type:ignore
+from tensorflow.keras.models import load_model#type:ignore
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau#type:ignore
+from tensorflow.keras.metrics import AUC#type:ignore
 from pyfaidx import Fasta
 import pyranges as pr
 import pandas as pd
 from sklearn.utils import shuffle
-from deeplift.dinuc_shuffle import dinuc_shuffle
-import shap
-import h5py
-import modisco
+from deeplift.dinuc_shuffle import dinuc_shuffle # type: ignore
+import shap# type: ignore
+import h5py# type: ignore
+import modisco# type: ignore
 
 
 def one_hot_encode(sequence: str,
@@ -131,7 +132,7 @@ def extract_seq(genome, annot, tpm_targets, upstream, downstream, genes_picked, 
     expected_final_size = 2*(upstream + downstream) + 20
 
     train_seqs, val_seqs, train_targets, val_targets = [], [], [], []
-    for chrom, start, end, strand, gene_id in annot.values:
+    for chrom, start, end, strand, gene_id in annot.values:#type:ignore
         gene_size = end - start
         extractable_downstream = downstream if gene_size//2 > downstream else gene_size//2
         prom_start, prom_end = start - upstream, start + extractable_downstream
@@ -204,7 +205,7 @@ def balance_dataset(x, y):
         np.take(y, selected_low_train, axis=0),
         np.take(y, selected_high_train, axis=0)
     ], axis=0)
-    x_train, y_train = shuffle(x_train, y_train, random_state=42)
+    x_train, y_train = shuffle(x_train, y_train, random_state=42)#type:ignore
     return x_train, y_train
 
 
@@ -242,7 +243,7 @@ def predict(genome, annot, tpm_targets, upstream, downstream, val_chromosome, ig
     expected_final_size = 2 * (upstream + downstream) + 20
 
     x, y, gene_ids = [], [], []
-    for chrom, start, end, strand, gene_id in annot.values:
+    for chrom, start, end, strand, gene_id in annot.values:#type:ignore
         gene_size = end - start
         extractable_downstream = downstream if gene_size // 2 > downstream else gene_size // 2
         prom_start, prom_end = start - upstream, start + extractable_downstream
@@ -445,3 +446,85 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
     print(f"Species: {output_name} \n")
     modisco_run(contribution_scores=actual_scores, hypothetical_scores=hypothetical_scores,
                 one_hots=one_hots, output_name=output_name)
+
+
+def get_time_stamp() -> str:
+    """creates a time stamp for the current time
+
+    Returns:
+        str: string in the format date_time
+    """
+    return datetime.datetime.now().strftime("%y%m%d_%H%M%S")
+
+
+def get_filename_from_path(path: str) -> str:
+    """takes a path and returns the name of the file it leads to
+
+    Args:
+        path (str): path to a file
+
+    Returns:
+        str: name of the file
+    """
+    if not os.path.isfile(path):
+        raise ValueError("path must lead to a file!")
+    file_name = os.path.splitext(os.path.basename(path))[0]
+    return file_name
+
+
+def make_absolute_path(*steps_on_path, start_file: str = "") -> str:
+    """creates an absoulte path from a starting location
+
+    Args:
+        start_file (str, optional): file from which the path starts. Defaults to "".
+        steps_on_path (str, optional): arbitrary number of folders with an optionally file at the end which will be appended to the start path.
+
+    Returns:
+        str: absolute version of the path
+    """
+    if start_file == "":
+        start_file = __file__
+    start_folder = os.path.dirname(os.path.abspath(start_file))
+    result_path = os.path.join(start_folder, *steps_on_path)
+    return result_path
+
+
+def load_input_files(genome_file_name: str = "", annotation_file_name: str = "", tpm_counts_file_name: str = "") -> Dict[str, pd.DataFrame]:
+    """loads input files and returns them in a Dict
+
+    Args:
+        genome_file_name (str, optional): file name of the genome, saved in the subfolder \"genome\". Defaults to "".
+        annotation_file_name (str, optional): file name of the annotation, saved in the subfolder \"gene_models\". Defaults to "".
+        tpm_counts_file_name (str, optional):  file name of the tpm counts, saved in the subfolder \"tpm_counts\". Defaults to "".
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        Dict[str, pd.DataFrame]: _description_
+    """
+    if genome_file_name == "" and annotation_file_name == "" and tpm_counts_file_name == "":
+        raise ValueError("at least one of the file names must be given!")
+    results = {}
+
+    if genome_file_name != "":
+        genome_path = make_absolute_path("genome", genome_file_name, start_file=__file__)
+        genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
+        results["genome"] = genome
+
+    if annotation_file_name != "":
+        annotation_path = make_absolute_path("gene_models", annotation_file_name, start_file=__file__)
+        annotation = pr.read_gtf(f=annotation_path, as_df=True)
+        annotation = annotation[annotation['gene_biotype'] == 'protein_coding']
+        annotation = annotation[annotation['Feature'] == 'gene']
+        annotation = annotation[['Chromosome', 'Start', 'End', 'Strand', 'gene_id']]
+        # annot = annot[annot['Chromosome'] == val_chromosome]
+        results["annotation"] = annotation
+
+    if tpm_counts_file_name != "":
+        tpm_path = make_absolute_path("tpm_counts", tpm_counts_file_name, start_file=__file__)
+        tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
+        tpms.set_index('gene_id', inplace=True)
+        results["tpms"] = tpms
+
+    return results
