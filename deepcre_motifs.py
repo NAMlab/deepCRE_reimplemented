@@ -49,12 +49,12 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
 
 
 def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_small_genes,
-                    output_name, model_case, chromosoe_list: pd.DataFrame):
+                    output_name, model_case, chromosome_list: pd.DataFrame):
 
     actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
                                                                         tpm_counts_file_name=tpm_targets,
                                                                         upstream=upstream, downstream=downstream,
-                                                                        chromosome_list=chromosoe_list,
+                                                                        chromosome_list=chromosome_list,
                                                                         ignore_small_genes=ignore_small_genes,
                                                                         output_name=output_name,
                                                                         model_case=model_case)
@@ -102,7 +102,7 @@ def main():
         chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
         generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
                         ignore_small_genes=args.ignore_small_genes, output_name=output_name,
-                        model_case=args.model_case, chromosoe_list=chromosomes)
+                        model_case=args.model_case, chromosome_list=chromosomes)
 
 
 if __name__ == "__main__":
