@@ -54,14 +54,15 @@ def get_filename_from_path(path: str) -> str:
 
 def load_annotation(annotation_path):
     if annotation_path.endswith('.gtf'):
-        annotation_path = pr.read_gtf(f=f"gene_models/{annotation_path}", as_df=True)
-        annotation_path = annotation_path[annotation_path['gene_biotype'] == 'protein_coding']
-        annotation_path = annotation_path[annotation_path['Feature'] == 'gene']
-        annotation_path = annotation_path[['Chromosome', 'Start', 'End', 'Strand', 'gene_id']]
+        gene_model = pr.read_gtf(f=annotation_path, as_df=True)
+        gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
+        gene_model = gene_model[gene_model['Feature'] == 'gene']
+        gene_model = gene_model[['Chromosome', 'Start', 'End', 'Strand', 'gene_id']]
     else:
-        annotation_path = pr.read_gff3(f'gene_models/{annotation_path}', as_df=True)
-        annotation_path = annotation_path[annotation_path['Feature'] == 'gene']
-        annotation_path = annotation_path[['Chromosome', 'Start', 'End', 'Strand', 'ID']]
+        gene_model = pr.read_gff3(annotation_path, as_df=True)
+        gene_model = gene_model[gene_model['Feature'] == 'gene']
+        gene_model = gene_model[['Chromosome', 'Start', 'End', 'Strand', 'ID']]
+    return gene_model
 
 
 
