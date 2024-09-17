@@ -131,15 +131,31 @@ def deep_cre(x_train, y_train, x_val, y_val, output_name, model_case, chrom):
     return output
 
 
-def extract_seq(genome, annot, tpm_targets, upstream, downstream, genes_picked, pickled_key, val_chromosome,
+def mask_sequences(train_seqs: np.ndarray, val_seqs: np.ndarray, extragenic: int, intragenic: int):
+    """masking the start and end codon of the sequence as zeros, according to original paper
+
+    Args:
+        train_seqs (np.ndarray): one hot encoded training sequences
+        val_seqs (np.ndarray): one hot encoded validation sequences
+        extragenic (int): length of the promoter / terminator region that is extracted
+        intragenic (int): length of the UTRs that is extracted
+    """
+    # Masking
+    train_seqs[:, extragenic:extragenic + 3, :] = 0
+    train_seqs[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0
+    val_seqs[:, extragenic:extragenic + 3, :] = 0
+    val_seqs[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0
+
+
+def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, genes_picked, pickled_key, val_chromosome,
                 model_case, ignore_small_genes):
     """
      This function extract sequences from the genome. It implements a gene size aware padding
     :param genome: reference genome from Ensembl Plants database
     :param annot:  gtf file matching the reference genome
     :param tpm_targets: count file target true targets.
-    :param upstream: length of promoter and terminator
-    :param downstream: length of 5' and 3' UTR
+    :param extragenic: length of promoter and terminator
+    :param intragenic: length of 5' and 3' UTR
     :param genes_picked: pickled file containing genes to filter into validation set. For gene family splitting
     :param val_chromosome: validation chromosome
     :param model_case: model type which can be SSC, SSR
@@ -154,14 +170,14 @@ def extract_seq(genome, annot, tpm_targets, upstream, downstream, genes_picked, 
     tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
     tpms.set_index('gene_id', inplace=True)
     annot = load_annotation(annotation_path)
-    expected_final_size = 2*(upstream + downstream) + 20
+    expected_final_size = 2*(extragenic + intragenic) + 20
 
     train_seqs, val_seqs, train_targets, val_targets = [], [], [], []
     for chrom, start, end, strand, gene_id in annot.values:#type:ignore
         gene_size = end - start
-        extractable_downstream = downstream if gene_size//2 > downstream else gene_size//2
-        prom_start, prom_end = start - upstream, start + extractable_downstream
-        term_start, term_end = end - extractable_downstream, end + upstream
+        extractable_downstream = intragenic if gene_size//2 > intragenic else gene_size//2
+        prom_start, prom_end = start - extragenic, start + extractable_downstream
+        term_start, term_end = end - extractable_downstream, end + extragenic
 
         promoter = one_hot_encode(genome[chrom][prom_start:prom_end])
         terminator = one_hot_encode(genome[chrom][term_start:term_end])
@@ -202,11 +218,7 @@ def extract_seq(genome, annot, tpm_targets, upstream, downstream, genes_picked, 
     train_seqs, val_seqs = np.array(train_seqs), np.array(val_seqs)
     train_targets, val_targets = np.array(train_targets), np.array(val_targets)
     print(train_seqs.shape, val_seqs.shape)
-    # Masking
-    train_seqs[:, upstream:upstream + 3, :] = 0
-    train_seqs[:, upstream + (downstream * 2) + 17:upstream + (downstream * 2) + 20, :] = 0
-    val_seqs[:, upstream:upstream + 3, :] = 0
-    val_seqs[:, upstream + (downstream * 2) + 17:upstream + (downstream * 2) + 20, :] = 0
+    mask_sequences(train_seqs=train_seqs, val_seqs=val_seqs, extragenic=extragenic, intragenic=intragenic)
     return train_seqs, train_targets, val_seqs, val_targets
 
 
