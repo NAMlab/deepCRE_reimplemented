@@ -3,6 +3,11 @@ genome/*
 saved_models/*
 tpm_counts/*
 gene_models/*
+test_folder/arabidopsis_deepcre_predict_240827_144836_same_old.csv
+test_folder/arabidopsis_deepcre_predict_240916_165930_meins.csv
+test_folder/arabidopsis_deepcre_predict_240916_170201_fritz_merge.csv
+test_folder/compare.py
+
 #### GITHUB PYTHON TEMPLATE
 
 # Byte-compiled / optimized / DLL files
