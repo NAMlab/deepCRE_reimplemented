@@ -6,7 +6,8 @@ import pyranges as pr
 
 from train_ssr_models import extract_genes
 from utils import load_input_files, make_absolute_path, get_time_stamp
-from deepcre_predict import find_newest_model_path, predict_other, predict_self
+from deepcre_predict import find_newest_model_path, predict_self
+import deepcre_crosspredict as cp
 
 def compare_lists(list1, list2) -> bool:
     if len(list1) != len(list2):
@@ -81,12 +82,12 @@ def test_predict_other():
         tpms = loaded_input_files["tpms"]
         extragenic = 1000
         intragenic = 500
-        ignore_small_genes = "yes"
+        ignore_small_genes = True
         extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
         results_dfs = []
         for chrom in range(1, num_chromosomes + 1):
-            results, _ = predict_other(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
-                                            model_case="SSR", extracted_genes=extracted_genes)
+            results, _ = cp.predict_other(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), model_names=output_name,
+                                            extracted_genes=extracted_genes)
             results_dfs.append(results)
         result = pd.concat(results_dfs)
         only_preds = result.drop(["true_targets", "genes"], axis=1)
@@ -113,7 +114,7 @@ def compare_predict_other_self():
 
 
 class TestDeepCRE(unittest.TestCase):
-    
+
     def test_model_finding(self):
         results = find_newest_model_path(output_name="arabidopsis", model_case="SSR", model_path="test_folder/model_names")
         for key in results:
@@ -123,9 +124,10 @@ class TestDeepCRE(unittest.TestCase):
         self.assertEqual(results["2"], os.path.join(path_to_models, "arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"))
 
 
+
 if __name__ == "__main__":
-    # unittest.main()
+    unittest.main()
     # test_regex()
     # test_predict_other()
-    compare_predict_other_self()
+    # compare_predict_other_self()
     # test_gene_dist()

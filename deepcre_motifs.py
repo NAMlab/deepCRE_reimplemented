@@ -6,7 +6,7 @@ import modisco
 from importlib import reload
 import h5py
 from utils import get_filename_from_path, get_time_stamp, make_absolute_path
-from deepcre_interprete import extract_scores
+from deepcre_interpret import extract_scores
 
 
 def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name):
@@ -93,6 +93,7 @@ def main():
     data = pd.read_csv(args.input, sep=',', header=None,
                     dtype={0: str, 1: str, 2: str, 3: str, 4: str},
                     names=['genome', 'gtf', 'tpm', 'output', 'chroms'])
+    ignore_small_genes = args.ignore_small_genes.lower() == "yes"
     print(data.head())
     if data.shape[1] != 5:
         raise Exception("Input file incorrect. Your input file must contain 5 columns and must be .csv")
@@ -101,7 +102,7 @@ def main():
     for genome, gtf, tpm_counts, output_name, chromosomes_file in data.values:
         chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
         generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
-                        ignore_small_genes=args.ignore_small_genes, output_name=output_name,
+                        ignore_small_genes=ignore_small_genes, output_name=output_name,
                         model_case=args.model_case, chromosome_list=chromosomes)
 
 

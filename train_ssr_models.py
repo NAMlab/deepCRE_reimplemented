@@ -2,7 +2,7 @@ import argparse
 import os
 from typing import Dict, List, Tuple
 import pandas as pd
-from utils import get_filename_from_path, get_time_stamp, one_hot_encode, make_absolute_path, load_annotation
+from utils import get_filename_from_path, get_time_stamp, one_hot_encode, make_absolute_path, load_annotation, result_summary
 from tensorflow.keras.layers import Dropout, Dense, Input, Conv1D, Activation, MaxPool1D, Flatten               #type:ignore
 from tensorflow.keras.optimizers import Adam                                                                    #type:ignore
 from tensorflow.keras import Model                                                                              #type:ignore
@@ -16,9 +16,12 @@ import pyranges as pr
 from sklearn.utils import shuffle
 
 
-def extract_genes(genome, annotation, extragenic, intragenic, ignore_small_genes, tpms, target_chromosomes: Tuple[str, ...]) -> Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]:
+def extract_genes(genome: pd.DataFrame, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, tpms, target_chromosomes: Tuple[str, ...], for_prediction: bool = False) -> Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]:
     extracted_seqs = {}
     expected_final_size = 2 * (extragenic + intragenic) + 20
+    # tpms are absolutely necessary for training, but not for predictions, so can miss if data is for predictions
+    if tpms is None and not for_prediction:
+        raise ValueError(f"tpms have to be given if \"for_prediction\" is not set to True!")
     for chrom, start, end, strand, gene_id in annotation.values:#type:ignore
         # skip all chromosomes that are not in the target chromosomes. Empty tuple () means, that all chromosomes should be extracted
         if target_chromosomes != () and chrom not in target_chromosomes:
@@ -34,7 +37,7 @@ def extract_genes(genome, annotation, extragenic, intragenic, ignore_small_genes
         extracted_size = promoter.shape[0] + terminator.shape[0]
         central_pad_size = expected_final_size - extracted_size
 
-        pad_size = 20 if ignore_small_genes.lower() == 'yes' else central_pad_size
+        pad_size = 20 if ignore_small_genes else central_pad_size
 
         if strand == '+':
             seq = np.concatenate([
@@ -58,7 +61,11 @@ def extract_genes(genome, annotation, extragenic, intragenic, ignore_small_genes
                 y = extracted_tuple[1]
                 gene_ids = extracted_tuple[2]
             x.append(seq)
-            y.append(tpms.loc[gene_id, 'target'])
+            # tpms check for for_prediction happened earlier
+            if tpms is None:
+                y.append("NA")
+            else:
+                y.append(tpms.loc[gene_id, 'target'])
             gene_ids.append(gene_id)
             extracted_seqs[chrom] = (x, y, gene_ids)
 
@@ -264,20 +271,6 @@ def train_deep_cre(genome, annot, tpm_targets, upstream, downstream, genes_picke
 
 
 
-def result_summary(failed_trainings: List[Tuple[str, int, Exception]], passed_trainings: List[Tuple[str, int]], input_length: int) -> None:
-    if failed_trainings:
-        print("_______________________________________________________________")
-        print(f"During training the following errors occurred:")
-        for name, line, err in failed_trainings:
-            print(f"output name \"{name}\" (line {line + 1} in the input file) failed with error message:\n{err}")
-            print("_______________________________________________________________")
-        print(f"{len(passed_trainings)} / {input_length} passed.")
-        print("_______________________________________________________________")
-        print(f"names of the failed runs:", end=" ")
-        for name, line, _ in failed_trainings:
-            print(f"{name} (line {line + 1})", sep=", ")
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
@@ -303,6 +296,7 @@ def main():
     data = pd.read_csv(args.input, sep=',', header=None,
                     dtype={0: str, 1: str, 2: str, 3: str, 4: str, 5: str},
                     names=['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key'])
+    ignore_small_genes = args.ignore_small_genes.lower() == "yes"
     print(data.head())
 
     if data.shape[1] != 6:
@@ -337,7 +331,7 @@ def main():
                                         output_name=output_name,
                                         model_case=args.model_case,
                                         pickled_key=pickled_key,
-                                        ignore_small_genes=args.ignore_small_genes)
+                                        ignore_small_genes=ignore_small_genes)
                 results_genome.append(results)
                 print(f"Results for genome: {genome}, chromosome: {val_chrom}: {results}")
             results_genome = pd.DataFrame(results_genome, columns=['loss', 'accuracy', 'auROC', 'auPR'])
@@ -350,7 +344,7 @@ def main():
             print(e)
             failed_trainings.append((output_name, i, e))
 
-    result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data))
+    result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
 if __name__ == "__main__":
     main()

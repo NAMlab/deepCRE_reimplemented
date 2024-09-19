@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 import numpy as np
 import os
 from pyfaidx import Fasta
@@ -46,8 +46,6 @@ def get_filename_from_path(path: str) -> str:
     Returns:
         str: name of the file
     """
-    if not os.path.isfile(path):
-        raise ValueError("path must lead to a file!")
     file_name = os.path.splitext(os.path.basename(path))[0]
     return file_name
 
@@ -102,20 +100,48 @@ def load_input_files(genome_file_name: str = "", annotation_file_name: str = "",
     results = {}
 
     if genome_file_name != "":
-        genome_path = make_absolute_path("genome", genome_file_name, start_file=__file__)
-        genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
+        #see if given name is full path to file
+        if os.path.isfile(genome_file_name):
+            genome = Fasta(filename=genome_file_name, as_raw=True, read_ahead=10000, sequence_always_upper=True)
+        else:
+            genome_path = make_absolute_path("genome", genome_file_name, start_file=__file__)
+            genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
         results["genome"] = genome
 
     if annotation_file_name != "":
-        annotation_path = make_absolute_path("gene_models", annotation_file_name, start_file=__file__)
-        annotation = load_annotation(annotation_path=annotation_path)
+        #see if given name is full path to file
+        if os.path.isfile(annotation_file_name):
+            annotation = load_annotation(annotation_path=annotation_file_name)
+        else:
+            annotation_path = make_absolute_path("gene_models", annotation_file_name, start_file=__file__)
+            annotation = load_annotation(annotation_path=annotation_path)
         # annot = annot[annot['Chromosome'] == val_chromosome]
         results["annotation"] = annotation
 
     if tpm_counts_file_name != "":
-        tpm_path = make_absolute_path("tpm_counts", tpm_counts_file_name, start_file=__file__)
-        tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
+        #see if given name is full path to file
+        if os.path.isfile(tpm_counts_file_name):
+            tpms = pd.read_csv(filepath_or_buffer=tpm_counts_file_name, sep=',')
+
+        else:
+            tpm_path = make_absolute_path("tpm_counts", tpm_counts_file_name, start_file=__file__)
+            tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
         tpms.set_index('gene_id', inplace=True)
         results["tpms"] = tpms
 
     return results
+
+
+def result_summary(failed_trainings: List[Tuple[str, int, Exception]], passed_trainings: List[Tuple[str, int]], input_length: int, script: str) -> None:
+    if failed_trainings:
+        print("_______________________________________________________________")
+        print(f"During your run of the script {script} the following errors occurred:")
+        for name, line, err in failed_trainings:
+            print(f"\"{name}\" (line {line + 1} in the input file) failed with error message:\n{err}")
+            print("_______________________________________________________________")
+        print(f"{len(passed_trainings)} / {input_length} passed.")
+        print("_______________________________________________________________")
+        print(f"names of the failed runs:", end=" ")
+        for name, line, _ in failed_trainings:
+            print(f"{name} (line {line + 1})", sep=", ")
+
