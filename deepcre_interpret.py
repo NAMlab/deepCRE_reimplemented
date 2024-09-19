@@ -162,11 +162,12 @@ def main():
     if data.shape[1] != 5:
         raise Exception("Input file incorrect. Your input file must contain 5 columns and must be .csv")
 
+    ignore_small_genes_flag = args.ignore_small_genes.lower() == "yes"
 
     for genome, gtf, tpm_counts, output_name, chromosomes_file in data.values:
         chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
         results = extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=1000, downstream=500,
-                    chromosome_list=chromosomes, ignore_small_genes=args.ignore_small_genes,
+                    chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
                     output_name=output_name, model_case=args.model_case)
         shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
         save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
