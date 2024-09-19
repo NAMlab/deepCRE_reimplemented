@@ -41,7 +41,7 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
     for candidate in candidate_models:
         match = regex.match(candidate)
         if match:
-            # group 1 is the "(.+)" part of the regex, so the place where the chromosome is located in the file name
+            # group 1 is the "(.+)" part of the regex, so the name of the validation chromosome for the model
             chromosome = val_chromosome if val_chromosome else match.group(1)
             if chromosome in fitting_models:
                 fitting_models[chromosome].append(candidate)
@@ -69,37 +69,14 @@ def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case
     pred_probs = model.predict(x).ravel()
     return x, y, pred_probs, gene_ids, model
 
-def predict_other(extragenic, intragenic, val_chromosome, output_name, model_case, extracted_genes) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-
-    x, y, gene_ids = extracted_genes[str(val_chromosome)]
-
-    # Masking
-    x[:, extragenic:extragenic + 3, :] = 0                                                                                                  #type:ignore
-    x[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0                                                      #type:ignore
-
-    newest_model_paths = find_newest_model_path(output_name=output_name, model_case=model_case)
-    models = {os.path.basename(model_path): load_model(model_path) for chromosome, model_path in newest_model_paths.items()}
-
-
-    df_dict = {model_name: model.predict(x).ravel() for model_name, model in models.items()}
-    df_dict['true_targets'] = y
-    df_dict['genes'] = gene_ids
-    result_df = pd.DataFrame(df_dict)
-    return result_df, models
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
-                        description="""
-                        This script performs the deepCRE prediction. We assume you have the following three directories:
-                        tmp_counts (contains your counts files), genome (contains the genome fasta files),
-                        gene_models (contains the gtf files)
-                        """)
+                        description="This script performs the deepCRE prediction. We assume you have the following three" + 
+                        "directories:tmp_counts (contains your counts files), genome (contains the genome fasta files), gene_models (contains the gtf files)")
 
-    parser.add_argument('--input',
-                        help="""
-                        This is a 5 column csv file with entries: genome, gtf, tpm, output name, number of chromosomes.""",
+    parser.add_argument('--input', "-i", 
+                        help="This is a 5 column csv file with entries: genome, gtf, tpm, output name, number of chromosomes.",
                         required=True)
     parser.add_argument('--model_case', help="Can be SSC or SSR", required=True)
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
@@ -131,7 +108,7 @@ def main():
         tpms = loaded_input_files["tpms"]
         extragenic = 1000
         intragenic = 500
-        ignore_small_genes = args.ignore_small_genes
+        ignore_small_genes = args.ignore_small_genes.lower() == "yes"
         extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
         chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosome_file}', header=None).values.ravel().tolist()
         for chrom in chromosomes:
