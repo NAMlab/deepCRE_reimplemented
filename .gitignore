@@ -7,6 +7,7 @@ test_folder/arabidopsis_deepcre_predict_240827_144836_same_old.csv
 test_folder/arabidopsis_deepcre_predict_240916_165930_meins.csv
 test_folder/arabidopsis_deepcre_predict_240916_170201_fritz_merge.csv
 test_folder/compare.py
+test_folder/*/*.csv
 
 #### GITHUB PYTHON TEMPLATE
 
