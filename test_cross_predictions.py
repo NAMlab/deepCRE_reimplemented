@@ -37,7 +37,7 @@ class TestCrossPredictions(unittest.TestCase):
         all_there["chromosome_selection"] = [""]
         all_there["target_classes"] = [""]
         
-        all_there.to_csv(os.path.join(folder_path, "all_empty_fail.csv"), index=False)
+        all_there.to_csv(os.path.join(folder_path, "all_empty_pass.csv"), index=False)
 
     @staticmethod
     def create_input_dataframe(cols_to_use: List[bool], folder_path: str) -> str:
