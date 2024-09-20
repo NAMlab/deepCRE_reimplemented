@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 from tensorflow.keras.models import load_model #type:ignore
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Union
 import argparse
 
 from train_ssr_models import extract_genes
@@ -163,7 +163,7 @@ def get_chromosomes(chromosomes_file: str, annotation: pd.DataFrame) -> Tuple[Li
     return chromosomes,chromosomes_tuple
 
 
-def get_raw_values_from_row(row: pd.Series, failed_trainings: List, i):
+def get_required_values(row: pd.Series, failed_trainings: List, i):
     """reads the values off the required columns
 
     Args:
@@ -184,11 +184,15 @@ def get_raw_values_from_row(row: pd.Series, failed_trainings: List, i):
     return genome_file_name,annotation_file_name,subject_species_name,models, error
         
 
-def run_cross_predictions():
+def run_cross_predictions(data: Union[pd.DataFrame, None] = None):
     """runs cross predictions as specified by the input file.
+
+    Args:
+        data (Union[pd.DataFrame, None]): input data frame. Usually will be loaded from input file. Can be provided directly for testing purposes.
     """
-    args = parse_args()
-    data = pd.read_csv(args.input, sep=',')
+    if data is None:
+        args = parse_args()
+        data = pd.read_csv(args.input, sep=',')
     check_input(data)
     print(data.head())
     folder_name = make_absolute_path('results', 'predictions', start_file=__file__)
@@ -199,7 +203,7 @@ def run_cross_predictions():
     failed_trainings, passed_trainings = [],[]
     for i, row in data.iterrows():
         try:
-            values = get_raw_values_from_row(row=row, failed_trainings=failed_trainings, i=i)
+            values = get_required_values(row=row, failed_trainings=failed_trainings, i=i)
             genome_file_name, annotation_file_name, subject_species_name, models, failed_extraction = values
             if failed_extraction:
                 continue
