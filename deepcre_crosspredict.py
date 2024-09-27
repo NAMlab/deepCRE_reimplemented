@@ -89,7 +89,7 @@ def get_optional_values(row: pd.Series) -> Tuple[str, str, str, str, str]:
     """
     results = {}
     for column in ["target_classes", "chromosome_selection", "ignore_small_genes", "intragenic_extraction_length", "extragenic_extraction_length"]:
-        if column in row.values:
+        if column in row.index:
             results[column] = row[column]
         else:
             results[column] = ""
@@ -154,7 +154,7 @@ def get_chromosomes(chromosomes_file: str, annotation: pd.DataFrame) -> Tuple[Li
         Tuple[List, Tuple]: List and tuple containing the names of the chromosomes to be used. If the chromosomes file is empty, the tuple will be empty.
     """
     if chromosomes_file:
-        chromosomes = pd.read_csv(chromosomes_file, header=None)
+        chromosomes = pd.read_csv(chromosomes_file, header=None, dtype={0: str})
         chromosomes_tuple = tuple(chromosomes[0].values)
         chromosomes = list(chromosomes[0].values)
     else:
