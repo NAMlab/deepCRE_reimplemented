@@ -6,6 +6,10 @@ import os
 import deepcre_crosspredict as cp
 
 
+model_names = "arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"
+# model_names = "arabidopsis_1_SSR_train_ssr_models_240916_170010.h5;arabidopsis_2_SSR_train_ssr_models_240916_170112.h5"
+
+
 class TestCrossPredictions(unittest.TestCase):
 
     def __init__(self):
@@ -46,7 +50,7 @@ class TestCrossPredictions(unittest.TestCase):
         columns = [
             ("genome", "Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"),
             ("gene_model", "Arabidopsis_thaliana.TAIR10.52.gtf"),
-            ("model_names", "arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"),
+            ("model_names", model_names),
             ("subject_species_name", "arabidopsis"),
             ("intragenic_extraction_length", 600),
             ("extragenic_extraction_length", 900),
@@ -70,7 +74,7 @@ class TestCrossPredictions(unittest.TestCase):
         necessary_columns = {
             "genome": ["Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"],
             "gene_model": ["Arabidopsis_thaliana.TAIR10.52.gtf"],
-            "model_names": ["arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"],
+            "model_names": [model_names],
             "subject_species_name": ["arabidopsis"]
         }
         input_path = self.create_test_input(necessary_columns, "base_case.csv")
@@ -109,12 +113,12 @@ class TestCrossPredictions(unittest.TestCase):
         test_input_dicts.append(({
             "genome": ["Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"],
             "gene_model": ["Arabidopsis_thaliana.TAIR10.52.gtf"],
-            "model_names": ["arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"],
+            "model_names": [model_names],
             "subject_species_name": ["arabidopsis"]
         }, "base_case.csv"))
         test_input_dicts.append(({
             "genome": ["Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"],
-            "model_names": ["arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"],
+            "model_names": [model_names],
             "subject_species_name": ["arabidopsis"]
         }, "one_column_missing.csv"))
         test_input_dicts.append(({
@@ -123,8 +127,8 @@ class TestCrossPredictions(unittest.TestCase):
         test_input_dicts.append(({
             "genome": ["Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"],
             "gene_model": ["Arabidopsis_thaliana.TAIR10.52.gtf"],
-            "model_names": ["arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"],
-            "random_addon_col": ["arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"],
+            "model_names": [model_names],
+            "random_addon_col": [model_names],
             "subject_species_name": ["arabidopsis"]
         }, "addidtional_unused_column.csv"))
         file_paths = {file_name: self.create_test_input(input_dict, file_name) for input_dict, file_name in test_input_dicts}
