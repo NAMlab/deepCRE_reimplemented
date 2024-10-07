@@ -182,6 +182,10 @@ def get_required_values(row: pd.Series, failed_trainings: List, i):
             error = True
     models = parse_model_names(row["model_names"])
     return genome_file_name,annotation_file_name,subject_species_name,models, error
+
+
+def read_df(path: str) -> pd.DataFrame:
+    return pd.read_csv(path, sep=',', na_values={"target_classes": [], "chromosome_selection": [], "ignore_small_genes": [], "intragenic_extraction_length": [], "extragenic_extraction_length":[]}, keep_default_na=False)
         
 
 def run_cross_predictions(data: Union[pd.DataFrame, None] = None):
@@ -192,7 +196,7 @@ def run_cross_predictions(data: Union[pd.DataFrame, None] = None):
     """
     if data is None:
         args = parse_args()
-        data = pd.read_csv(args.input, sep=',')
+        data = read_df(args.input)
     check_input(data)
     print(data.head())
     folder_name = make_absolute_path('results', 'predictions', start_file=__file__)
@@ -206,6 +210,7 @@ def run_cross_predictions(data: Union[pd.DataFrame, None] = None):
             values = get_required_values(row=row, failed_trainings=failed_trainings, i=i)
             genome_file_name, annotation_file_name, subject_species_name, models, failed_extraction = values
             if failed_extraction:
+                #TODO: properly catch this case, with output at the end (result_summary)
                 continue
         
             target_class_file, chromosomes_file, ignore_small_genes, intragenic, extragenic = get_optional_values(row)

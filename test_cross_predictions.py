@@ -6,8 +6,8 @@ import os
 import deepcre_crosspredict as cp
 
 
-model_names = "arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"
-# model_names = "arabidopsis_1_SSR_train_ssr_models_240916_170010.h5;arabidopsis_2_SSR_train_ssr_models_240916_170112.h5"
+# model_names = "arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"
+model_names = "arabidopsis_1_SSR_train_ssr_models_240916_170010.h5;arabidopsis_2_SSR_train_ssr_models_240916_170112.h5"
 
 
 class TestCrossPredictions(unittest.TestCase):
@@ -52,11 +52,11 @@ class TestCrossPredictions(unittest.TestCase):
             ("gene_model", "Arabidopsis_thaliana.TAIR10.52.gtf"),
             ("model_names", model_names),
             ("subject_species_name", "arabidopsis"),
-            ("intragenic_extraction_length", 600),
-            ("extragenic_extraction_length", 900),
+            ("intragenic_extraction_length", 500),
+            ("extragenic_extraction_length", 1000),
             ("ignore_small_genes", "no"),
             ("chromosome_selection", "genome/arabidopsis_chroms.csv"),
-            ("target_classes", "tpm_counts/arabidopsis_counts.csv"),
+            ("target_classes", "tpm_counts/arabidopsis_targets.csv"),
         ]
         input_dict = {
             columns[i][0]: [columns[i][1]] for i, include_column in enumerate(cols_to_use) if include_column
@@ -88,7 +88,8 @@ class TestCrossPredictions(unittest.TestCase):
             file_path = os.path.join(folder_path, file)
             if not os.path.isfile(file_path):
                 continue
-            input_df = pd.read_csv(file_path)
+            input_df = cp.read_df(file_path)
+            print(f"!!! TESTING {file} !!!\n")
             if "_fail" in file_path:
                 self.assertRaises(ValueError, cp.run_cross_predictions, input_df)
             else:
