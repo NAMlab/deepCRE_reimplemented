@@ -195,7 +195,7 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
             np.random.shuffle(promoter)
             np.random.shuffle(terminator)
 
-        pad_size = 20 if ignore_small_genes.lower() == 'yes' else central_pad_size
+        pad_size = 20 if ignore_small_genes else central_pad_size
 
         if strand == '+':
             seq = np.concatenate([
