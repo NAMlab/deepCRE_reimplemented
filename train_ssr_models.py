@@ -337,7 +337,7 @@ def main():
                     results_genome.append(results)
                     print(f"Results for genome: {genome}, chromosome: {val_chrom}: {results}")
                 results_genome = pd.DataFrame(results_genome, columns=['loss', 'accuracy', 'auROC', 'auPR'])
-                save_file = make_absolute_path('results', f"{output_name}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
+                save_file = make_absolute_path('results', f"{output_name}_{model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
                 results_genome.to_csv(path_or_buf=save_file, index=False)
                 print(results_genome.head())
 
