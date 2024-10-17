@@ -28,7 +28,7 @@ def onehot(seq):
 
 def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filter: List[str]) -> pd.DataFrame:
     chromosomes, starts, ends, strands, gene_ids = [], [], [], [], []
-    weird_starnd_counter = 0
+    weird_strand_counter = 0
     with open(annotation_path, "r") as file:
         filter = dict(gff_type=feature_type_filter)
         rec: SeqRecord.SeqRecord
@@ -39,7 +39,7 @@ def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filt
                 strand = feat.location.strand #type:ignore
                 if strand not in [-1, 1]:
                     # print(f"no proper strand available for {feat.id} on {rec.id}")
-                    weird_starnd_counter += 1
+                    weird_strand_counter += 1
                     # nothing should be appended, if one of the columns cant be filled properly. 
                     continue
                 strand = "+" if strand == 1 else "-"
@@ -53,7 +53,7 @@ def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filt
                 # print(f"{gene_name_attribute}: {gene_id}")
                 gene_ids.append(gene_id)
 
-    print(f"{weird_starnd_counter} entries missing due to unclear strand (only \"+\" and \"-\" allowed).")
+    print(f"{weird_strand_counter} entries missing due to unclear strand (only \"+\" and \"-\" allowed).")
     return pd.DataFrame(data={
         "chromosome": chromosomes,
         "start": starts,
