@@ -28,6 +28,7 @@ def onehot(seq):
 
 def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filter: List[str]) -> pd.DataFrame:
     chromosomes, starts, ends, strands, gene_ids = [], [], [], [], []
+    weird_starnd_counter = 0
     with open(annotation_path, "r") as file:
         filter = dict(gff_type=feature_type_filter)
         rec: SeqRecord.SeqRecord
@@ -37,7 +38,8 @@ def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filt
                 # extracted_seq = feat.extract(fasta_obj[rec.id])
                 strand = feat.location.strand #type:ignore
                 if strand not in [-1, 1]:
-                    print(f"no proper strand available for {feat.id} on {rec.id}")
+                    # print(f"no proper strand available for {feat.id} on {rec.id}")
+                    weird_starnd_counter += 1
                     # nothing should be appended, if one of the columns cant be filled properly. 
                     continue
                 strand = "+" if strand == 1 else "-"
@@ -51,6 +53,7 @@ def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filt
                 # print(f"{gene_name_attribute}: {gene_id}")
                 gene_ids.append(gene_id)
 
+    print(f"{weird_starnd_counter} entries missing due to unclear strand (only \"+\" and \"-\" allowed).")
     return pd.DataFrame(data={
         "chromosome": chromosomes,
         "start": starts,
@@ -117,6 +120,7 @@ def extract_string(fasta_obj: Fasta, gene_df: pd.DataFrame, intragenic: int, ext
     genes_seqs = {}
     # Debug: Check number of genes being processed
     print(f"Number of genes to process: {len(gene_df)}")
+    genes_too_close_to_sequence_edge_counter = 0
     for chrom, start, end, strand, gene_id in gene_df.values:
         # print(f"Processing gene {gene_id} on chromosome {chrom} from {start} to {end} (strand {strand})")  # Debugging info
         vals = find_start_end(start=start, end=end, intragenic=intragenic, extragenic=extragenic, strand=strand)
@@ -139,8 +143,9 @@ def extract_string(fasta_obj: Fasta, gene_df: pd.DataFrame, intragenic: int, ext
                 header = f"{chrom}_{gene_id}:{end}-{start}"  # Invert start and end
             genes_seqs[header] = gene_flanks
         else:
-            print(f"chrom: {chrom}, start: {start}, end: {end}, gene_id: {gene_id}")
+            genes_too_close_to_sequence_edge_counter += 1
     
+    print(f"{genes_too_close_to_sequence_edge_counter} genes are too close to the edge of the sequence to extract a full length gene flanking region!")
     if genes_seqs:
         print(f"Writing {len(genes_seqs)} sequences to output file: {output_file}")
         with open(output_file, "w") as f:
