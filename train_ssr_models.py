@@ -284,7 +284,7 @@ def parse_args():
                         This is a six column csv file with entries: genome, gtf, tpm, output name,
                         number of chromosomes and pickle_key.""", required=True)
     parser.add_argument('--pickle', help="path to pickle file", required=True)
-    parser.add_argument('--model_case', help="Can be SSC or SSR", required=True)
+    parser.add_argument('--model_case', help="determines whether a model or a control is trained.", required=True, type=str, choices=["SSR", "SSC", "BOTH"])
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
 
     args = parser.parse_args()
@@ -297,6 +297,7 @@ def main():
                     dtype={0: str, 1: str, 2: str, 3: str, 4: str, 5: str},
                     names=['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key'])
     ignore_small_genes = args.ignore_small_genes.lower() == "yes"
+    model_cases = ["SSR", "SSC"] if args.model_case == "BOTH" else [args.model_case]
     print(data.head())
 
     if data.shape[1] != 6:
@@ -312,37 +313,38 @@ def main():
 
     file_name = get_filename_from_path(__file__)
     failed_trainings, passed_trainings = [],[]
-    for genome, gtf, tpm_counts, output_name, chromosomes_file, pickled_key in data.values:
-        try:
-            print(f'Training on genome: ---------------------\n')
-            print(genome)
-            print('\n------------------------------\n')
-            results_genome = []
-            chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-            for i, val_chrom in enumerate(chromosomes):
-                print(f"Using chromosome {val_chrom} as validation chromosome")
-                results = train_deep_cre(genome=genome,
-                                        annot=gtf,
-                                        tpm_targets=tpm_counts,
-                                        upstream=1000,
-                                        downstream=500,
-                                        genes_picked=args.pickle,
-                                        val_chromosome=str(val_chrom),
-                                        output_name=output_name,
-                                        model_case=args.model_case,
-                                        pickled_key=pickled_key,
-                                        ignore_small_genes=ignore_small_genes)
-                results_genome.append(results)
-                print(f"Results for genome: {genome}, chromosome: {val_chrom}: {results}")
-            results_genome = pd.DataFrame(results_genome, columns=['loss', 'accuracy', 'auROC', 'auPR'])
-            save_file = make_absolute_path('results', f"{output_name}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
-            results_genome.to_csv(path_or_buf=save_file, index=False)
-            print(results_genome.head())
+    for model_case in model_cases:
+        for genome, gtf, tpm_counts, output_name, chromosomes_file, pickled_key in data.values:
+            try:
+                print(f'Training on genome: ---------------------\n')
+                print(genome)
+                print('\n------------------------------\n')
+                results_genome = []
+                chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
+                for i, val_chrom in enumerate(chromosomes):
+                    print(f"Using chromosome {val_chrom} as validation chromosome")
+                    results = train_deep_cre(genome=genome,
+                                            annot=gtf,
+                                            tpm_targets=tpm_counts,
+                                            upstream=1000,
+                                            downstream=500,
+                                            genes_picked=args.pickle,
+                                            val_chromosome=str(val_chrom),
+                                            output_name=output_name,
+                                            model_case=model_case,
+                                            pickled_key=pickled_key,
+                                            ignore_small_genes=ignore_small_genes)
+                    results_genome.append(results)
+                    print(f"Results for genome: {genome}, chromosome: {val_chrom}: {results}")
+                results_genome = pd.DataFrame(results_genome, columns=['loss', 'accuracy', 'auROC', 'auPR'])
+                save_file = make_absolute_path('results', f"{output_name}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
+                results_genome.to_csv(path_or_buf=save_file, index=False)
+                print(results_genome.head())
 
-            passed_trainings.append((output_name, i))
-        except Exception as e:
-            print(e)
-            failed_trainings.append((output_name, i, e))
+                passed_trainings.append((output_name, i))
+            except Exception as e:
+                print(e)
+                failed_trainings.append((output_name, i, e))
 
     result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
