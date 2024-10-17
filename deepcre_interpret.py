@@ -98,9 +98,7 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
         correct_x = np.array(correct_x)
 
         # Compute scores
-        print(f"Running shap for chromosome -----------------------------------------\n")
         print(f"Chromosome: {val_chrom}: Species: {output_name}\n")
-        print(f"Running shap for chromosome -----------------------------------------\n")
 
         actual_scores, hypothetical_scores = compute_actual_hypothetical_scores(x=correct_x, model=model)
         shap_actual_scores.append(actual_scores)
@@ -116,7 +114,7 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
     return shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, preds_seqs
 
 
-def save_results(output_name: str, shap_actual_scores, shap_hypothetical_scores, gene_ids_seqs: List, preds_seqs: List):
+def save_results(output_name: str, shap_actual_scores, shap_hypothetical_scores, gene_ids_seqs: List, preds_seqs: List, one_hot_seqs: np.ndarray):
     folder_name = make_absolute_path("results", "shap")
     if not os.path.exists(folder_name):
         os.mkdir(folder_name)
@@ -125,6 +123,7 @@ def save_results(output_name: str, shap_actual_scores, shap_hypothetical_scores,
     with h5py.File(name=h5_file_name, mode='w') as h5_file:
         h5_file.create_dataset(name='contrib_scores', data=shap_actual_scores)
         h5_file.create_dataset(name="hypothetical_contrib_scores", data=shap_hypothetical_scores)
+        h5_file.create_dataset(name="one_hot_seqs", data=one_hot_seqs)
         save_path = make_absolute_path('results', 'shap', f'{output_name}_{file_name}_{get_time_stamp()}_shap_meta.csv', start_file=__file__)
         pd.DataFrame({'gene_ids': gene_ids_seqs, 'preds': preds_seqs}).to_csv(path_or_buf=save_path, index=False)
 
@@ -171,7 +170,7 @@ def main():
                     output_name=output_name, model_case=args.model_case)
         shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
         save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
-                     output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=pred_seqs)
+                     output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=pred_seqs, one_hot_seqs=one_hots_seqs)
 
 if __name__ == "__main__":
     main()
