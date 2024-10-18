@@ -49,10 +49,11 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
 
 
 def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_small_genes,
-                    output_name, model_case, chromosome_list: pd.DataFrame):
+                    output_name, model_case, chromosome_list: pd.DataFrame, force_interpretation: bool = False):
     #TODO: if saved version already present, dont redo calculations, just load existing results
-    #TODO: make option to still recalculate the results forcefully
     try:
+        if force_interpretation:
+            raise ValueError()
         saved_interpretation_results_path = find_newest_interpretation_results(output_name=output_name, results_path=os.path.join("results", "shap"))
         with h5py.File(saved_interpretation_results_path, "r") as f:
             # print(f[key][:])
@@ -83,12 +84,13 @@ def parse_args():
                         gene_models (contains the gtf files)
                         """)
 
-    parser.add_argument('--input',
+    parser.add_argument('--input', "-i",
                         help="""
                         This is a 5 column csv file with entries: genome, gtf, tpm, output name, number of chromosomes.""",
                         required=True)
-    parser.add_argument('--model_case', help="Can be SSC or SSR", required=True)
-    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
+    parser.add_argument('--model_case', "-mc", help="Can be SSC or SSR", required=True)
+    parser.add_argument('--ignore_small_genes', "-isg", help="Ignore small genes, can be yes or no", required=True)
+    parser.add_argument('--force_interpretations', "-fi", help="determines whether interpretations are recalculated, even if there are saved interpretations. If false (default), saved values will be used.", required=False, default="false", choices=["true", "false"])
 
     args = parser.parse_args()
     return args
@@ -99,6 +101,7 @@ def main():
     tf.compat.v1.disable_v2_behavior()
     tf.config.set_visible_devices([], 'GPU')
     args = parse_args()
+    force_interpretation = args.force_interpretation == "true"
     data = pd.read_csv(args.input, sep=',', header=None,
                     dtype={0: str, 1: str, 2: str, 3: str, 4: str},
                     names=['genome', 'gtf', 'tpm', 'output', 'chroms'])
@@ -114,7 +117,7 @@ def main():
             chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
             generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
                             ignore_small_genes=ignore_small_genes, output_name=output_name,
-                            model_case=args.model_case, chromosome_list=chromosomes)
+                            model_case=args.model_case, chromosome_list=chromosomes, force_interpretation=force_interpretation)
         except Exception as e:
             print(e)
             failed_trainings.append((output_name, i, e))
