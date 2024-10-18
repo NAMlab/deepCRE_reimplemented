@@ -8,7 +8,7 @@ import numpy as np
 from deeplift.dinuc_shuffle import dinuc_shuffle
 import shap
 
-from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path
+from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, result_summary
 from deepcre_predict import predict_self
 from train_ssr_models import extract_genes
 
@@ -164,14 +164,22 @@ def main():
 
     ignore_small_genes_flag = args.ignore_small_genes.lower() == "yes"
 
-    for genome, gtf, tpm_counts, output_name, chromosomes_file in data.values:
-        chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-        results = extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=1000, downstream=500,
-                    chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
-                    output_name=output_name, model_case=args.model_case)
-        shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
-        save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
-                     output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=pred_seqs)
+    failed_trainings = []
+    for i, (genome, gtf, tpm_counts, output_name, chromosomes_file) in enumerate(data.values):
+        try:
+            chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
+            results = extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=1000, downstream=500,
+                        chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
+                        output_name=output_name, model_case=args.model_case)
+            shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
+            save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
+                        output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=pred_seqs)
+        except Exception as e:
+            print(e)
+            failed_trainings.append((output_name, i, e))
+    
+
+    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
 if __name__ == "__main__":
     main()

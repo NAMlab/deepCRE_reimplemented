@@ -5,7 +5,7 @@ import os
 import modisco
 from importlib import reload
 import h5py
-from utils import get_filename_from_path, get_time_stamp, make_absolute_path
+from utils import get_filename_from_path, get_time_stamp, make_absolute_path, result_summary
 from deepcre_interpret import extract_scores
 
 
@@ -99,11 +99,18 @@ def main():
         raise Exception("Input file incorrect. Your input file must contain 5 columns and must be .csv")
 
 
-    for genome, gtf, tpm_counts, output_name, chromosomes_file in data.values:
-        chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-        generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
-                        ignore_small_genes=ignore_small_genes, output_name=output_name,
-                        model_case=args.model_case, chromosome_list=chromosomes)
+    failed_trainings = []
+    for i, (genome, gtf, tpm_counts, output_name, chromosomes_file) in enumerate(data.values):
+        try:
+            chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
+            generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
+                            ignore_small_genes=ignore_small_genes, output_name=output_name,
+                            model_case=args.model_case, chromosome_list=chromosomes)
+        except Exception as e:
+            print(e)
+            failed_trainings.append((output_name, i, e))
+
+    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
 
 if __name__ == "__main__":
