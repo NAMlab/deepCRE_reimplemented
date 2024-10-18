@@ -3,11 +3,13 @@ import re
 import pandas as pd
 import unittest
 import pyranges as pr
+import h5py
 
 from train_ssr_models import extract_genes
 from utils import load_input_files, make_absolute_path, get_time_stamp
 from deepcre_predict import find_newest_model_path, predict_self
 import deepcre_crosspredict as cp
+import deepcre_interpret as di
 
 def compare_lists(list1, list2) -> bool:
     if len(list1) != len(list2):
@@ -113,6 +115,13 @@ def compare_predict_other_self():
     print((comparison_chrom_2).all())
 
 
+def read_h5_datasets():
+    with h5py.File("results/shap/arabidopsis_deepcre_interpret_241018_105035.h5", "r") as f:
+        # read and print datasets
+        for key in f.keys():
+            print(key)
+            print(f[key][:])
+
 class TestDeepCRE(unittest.TestCase):
 
     def test_model_finding(self):
@@ -123,6 +132,11 @@ class TestDeepCRE(unittest.TestCase):
         self.assertEqual(results["1"], os.path.join(path_to_models, "arabidopsis_1_SSR_train_ssr_models_240822_103323.h5"))
         self.assertEqual(results["2"], os.path.join(path_to_models, "arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"))
 
+    def test_interpretation_results_finding(self):
+        result = di.find_newest_interpretation_results(output_name="arabidopsis", results_path="results/shap")
+        path_to_models = make_absolute_path("results", "shap", start_file=__file__)
+        self.assertEqual(result, os.path.join(path_to_models, "arabidopsis_deepcre_interpret_241018_105035.h5"))
+
 
 
 if __name__ == "__main__":
@@ -131,3 +145,4 @@ if __name__ == "__main__":
     # test_predict_other()
     # compare_predict_other_self()
     # test_gene_dist()
+    # read_h5_datasets()

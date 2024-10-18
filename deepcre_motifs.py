@@ -6,7 +6,7 @@ import modisco
 from importlib import reload
 import h5py
 from utils import get_filename_from_path, get_time_stamp, make_absolute_path, result_summary
-from deepcre_interpret import extract_scores
+from deepcre_interpret import extract_scores, find_newest_interpretation_results
 
 
 def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name):
@@ -50,14 +50,23 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
 
 def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_small_genes,
                     output_name, model_case, chromosome_list: pd.DataFrame):
-
-    actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
-                                                                        tpm_counts_file_name=tpm_targets,
-                                                                        upstream=upstream, downstream=downstream,
-                                                                        chromosome_list=chromosome_list,
-                                                                        ignore_small_genes=ignore_small_genes,
-                                                                        output_name=output_name,
-                                                                        model_case=model_case)
+    #TODO: if saved version already present, dont redo calculations, just load existing results
+    #TODO: make option to still recalculate the results forcefully
+    try:
+        saved_interpretation_results_path = find_newest_interpretation_results(output_name=output_name, results_path=os.path.join("results", "shap"))
+        with h5py.File(saved_interpretation_results_path, "r") as f:
+            # print(f[key][:])
+            actual_scores = f["contrib_scores"]
+            hypothetical_scores = f["hypothetical_contrib_scores"]
+            one_hots = f["one_hot_seqs"]
+    except ValueError:
+        actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
+                                                                            tpm_counts_file_name=tpm_targets,
+                                                                            upstream=upstream, downstream=downstream,
+                                                                            chromosome_list=chromosome_list,
+                                                                            ignore_small_genes=ignore_small_genes,
+                                                                            output_name=output_name,
+                                                                            model_case=model_case)
 
     print("Now running MoDisco --------------------------------------------------\n")
     print(f"Species: {output_name} \n")
