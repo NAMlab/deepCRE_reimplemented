@@ -209,5 +209,6 @@ def main():
 
     result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
+
 if __name__ == "__main__":
     main()
