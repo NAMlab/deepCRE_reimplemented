@@ -101,7 +101,7 @@ def main():
     tf.compat.v1.disable_v2_behavior()
     tf.config.set_visible_devices([], 'GPU')
     args = parse_args()
-    force_interpretation = args.force_interpretation == "true"
+    force_interpretation = args.force_interpretations == "true"
     data = pd.read_csv(args.input, sep=',', header=None,
                     dtype={0: str, 1: str, 2: str, 3: str, 4: str},
                     names=['genome', 'gtf', 'tpm', 'output', 'chroms'])
