@@ -235,7 +235,7 @@ def run_cross_predictions(data: Union[pd.DataFrame, None] = None):
             print(e)
             failed_trainings.append((f"{model_file_name} -> {subject_species_name}", i, e))
 
-    result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
+    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
 
 if __name__ == "__main__":
