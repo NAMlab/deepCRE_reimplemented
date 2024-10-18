@@ -145,6 +145,8 @@ def result_summary(failed_trainings: List[Tuple[str, int, Exception]], input_len
         for name, line, _ in failed_trainings:
             print(f"{name} (line {line + 1})", sep=", ")
     else:
+        print("_______________________________________________________________")
         print(f"Your run of the script \"{script}\" finished with no errors!")
+        print("_______________________________________________________________")
 
 
