@@ -132,16 +132,19 @@ def load_input_files(genome_file_name: str = "", annotation_file_name: str = "",
     return results
 
 
-def result_summary(failed_trainings: List[Tuple[str, int, Exception]], passed_trainings: List[Tuple[str, int]], input_length: int, script: str) -> None:
+def result_summary(failed_trainings: List[Tuple[str, int, Exception]], input_length: int, script: str) -> None:
     if failed_trainings:
         print("_______________________________________________________________")
-        print(f"During your run of the script {script} the following errors occurred:")
+        print(f"During your run of the script \"{script}\" the following errors occurred:")
         for name, line, err in failed_trainings:
             print(f"\"{name}\" (line {line + 1} in the input file) failed with error message:\n{err}")
             print("_______________________________________________________________")
-        print(f"{len(passed_trainings)} / {input_length} passed.")
+        print(f"{input_length - len(failed_trainings)} / {input_length} passed.")
         print("_______________________________________________________________")
         print(f"names of the failed runs:", end=" ")
         for name, line, _ in failed_trainings:
             print(f"{name} (line {line + 1})", sep=", ")
+    else:
+        print(f"Your run of the script \"{script}\" finished with no errors!")
+
 

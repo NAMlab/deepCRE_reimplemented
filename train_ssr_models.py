@@ -312,7 +312,7 @@ def main():
         os.makedirs(models_path)
 
     file_name = get_filename_from_path(__file__)
-    failed_trainings, passed_trainings = [],[]
+    failed_trainings = []
     for model_case in model_cases:
         for genome, gtf, tpm_counts, output_name, chromosomes_file, pickled_key in data.values:
             try:
@@ -341,12 +341,11 @@ def main():
                 results_genome.to_csv(path_or_buf=save_file, index=False)
                 print(results_genome.head())
 
-                passed_trainings.append((output_name, i))
             except Exception as e:
                 print(e)
                 failed_trainings.append((output_name, i, e))
 
-    result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
+    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
 if __name__ == "__main__":
     main()
