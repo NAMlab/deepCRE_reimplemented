@@ -1,6 +1,6 @@
 import argparse
 import os
-from typing import List
+from typing import List, Dict
 import pandas as pd
 import tensorflow as tf
 import h5py
@@ -11,7 +11,36 @@ import shap
 from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, result_summary
 from deepcre_predict import predict_self
 from train_ssr_models import extract_genes
+import re
 
+
+def find_newest_interpretation_results(output_name: str, results_path: str = "") -> str:
+    """finds path to newest model fitting the given parameters
+
+    Args:
+        output_name (str): output name the was used for creating the predictions in the first place
+        results_path (str): path to the directory where prediction results are stored.
+
+    Raises:
+        ValueError: raises an error if no fitting model is found
+
+    Returns:
+        str: Path to the newest prediction results for the given output name.
+    """
+    if results_path == "":
+        path_to_interpretations = make_absolute_path("saved_models", start_file=__file__)
+    else:
+        path_to_interpretations = make_absolute_path(results_path, start_file=__file__)
+    # ^ and $ mark start and end of a string. \d singnifies any digit. \d+ means a sequence of digits with at least length 1
+    regex_string = f"^{output_name}_deepcre_interpret_\d+_\d+\.h5$"                                                        #type:ignore
+    regex = re.compile(regex_string)
+    candidate_models = [model for model in os.listdir(path_to_interpretations) if regex.match(model)]
+    if not candidate_models:
+        raise ValueError("no interpretation results fitting the given parameters were found! Consider running the interpretation script (deepcre_interpret.py)")
+    # models only differ in the time stamp. So if sorted, the last model will be the most recently trained
+    candidate_models.sort()
+    full_path = os.path.join(path_to_interpretations, candidate_models[-1])
+    return full_path
 
 # 1. Shap
 def dinuc_shuffle_several_times(list_containing_input_modes_for_an_example, seed=1234):
