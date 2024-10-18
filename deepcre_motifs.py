@@ -57,9 +57,9 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
         saved_interpretation_results_path = find_newest_interpretation_results(output_name=output_name, results_path=os.path.join("results", "shap"))
         with h5py.File(saved_interpretation_results_path, "r") as f:
             # print(f[key][:])
-            actual_scores = f["contrib_scores"]
-            hypothetical_scores = f["hypothetical_contrib_scores"]
-            one_hots = f["one_hot_seqs"]
+            actual_scores = f["contrib_scores"][:]
+            hypothetical_scores = f["hypothetical_contrib_scores"][:]
+            one_hots = f["one_hot_seqs"][:]
     except ValueError:
         actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
                                                                             tpm_counts_file_name=tpm_targets,
