@@ -5,6 +5,7 @@ import unittest
 import pyranges as pr
 import h5py
 
+from deepcre_motifs import generate_motifs
 from train_ssr_models import extract_genes
 from utils import load_input_files, make_absolute_path, get_time_stamp
 from deepcre_predict import find_newest_model_path, predict_self
@@ -120,7 +121,22 @@ def read_h5_datasets():
         # read and print datasets
         for key in f.keys():
             print(key)
-            print(f[key][:])
+            print(f[key][:]) #type:ignore
+
+
+def test_motif_extraction():
+    chromosomes = pd.read_csv(filepath_or_buffer=f'genome/arabidopsis_chroms.csv', header=None).values.ravel().tolist()
+    generate_motifs(genome="Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
+                    annot="Arabidopsis_thaliana.TAIR10.52.gtf",
+                    tpm_targets="arabidopsis_counts.csv",
+                    upstream=1000,
+                    downstream=500,
+                    ignore_small_genes=False,
+                    output_name="arabidopsis",
+                    model_case="ssr",
+                    chromosome_list=chromosomes,
+                    force_interpretation=False)
+
 
 class TestDeepCRE(unittest.TestCase):
 
@@ -140,9 +156,10 @@ class TestDeepCRE(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
     # test_regex()
     # test_predict_other()
     # compare_predict_other_self()
     # test_gene_dist()
     # read_h5_datasets()
+    test_motif_extraction()
