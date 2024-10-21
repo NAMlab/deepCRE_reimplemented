@@ -49,7 +49,7 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
 
 
 def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_small_genes,
-                    output_name, model_case, chromosome_list: pd.DataFrame):
+                    output_name, model_case, chromosome_list: pd.DataFrame, train_val_split):
 
     actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
                                                                         tpm_counts_file_name=tpm_targets,
@@ -57,7 +57,8 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
                                                                         chromosome_list=chromosome_list,
                                                                         ignore_small_genes=ignore_small_genes,
                                                                         output_name=output_name,
-                                                                        model_case=model_case)
+                                                                        model_case=model_case, 
+                                                                        train_val_split=train_val_split)
 
     print("Now running MoDisco --------------------------------------------------\n")
     print(f"Species: {output_name} \n")
@@ -80,6 +81,7 @@ def parse_args():
                         required=True)
     parser.add_argument('--model_case', help="Can be SSC or SSR", required=True)
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
+    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
 
     args = parser.parse_args()
     return args
@@ -102,7 +104,7 @@ def main():
         chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
         generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
                         ignore_small_genes=args.ignore_small_genes, output_name=output_name,
-                        model_case=args.model_case, chromosome_list=chromosomes)
+                        model_case=args.model_case, chromosome_list=chromosomes, train_val_split=args.train_val_split)
 
 
 if __name__ == "__main__":
