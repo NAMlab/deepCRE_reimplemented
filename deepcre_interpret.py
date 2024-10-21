@@ -139,6 +139,8 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
     shap_actual_scores = np.concatenate(shap_actual_scores, axis=0)
     shap_hypothetical_scores = np.concatenate(shap_hypothetical_scores, axis=0)
     one_hots_seqs = np.concatenate(one_hots_seqs, axis=0)
+    save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
+                 output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=preds_seqs, one_hot_seqs=one_hots_seqs)
 
     return shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, preds_seqs
 
@@ -182,6 +184,9 @@ def main():
     tf.compat.v1.disable_v2_behavior()
     tf.config.set_visible_devices([], 'GPU')
 
+    intragenic = 500
+    extragenic = 1000
+
     args = parse_args()
     data = pd.read_csv(args.input, sep=',', header=None,
                     dtype={0: str, 1: str, 2: str, 3: str, 4: str},
@@ -196,12 +201,9 @@ def main():
     for i, (genome, gtf, tpm_counts, output_name, chromosomes_file) in enumerate(data.values):
         try:
             chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-            results = extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=1000, downstream=500,
-                        chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
-                        output_name=output_name, model_case=args.model_case)
-            shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
-            save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
-                        output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=pred_seqs, one_hot_seqs=one_hots_seqs)
+            extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=extragenic, downstream=intragenic,
+                           chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
+                           output_name=output_name, model_case=args.model_case)
         except Exception as e:
             print(e)
             failed_trainings.append((output_name, i, e))
