@@ -49,7 +49,7 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
 
 
 def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_small_genes,
-                    output_name, model_case, chromosome_list: pd.DataFrame, force_interpretation: bool = False):
+                    output_name, model_case, chromosome_list: pd.DataFrame, train_val_split, force_interpretation: bool = False):
     try:
         if force_interpretation:
             raise ValueError()
@@ -65,7 +65,7 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
                                                                             chromosome_list=chromosome_list,
                                                                             ignore_small_genes=ignore_small_genes,
                                                                             output_name=output_name,
-                                                                            model_case=model_case)
+                                                                            model_case=model_case, train_val_split=train_val_split)
 
     print("Now running MoDisco --------------------------------------------------\n")
     print(f"Species: {output_name} \n")
@@ -89,6 +89,7 @@ def parse_args():
     parser.add_argument('--model_case', "-mc", help="Can be SSC or SSR", required=True)
     parser.add_argument('--ignore_small_genes', "-isg", help="Ignore small genes, can be yes or no", required=True)
     parser.add_argument('--force_interpretations', "-fi", help="determines whether interpretations are recalculated, even if there are saved interpretations. If false (default), saved values will be used.", required=False, default="false", choices=["true", "false"])
+    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
 
     args = parser.parse_args()
     return args
@@ -115,7 +116,7 @@ def main():
             chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
             generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
                             ignore_small_genes=ignore_small_genes, output_name=output_name,
-                            model_case=args.model_case, chromosome_list=chromosomes, force_interpretation=force_interpretation)
+                            model_case=args.model_case, chromosome_list=chromosomes, train_val_split=args.train_val_split, force_interpretation=force_interpretation)
         except Exception as e:
             print(e)
             failed_trainings.append((output_name, i, e))

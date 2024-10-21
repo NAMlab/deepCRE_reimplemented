@@ -8,12 +8,16 @@ from utils import get_filename_from_path, get_time_stamp, load_input_files, one_
 from train_ssr_models import extract_genes, find_newest_model_path
 
 
-def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case, extracted_genes):
+def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case, extracted_genes, train_val_split):
+
     x, y, gene_ids = extracted_genes[str(val_chromosome)]
 
     # Masking
     x[:, extragenic:extragenic + 3, :] = 0                                                                                                  #type:ignore
     x[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0                                                      #type:ignore
+
+    if train_val_split.lower() == 'yes':
+        val_chromosome = "1|2|3" 
 
     newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=val_chromosome, model_case=model_case)
     model = load_model(newest_model_paths[val_chromosome])
@@ -32,6 +36,7 @@ def parse_args():
                         required=True)
     parser.add_argument('--model_case', help="Can be SSC or SSR", required=True)
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
+    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
 
     args = parser.parse_args()
     return args
@@ -62,8 +67,9 @@ def main():
             extragenic = 1000
             intragenic = 500
             ignore_small_genes = args.ignore_small_genes.lower() == "yes"
-            extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
+            train_val_split=args.train_val_split
             chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosome_file}', header=None).values.ravel().tolist()
+            extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=(), train_val_split=train_val_split)
             for chrom in chromosomes:
                 _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
                                                         model_case=args.model_case, extracted_genes=extracted_genes)

@@ -87,7 +87,7 @@ def compute_actual_hypothetical_scores(x, model):
 
 
 def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name, upstream, downstream, chromosome_list: pd.DataFrame, ignore_small_genes,
-                   output_name, model_case):
+                   output_name, model_case, train_val_split):
     """
     This function performs predictions, extracts correct predictions and performs shap computations. This will be
     done iteratively per chromosome.
@@ -111,10 +111,10 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
     genome = loaded_input_files["genome"]
     annotation = loaded_input_files["annotation"]
     tpms = loaded_input_files["tpms"]
-    extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
+    extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
     for val_chrom in chromosome_list:
         x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
-                                               output_name=output_name, model_case=model_case, extracted_genes=extracted_genes)
+                                               output_name=output_name, model_case=model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
         preds = preds > 0.5
         preds = preds.astype(int)
         correct_x, correct_y, correct_gene_ids = [], [], []
@@ -174,6 +174,8 @@ def parse_args():
                         required=True)
     parser.add_argument('--model_case', help="Can be SSC or SSR", required=True)
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
+    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
+
 
     args = parser.parse_args()
     return args
@@ -202,7 +204,7 @@ def main():
         try:
             chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
             extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=extragenic, downstream=intragenic,
-                           chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
+                           chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag, train_val_split=args.train_val_split
                            output_name=output_name, model_case=args.model_case)
         except Exception as e:
             print(e)

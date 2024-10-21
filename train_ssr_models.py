@@ -64,7 +64,7 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
     return fitting_models
 
 
-def extract_genes(genome: pd.DataFrame, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, tpms, target_chromosomes: Tuple[str, ...], for_prediction: bool = False) -> Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]:
+def extract_genes(genome: pd.DataFrame, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, train_val_split, tpms, target_chromosomes: Tuple[str, ...], for_prediction: bool = False) -> Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]:
     extracted_seqs = {}
     expected_final_size = 2 * (extragenic + intragenic) + 20
     # tpms are absolutely necessary for training, but not for predictions, so can miss if data is for predictions
@@ -203,7 +203,7 @@ def mask_sequences(train_seqs: np.ndarray, val_seqs: np.ndarray, extragenic: int
 
 
 def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, genes_picked, pickled_key, val_chromosome,
-                model_case, ignore_small_genes):
+                model_case, ignore_small_genes, train_val_split):
     """
      This function extract sequences from the genome. It implements a gene size aware padding
     :param genome: reference genome from Ensembl Plants database
@@ -216,6 +216,7 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
     :param model_case: model type which can be SSC, SSR
     :param pickled_key: key to pickled file name
     :param ignore_small_genes: filter genes smaller than 1000 bp
+    :param train_val_split: create a training dataset with 80% of genes across all chromosomes and 20% of genes in the validation dataset
     :return: [one_hot train set, one_hot val set, train targets, val targets]
     """
     genome_path = make_absolute_path("genome", genome, start_file=__file__)
@@ -228,48 +229,128 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
     expected_final_size = 2*(extragenic + intragenic) + 20
 
     train_seqs, val_seqs, train_targets, val_targets = [], [], [], []
-    for chrom, start, end, strand, gene_id in annot.values:#type:ignore
-        gene_size = end - start
-        extractable_downstream = intragenic if gene_size//2 > intragenic else gene_size//2
-        prom_start, prom_end = start - extragenic, start + extractable_downstream
-        term_start, term_end = end - extractable_downstream, end + extragenic
+    
+    # chromosome wise train-val splitting, OG code
+    if train_val_split.lower() == "no":                             
+        for chrom, start, end, strand, gene_id in annot.values:#type:ignore
+            gene_size = end - start
+            extractable_downstream = intragenic if gene_size//2 > intragenic else gene_size//2
+            prom_start, prom_end = start - extragenic, start + extractable_downstream
+            term_start, term_end = end - extractable_downstream, end + extragenic
 
-        promoter = one_hot_encode(genome[chrom][prom_start:prom_end])
-        terminator = one_hot_encode(genome[chrom][term_start:term_end])
-        extracted_size = promoter.shape[0] + terminator.shape[0]
-        central_pad_size = expected_final_size - extracted_size
+            promoter = one_hot_encode(genome[chrom][prom_start:prom_end])
+            terminator = one_hot_encode(genome[chrom][term_start:term_end])
+            extracted_size = promoter.shape[0] + terminator.shape[0]
+            central_pad_size = expected_final_size - extracted_size
 
-        if model_case.lower() == "ssc" and chrom != val_chromosome:
-            np.random.shuffle(promoter)
-            np.random.shuffle(terminator)
+            if model_case.lower() == "ssc" and chrom != val_chromosome:
+                np.random.shuffle(promoter)
+                np.random.shuffle(terminator)
 
-        pad_size = 20 if ignore_small_genes else central_pad_size
+            pad_size = 20 if ignore_small_genes else central_pad_size
 
-        if strand == '+':
-            seq = np.concatenate([
-                promoter,
-                np.zeros(shape=(pad_size, 4)),
-                terminator
-            ])
-        else:
-            seq = np.concatenate([
-                terminator[::-1, ::-1],
-                np.zeros(shape=(pad_size, 4)),
-                promoter[::-1, ::-1]
-            ])
+            if strand == '+':
+                seq = np.concatenate([
+                    promoter,
+                    np.zeros(shape=(pad_size, 4)),
+                    terminator
+                ])
+            else:
+                seq = np.concatenate([
+                    terminator[::-1, ::-1],
+                    np.zeros(shape=(pad_size, 4)),
+                    promoter[::-1, ::-1]
+                ])
 
-        with open(genes_picked, 'rb') as handle:
-            validation_genes = pickle.load(handle)
-            validation_genes = validation_genes[pickled_key]
-        if seq.shape[0] == expected_final_size:
-            if chrom == val_chromosome:
-                if gene_id in validation_genes:
+            with open(genes_picked, 'rb') as handle:
+                validation_genes = pickle.load(handle)
+                validation_genes = validation_genes[pickled_key]
+
+            if seq.shape[0] == expected_final_size:
+                if chrom == val_chromosome:
+                    if gene_id in validation_genes:
+                        val_seqs.append(seq)
+                        val_targets.append(tpms.loc[gene_id, 'target'])
+                else:
+                    train_seqs.append(seq)
+                    train_targets.append(tpms.loc[gene_id, 'target'])
+
+    # 80 / 20 train-val splitting 
+    current_val_size = 0
+    current_train_size = 0
+    
+    if train_val_split.lower() == "yes":                             
+
+        # random shuffle annot values to generate 3iterations of train val split 
+        # the order of annot_values and pickle file decide which gene goes into training or validation
+        shuffled_annot = annot.sample(frac=1, random_state=42).reset_index(drop=True)
+
+
+        for chrom, start, end, strand, gene_id in shuffled_annot.values:
+            gene_size = end - start
+            extractable_downstream = intragenic if gene_size//2 > intragenic else gene_size//2
+            prom_start, prom_end = start - extragenic, start + extractable_downstream
+            term_start, term_end = end - extractable_downstream, end + extragenic
+
+            promoter = one_hot_encode(genome[chrom][prom_start:prom_end])
+            terminator = one_hot_encode(genome[chrom][term_start:term_end])
+            extracted_size = promoter.shape[0] + terminator.shape[0]
+            central_pad_size = expected_final_size - extracted_size
+
+            if model_case.lower() == "ssc" and chrom != val_chromosome:
+                np.random.shuffle(promoter)
+                np.random.shuffle(terminator)
+
+            pad_size = 20 if ignore_small_genes.lower() == 'yes' else central_pad_size
+
+            if strand == '+':
+                seq = np.concatenate([
+                    promoter,
+                    np.zeros(shape=(pad_size, 4)),
+                    terminator
+                ])
+            else:
+                seq = np.concatenate([
+                    terminator[::-1, ::-1],
+                    np.zeros(shape=(pad_size, 4)),
+                    promoter[::-1, ::-1]
+                ])
+
+            with open(genes_picked, 'rb') as handle:
+                validation_genes = pickle.load(handle)
+                validation_genes = validation_genes[pickled_key]
+
+            total_sequences = seq.shape[0]
+            target_val_size = int(total_sequences * 0.2)  # Target size for validation set (20%)
+            target_train_size = total_sequences - target_val_size  # Target size for training set (80%)
+            
+            
+            if seq.shape[0] == expected_final_size:                 
+                                  
+                if current_val_size < target_val_size and gene_id in validation_genes:
                     val_seqs.append(seq)
                     val_targets.append(tpms.loc[gene_id, 'target'])
-            else:
-                train_seqs.append(seq)
-                train_targets.append(tpms.loc[gene_id, 'target'])
+                    current_val_size += 1
 
+                    
+                    # error if vals not full 
+                    # maybe give out size of val genes / val set 
+                    # do repeting stuff in fct? opt
+
+
+                elif current_train_size < target_train_size:
+                    train_seqs.append(seq)
+                    train_targets.append(tpms.loc[gene_id, 'target'])
+                    current_train_size += 1 
+
+    # check if desired 80/20 split is reached 
+    if current_val_size < target_val_size:
+        raise ValueError(f"Validation set is not 20%. Current size: {current_val_size} genes, "
+                            f"Target size: {target_val_size} genes. Total genes in pickle file: {len(validation_genes)}. "
+                            f"(Only genes from pickle file can be in the validation set.)")
+
+    
+    
     train_seqs, val_seqs = np.array(train_seqs), np.array(val_seqs)
     train_targets, val_targets = np.array(train_targets), np.array(val_targets)
     print(train_seqs.shape, val_seqs.shape)
@@ -302,10 +383,10 @@ def balance_dataset(x, y):
 
 
 def train_deep_cre(genome, annot, tpm_targets, upstream, downstream, genes_picked, val_chromosome, output_name,
-                   model_case, pickled_key, ignore_small_genes):
+                   model_case, pickled_key, ignore_small_genes, train_val_split):
     train_seqs, train_targets, val_seqs, val_targets = extract_seq(genome, annot, tpm_targets, upstream, downstream,
                                                                    genes_picked, pickled_key, val_chromosome,
-                                                                   model_case, ignore_small_genes)
+                                                                   model_case, ignore_small_genes, train_val_split)
     x_train, y_train = balance_dataset(train_seqs, train_targets)
     x_val, y_val = balance_dataset(val_seqs, val_targets)
     output = deep_cre(x_train=x_train,
@@ -334,6 +415,8 @@ def parse_args():
     parser.add_argument('--pickle', help="path to pickle file", required=True)
     parser.add_argument('--model_case', help="determines whether a model or a control is trained.", required=True, type=str, choices=["SSR", "SSC", "BOTH"])
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
+    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
+
 
     args = parser.parse_args()
     return args
@@ -362,32 +445,70 @@ def main():
     file_name = get_filename_from_path(__file__)
     failed_trainings = []
     for model_case in model_cases:
+        
         for genome, gtf, tpm_counts, output_name, chromosomes_file, pickled_key in data.values:
             try:
                 print(f'Training on genome: ---------------------\n')
                 print(genome)
                 print('\n------------------------------\n')
                 results_genome = []
-                chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-                for i, val_chrom in enumerate(chromosomes):
-                    print(f"Using chromosome {val_chrom} as validation chromosome")
-                    results = train_deep_cre(genome=genome,
-                                            annot=gtf,
-                                            tpm_targets=tpm_counts,
-                                            upstream=1000,
-                                            downstream=500,
-                                            genes_picked=args.pickle,
-                                            val_chromosome=str(val_chrom),
-                                            output_name=output_name,
-                                            model_case=model_case,
-                                            pickled_key=pickled_key,
-                                            ignore_small_genes=ignore_small_genes)
-                    results_genome.append(results)
-                    print(f"Results for genome: {genome}, chromosome: {val_chrom}: {results}")
+                
+                # Original chromosome-based split
+                if args.train_val_split.lower() == 'no': 
+                    chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
+                    for i, val_chrom in enumerate(chromosomes):
+                        print(f"Using chromosome {val_chrom} as validation chromosome")
+                        results = train_deep_cre(genome=genome,
+                                                annot=gtf,
+                                                tpm_targets=tpm_counts,
+                                                upstream=1000,
+                                                downstream=500,
+                                                genes_picked=args.pickle,
+                                                val_chromosome=str(val_chrom),
+                                                output_name=output_name,
+                                                model_case=model_case,
+                                                pickled_key=pickled_key,
+                                                ignore_small_genes=ignore_small_genes,
+                                                train_val_split=args.train_val_split)
+                        results_genome.append(results)
+                        print(f"Results for genome: {genome}, chromosome: {val_chrom}: {results}")
+                        
+                
+                # New random gene-based split
+                elif args.train_val_split.lower() == 'yes':
+                    chromosomes=[1,2,3]
+                    print(f"Using random 80/20 gene-based split for validation")
+                    for i, val_chrom in enumerate(chromosomes):
+                        results = train_deep_cre(
+                                genome=genome,
+                                annot=gtf,
+                                tpm_targets=tpm_counts,
+                                upstream=1000,
+                                downstream=500,
+                                genes_picked=args.pickle,
+                                val_chromosome=val_chrom,  # 3 iterations
+                                output_name=output_name,
+                                model_case=args.model_case,
+                                pickled_key=pickled_key,
+                                ignore_small_genes=args.ignore_small_genes,
+                                train_val_split=args.train_val_split )
+                        
+                        results_genome.append(results)
+                        print(f"Results for genome: {genome}, iteration: {val_chrom}: {results}")
+                    
+                else: 
+                    print(f"Invalid input for --train_val_split argument. Please enter 'yes' or 'no'.")
+                    break 
+                    
+                
+                
                 results_genome = pd.DataFrame(results_genome, columns=['loss', 'accuracy', 'auROC', 'auPR'])
                 save_file = os.path.join(training_results_path, f"{output_name}_{model_case}_{file_name}_{get_time_stamp()}.csv")
                 results_genome.to_csv(path_or_buf=save_file, index=False)
                 print(results_genome.head())
+
+
+
 
             except Exception as e:
                 print(e)
