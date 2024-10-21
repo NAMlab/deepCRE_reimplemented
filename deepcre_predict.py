@@ -49,7 +49,7 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
                 fitting_models[chromosome] = [candidate]
 
     if not fitting_models:
-        raise ValueError("no trained models fitting the given parameters were found! Consider training models first (train_ssr_models.py)")
+        raise ValueError(f"no trained models fitting the given parameters (output_name: '{output_name}', val_chromosome: '{val_chromosome}', model_case: '{model_case}') were found! Consider training models first (train_ssr_models.py)")
     for chromosome, models in fitting_models.items():
         # models per chromosome only differ in the time stamp. So if sorted, the last model will be the most recently trained
         models.sort()
@@ -57,12 +57,16 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
     return fitting_models
 
 
-def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case, extracted_genes):
+def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case, extracted_genes, train_val_split):
+
     x, y, gene_ids = extracted_genes[str(val_chromosome)]
 
     # Masking
     x[:, extragenic:extragenic + 3, :] = 0                                                                                                  #type:ignore
     x[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0                                                      #type:ignore
+
+    if train_val_split.lower() == 'yes':
+        val_chromosome = "1|2|3" 
 
     newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=val_chromosome, model_case=model_case)
     model = load_model(newest_model_paths[val_chromosome])
@@ -80,6 +84,7 @@ def parse_args():
                         required=True)
     parser.add_argument('--model_case', help="Can be SSC or SSR", required=True)
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
+    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
 
     args = parser.parse_args()
     return args
@@ -109,11 +114,14 @@ def main():
         extragenic = 1000
         intragenic = 500
         ignore_small_genes = args.ignore_small_genes.lower() == "yes"
-        extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
+        train_val_split=args.train_val_split
         chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosome_file}', header=None).values.ravel().tolist()
+        
+        extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
+
         for chrom in chromosomes:
             _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
-                                                    model_case=args.model_case, extracted_genes=extracted_genes)
+                                                    model_case=args.model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
             true_targets.extend(y)
             preds.extend(pred_probs)
             genes.extend(gene_ids)
