@@ -121,7 +121,19 @@ def read_h5_datasets():
         # read and print datasets
         for key in f.keys():
             print(key)
-            print(f[key][:]) #type:ignore
+
+
+def read_hdf5_datasets():
+    # Open the file in read mode
+    with h5py.File("results/modisco/arabidopsis_deepcre_motifs_241021_202423.hdf5", "r") as grp:
+        # List all groups and datasets in the file
+        def print_attrs(name, obj):
+            print(f"Object: {name}")
+            for key, val in obj.attrs.items():
+                print(f"  Attribute: {key}: {val}")
+        
+        # Traverse the structure of the HDF5 file
+        grp.visititems(print_attrs)
 
 
 def test_motif_extraction():
@@ -162,4 +174,4 @@ if __name__ == "__main__":
     # compare_predict_other_self()
     # test_gene_dist()
     # read_h5_datasets()
-    test_motif_extraction()
+    read_hdf5_datasets()

@@ -50,13 +50,11 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
 
 def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_small_genes,
                     output_name, model_case, chromosome_list: pd.DataFrame, force_interpretation: bool = False):
-    #TODO: if saved version already present, dont redo calculations, just load existing results
     try:
         if force_interpretation:
             raise ValueError()
         saved_interpretation_results_path = find_newest_interpretation_results(output_name=output_name, results_path=os.path.join("results", "shap"))
         with h5py.File(saved_interpretation_results_path, "r") as f:
-            # print(f[key][:])
             actual_scores = f["contrib_scores"][:] #type:ignore
             hypothetical_scores = f["hypothetical_contrib_scores"][:] #type:ignore
             one_hots = f["one_hot_seqs"][:] #type:ignore
