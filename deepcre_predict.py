@@ -16,7 +16,7 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
     Args:
         output_name (str): output name the was used for model training
         val_chromosome (str): validation chromosome of the model. If it is not given, all models regardless of the val_chromosome will be returned
-        model_case (str): SSR or SSC for the model to be loaded
+        model_case (str): SSR, SSC or MSR for the model to be loaded
         model_path (str): path to the directory where models are stored. used for testing, probably not really stable
 
     Raises:
@@ -82,7 +82,7 @@ def parse_args():
     parser.add_argument('--input', "-i", 
                         help="This is a 5 column csv file with entries: genome, gtf, tpm, output name, number of chromosomes.",
                         required=True)
-    parser.add_argument('--model_case', help="Can be SSC or SSR", required=True)
+    parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True)
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
     parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
 

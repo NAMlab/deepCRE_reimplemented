@@ -142,7 +142,7 @@ def parse_args():
                         help="""
                         This is a 5 column csv file with entries: genome, gtf, tpm, output name, number of chromosomes.""",
                         required=True)
-    parser.add_argument('--model_case', help="Can be SSC or SSR", required=True)
+    parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True)
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
     parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
 
