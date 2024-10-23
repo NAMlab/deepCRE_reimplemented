@@ -86,7 +86,7 @@ def parse_args():
                         help="""
                         This is a 5 column csv file with entries: genome, gtf, tpm, output name, number of chromosomes.""",
                         required=True)
-    parser.add_argument('--model_case', "-mc", help="Can be SSC or SSR", required=True)
+    parser.add_argument('--model_case', "-mc", help="Can be SSC, SSR or MSR", required=True)
     parser.add_argument('--ignore_small_genes', "-isg", help="Ignore small genes, can be yes or no", required=True)
     parser.add_argument('--force_interpretations', "-fi", help="determines whether interpretations are recalculated, even if there are saved interpretations. If false (default), saved values will be used.", required=False, default="false", choices=["true", "false"])
     parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)

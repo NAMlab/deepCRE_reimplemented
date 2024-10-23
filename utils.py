@@ -60,7 +60,73 @@ def load_annotation(annotation_path):
         gene_model = pr.read_gff3(annotation_path, as_df=True)
         gene_model = gene_model[gene_model['Feature'] == 'gene']
         gene_model = gene_model[['Chromosome', 'Start', 'End', 'Strand', 'ID']]
+
     return gene_model
+
+
+def load_annotation_msr(annotation_path):
+    if annotation_path.endswith('.gtf'):
+        gene_model = pr.read_gtf(f=annotation_path, as_df=True)
+        gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
+        gene_model = gene_model[gene_model['Feature'] == 'gene']
+        gene_model = gene_model[["Specie",'Chromosome', 'Start', 'End', 'Strand', 'gene_id']]
+
+    return gene_model
+
+
+# for MSR training
+def combine_files(data, file_type, file_extension, output_dir, file_key, load_func=None):
+    combined_file = f"{output_dir}/{file_type}_{file_key}.{file_extension}"
+    
+    # Create the output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+
+    if not os.path.exists(combined_file):
+        print(f'Now generating combined {file_type} file:')
+        combined_data = []
+
+        for index, row in data.iterrows():
+            file_path = os.path.join(output_dir, row[file_type])
+            species_name = row['specie']
+
+            if os.path.exists(file_path):
+                if file_type == 'tpm':
+                    file_data = pd.read_csv(file_path)
+                elif file_type in ['gtf', 'gff']:  # Handle both GTF and GFF
+                    if load_func:  # If a loading function is provided
+                        file_data = load_func(file_path)
+                        # Add species name as a new column
+                        file_data.insert(0, 'species', species_name)
+                    else:
+                        print(f"Warning: No loading function provided for {file_type}.")
+                        continue  # Skip if no loading function is available
+                else:  # For fasta
+                    with open(file_path, 'r') as f:
+                        file_data = f.read()
+                
+          
+                combined_data.append(file_data)
+            else:
+                print(f"Warning: {file_path} does not exist.")
+                break
+
+        # Concatenate and save combined data if files were processed
+        if combined_data:
+            if file_type == 'tpm':
+                combined_data_df = pd.concat(combined_data, ignore_index=True)
+                combined_data_df.to_csv(combined_file, index=False)
+            else:  # For fasta and GTF/GFF
+                if file_type in ['gtf', 'gff']:
+                    combined_data_df = pd.concat(combined_data, ignore_index=True)
+                    combined_data_df.to_csv(combined_file, sep='\t', index=False, header=False)  # Save as GTF
+                else:  # For fasta
+                    with open(combined_file, 'w') as f_out:
+                        f_out.write("\n".join(combined_data))
+            print(f"Combined {file_type} file saved as {combined_file}")
+        else:
+            print(f"No {file_type} files found. No output generated.")
+    else:
+        print(f"Combined {file_type} file already exists at {combined_file}.")
 
 
 
