@@ -12,14 +12,6 @@ def contains_nucleotide(nucleotide: np.ndarray, nucleotide_list: List[np.ndarray
             return True
     return False
 
-def visualy_compare_sequences(seq1, seq2):
-    for (a, b) in zip(seq1, seq2):
-        print(f"{a}  |  {b}", end="")
-        if np.equal(a, b).all():
-            print("")
-        else:
-            print("  <---- Error here!")
-
 class TestEvolution(unittest.TestCase):
     def test_random_nucleotide(self):
         correct_nucleotides = [

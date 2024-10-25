@@ -9,12 +9,18 @@ from deap import base, creator, tools, algorithms
 from tensorflow.keras.models import load_model #type:ignore
 
 
-class Sequence(np.ndarray):
-    original_sequence: np.ndarray
+class FakeModel():
+    def predict(self, individual):
+        return evaluate_test(individual)[0]
 
-    def __init__(self, original_sequence: np.ndarray):
-        super(Sequence, self).__init__()
-        self.original_sequence = original_sequence
+
+def visually_compare_sequences(seq1, seq2):
+    for (a, b) in zip(seq1, seq2):
+        print(f"{a}  |  {b}", end="")
+        if np.equal(a, b).all():
+            print("")
+        else:
+            print("  <---- Error here!")
 
 
 def compare_sequences(seq1, seq2) -> List[int]:
@@ -61,7 +67,7 @@ def evaluate_test(individual) -> Tuple[float]:
         Tuple[float]: result of the evaluation
     """
     sum = 0
-    weights = np.array([1, 0., 0., 0.])
+    weights = np.array([1, 0.4, 0.2, 0.])
     for nucleotide in individual:
         res = weights * nucleotide
         sum += np.sum(res)
@@ -124,12 +130,20 @@ def limit_mutations(individual, reference_sequence: np.ndarray, rel_max_differen
         for index in indeces_to_revert:
             individual[index] = reference_sequence[index]
     return individual,
-    
+
+
+def init_mutated_sequence(np_individual_class, base_sequence: np.ndarray, initial_mutation_rate: float):
+    individual = mutate_one_hot_genes(base_sequence, mutation_rate=initial_mutation_rate)
+    individual = np.squeeze(individual, 0)
+    individual = limit_mutations(individual=individual, reference_sequence=base_sequence, rel_max_difference=initial_mutation_rate)[0]
+    individual = np_individual_class(individual)
+    return individual
+
 
 def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_of_generations: int,
                       tournment_size: int, mutation_rate: float, mutation_probability: float,
-                      crossover_probability: float, model_paths: List[str], reference_sequence: np.ndarray,
-                      rel_max_difference: float):
+                      crossover_probability: float, models: List, reference_sequence: np.ndarray,
+                      rel_max_difference: float, optimize: bool = True):
     # Run the genetic algorithm
     toolbox = base.Toolbox()
     # Define the problem as a maximization problem
@@ -137,21 +151,25 @@ def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_o
     creator.create("Individual", np.ndarray, fitness=creator.FitnessMax)
 
     # Define the individual and population
-    toolbox.register("individual", tools.initRepeat, creator.Individual, random_nucleotide, n=number_of_nucleotides)
+    if optimize:
+        toolbox.register("individual", init_mutated_sequence, creator.Individual, reference_sequence, rel_max_difference)
+    else:
+        toolbox.register("individual", tools.initRepeat, creator.Individual, random_nucleotide, n=number_of_nucleotides)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-    models = [load_model(model_path) for model_path in model_paths]
     toolbox.register("evaluate", evaluate_model, models=models)
     toolbox.register("mate", tools.cxOnePoint)
     toolbox.register("mutate", mutate_one_hot_genes, mutation_rate=mutation_rate)
     toolbox.register("select", tools.selTournament, tournsize=tournment_size)
     toolbox.register("limit_mutations", limit_mutations, reference_sequence=reference_sequence, rel_max_difference=rel_max_difference)
+    
 
     population = toolbox.population(n=population_size)
     for gen in range(number_of_generations):
         # print(population)
         print(gen)
         offspring = algorithms.varAnd(population, toolbox, cxpb=crossover_probability, mutpb=mutation_probability)
-        offspring = [element[0] for element in toolbox.map(toolbox.limit_mutations, offspring)]
+        if optimize:
+            offspring = [element[0] for element in toolbox.map(toolbox.limit_mutations, offspring)]
         fits = toolbox.map(toolbox.evaluate, offspring)
         for fit, ind in zip(fits, offspring):
             ind.fitness.values = fit
@@ -162,10 +180,17 @@ def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_o
     best_idx = fits.index(max(fits))
     best_ind = population[best_idx]
     print("Best individual:", best_ind, "Fitness:", best_ind.fitness.values)
+    initial_fitness = toolbox.evaluate(reference_sequence)
+    print(f"initial fitness: {initial_fitness}")
+    best_fitness = toolbox.evaluate(best_ind)
+    print(f"best fitness: {best_fitness}")
+    visually_compare_sequences(reference_sequence, best_ind)
+
         
 
 def main():
-    reference_sequence_inds = np.random.choice(np.arange(4), 3020)
+    number_of_nucleotides = 10
+    reference_sequence_inds = np.random.choice(np.arange(4), number_of_nucleotides)
     nucleotides = np.array([
         [1, 0, 0, 0],
         [0, 1, 0, 0],
@@ -173,17 +198,18 @@ def main():
         [0, 0, 0, 1],
     ])
     reference_sequence = np.array([nucleotides[i] for i in reference_sequence_inds])
-    number_of_nucleotides = 3020
     population_size = 5
     number_of_generations = 10
     tournment_size = 3
-    mutation_rate = 0.1
+    mutation_rate = 0.2
     mutation_probability = 0.5
     crossover_probability = 0.5
-    model_paths = ["saved_models/arabidopsis_1_SSR_train_ssr_models_240816_183905.h5"]
+    # models = [load_model("saved_models/arabidopsis_1_SSR_train_ssr_models_240816_183905.h5")]
+    models = [FakeModel()]
+    rel_max_difference = 0.5
     genetic_algorithm(number_of_nucleotides=number_of_nucleotides, number_of_generations=number_of_generations, population_size=population_size,
                       tournment_size=tournment_size, mutation_rate=mutation_rate, mutation_probability=mutation_probability,
-                      crossover_probability=crossover_probability, model_paths=model_paths, rel_max_difference=0.1,
+                      crossover_probability=crossover_probability, models=models, rel_max_difference=rel_max_difference,
                       reference_sequence=reference_sequence)
 
 
