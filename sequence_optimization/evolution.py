@@ -1,8 +1,10 @@
 import math
-from typing import List, Tuple
+import pickle
+from typing import Callable, List, Tuple, Type
 import numpy as np
 import deap
 import itertools
+import cProfile
 
 import random
 from deap import base, creator, tools, algorithms
@@ -21,6 +23,25 @@ def visually_compare_sequences(seq1, seq2):
             print("")
         else:
             print("  <---- Error here!")
+
+
+def cxOnePointNumPy(ind1, ind2):
+    """Executes a one point crossover on the input :term:`sequence` individuals.
+    The two individuals are modified in place. The resulting individuals will
+    respectively have the length of the other.
+
+    :param ind1: The first individual participating in the crossover.
+    :param ind2: The second individual participating in the crossover.
+    :returns: A tuple of two individuals.
+
+    This function uses the :func:`~random.randint` function from the
+    python base :mod:`random` module.
+    """
+    size = min(len(ind1), len(ind2))
+    cxpoint = random.randint(1, size - 1)
+    ind1[cxpoint:], ind2[cxpoint:] = ind2[cxpoint:].copy(), ind1[cxpoint:].copy()
+
+    return ind1, ind2
 
 
 def compare_sequences(seq1, seq2) -> List[int]:
@@ -132,12 +153,30 @@ def limit_mutations(individual, reference_sequence: np.ndarray, rel_max_differen
     return individual,
 
 
-def init_mutated_sequence(np_individual_class, base_sequence: np.ndarray, initial_mutation_rate: float):
-    individual = mutate_one_hot_genes(base_sequence, mutation_rate=initial_mutation_rate)
+def init_mutated_sequence(np_individual_class: Type, base_sequence: np.ndarray, initial_mutation_rate: float):
+    individual = mutate_one_hot_genes(base_sequence.copy(), mutation_rate=initial_mutation_rate)
     individual = np.squeeze(individual, 0)
     individual = limit_mutations(individual=individual, reference_sequence=base_sequence, rel_max_difference=initial_mutation_rate)[0]
     individual = np_individual_class(individual)
     return individual
+
+
+def init_population(population_class: Type, init_individual: Callable, initial_mutation_rate: float, population_size: int):
+    if population_size < 1:
+        raise ValueError(f"Population supposed to be initialized with {population_size} < 1. Populations with less than 1 individual make no sense.")
+    individuals = [init_individual(initial_mutation_rate=0)]
+    for _ in range(population_size - 1):
+        individuals.append(init_individual(initial_mutation_rate=initial_mutation_rate))
+    return population_class(individual for individual in individuals)
+
+
+def setup_stats_object() -> tools.Statistics:
+    stats_fitness = tools.Statistics(key=lambda ind: ind.fitness.values)
+    stats_fitness.register("avg", np.mean, axis=0)
+    stats_fitness.register("std", np.std, axis=0)
+    stats_fitness.register("min", np.min, axis=0)
+    stats_fitness.register("max", np.max, axis=0)
+    return stats_fitness
 
 
 def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_of_generations: int,
@@ -152,44 +191,63 @@ def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_o
 
     # Define the individual and population
     if optimize:
-        toolbox.register("individual", init_mutated_sequence, creator.Individual, reference_sequence, rel_max_difference)
+        toolbox.register("individual", init_mutated_sequence, creator.Individual, reference_sequence)
     else:
         toolbox.register("individual", tools.initRepeat, creator.Individual, random_nucleotide, n=number_of_nucleotides)
-    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+    toolbox.register("population", init_population, list, toolbox.individual, initial_mutation_rate=rel_max_difference)
     toolbox.register("evaluate", evaluate_model, models=models)
-    toolbox.register("mate", tools.cxOnePoint)
+    toolbox.register("mate", cxOnePointNumPy)
     toolbox.register("mutate", mutate_one_hot_genes, mutation_rate=mutation_rate)
     toolbox.register("select", tools.selTournament, tournsize=tournment_size)
     toolbox.register("limit_mutations", limit_mutations, reference_sequence=reference_sequence, rel_max_difference=rel_max_difference)
     
 
-    population = toolbox.population(n=population_size)
+    population = toolbox.population(population_size=population_size)
+    fits = toolbox.map(toolbox.evaluate, population)
+    for fit, ind in zip(fits, population):
+        ind.fitness.values = fit
+
+    hall_of_fame = tools.HallOfFame(5, similar=np.allclose)
+    hall_of_fame.update(population)
+    stats_fitness = setup_stats_object()
+    logbook = tools.Logbook()
+    initial_fitness = toolbox.evaluate(reference_sequence)
     for gen in range(number_of_generations):
         # print(population)
-        print(gen)
-        offspring = algorithms.varAnd(population, toolbox, cxpb=crossover_probability, mutpb=mutation_probability)
+        # print(gen)
+        offspring = toolbox.select(population, k=len(population))
+        offspring = algorithms.varAnd(offspring, toolbox, cxpb=crossover_probability, mutpb=mutation_probability)
         if optimize:
             offspring = [element[0] for element in toolbox.map(toolbox.limit_mutations, offspring)]
         fits = toolbox.map(toolbox.evaluate, offspring)
         for fit, ind in zip(fits, offspring):
             ind.fitness.values = fit
-        population = toolbox.select(offspring, k=len(population))
+        population[:] = offspring
+        hall_of_fame.update(population)
+        logbook.record(gen=gen, **stats_fitness.compile(population))
+    
+    print_summary(population=population, toolbox=toolbox, reference_sequence=reference_sequence, hall_of_fame=hall_of_fame, logbook=logbook)
 
+
+def print_summary(population: list, toolbox: base.Toolbox, reference_sequence: np.ndarray, hall_of_fame: tools.HallOfFame, logbook: tools.Logbook):
     # Get the best individual
     fits = [ind.fitness.values[0] for ind in population]
     best_idx = fits.index(max(fits))
     best_ind = population[best_idx]
-    print("Best individual:", best_ind, "Fitness:", best_ind.fitness.values)
     initial_fitness = toolbox.evaluate(reference_sequence)
-    print(f"initial fitness: {initial_fitness}")
-    best_fitness = toolbox.evaluate(best_ind)
-    print(f"best fitness: {best_fitness}")
-    visually_compare_sequences(reference_sequence, best_ind)
+    print(f"initial fitness: {initial_fitness[0]}")
+    print(f"best fitness current population: {best_ind.fitness.values[0].item()}")
+    # visually_compare_sequences(reference_sequence, best_ind)
+    print(f"best fitness total: {hall_of_fame.items[0].fitness.values[0].item()}")
+    # visually_compare_sequences(reference_sequence, hall_of_fame.items[0])
+    logbook.header = "gen", "avg", "std", "min", "max"
+    print(logbook)
+    with open("test_folder/logbooks/logbook.pkl", "wb") as f:
+        pickle.dump(logbook, f)
 
-        
 
 def main():
-    number_of_nucleotides = 10
+    number_of_nucleotides = 200
     reference_sequence_inds = np.random.choice(np.arange(4), number_of_nucleotides)
     nucleotides = np.array([
         [1, 0, 0, 0],
@@ -198,15 +256,15 @@ def main():
         [0, 0, 0, 1],
     ])
     reference_sequence = np.array([nucleotides[i] for i in reference_sequence_inds])
-    population_size = 5
+    population_size = 20
     number_of_generations = 10
-    tournment_size = 3
-    mutation_rate = 0.2
+    tournment_size = 10
+    mutation_rate = 0.1
     mutation_probability = 0.5
     crossover_probability = 0.5
     # models = [load_model("saved_models/arabidopsis_1_SSR_train_ssr_models_240816_183905.h5")]
     models = [FakeModel()]
-    rel_max_difference = 0.5
+    rel_max_difference = 0.2
     genetic_algorithm(number_of_nucleotides=number_of_nucleotides, number_of_generations=number_of_generations, population_size=population_size,
                       tournment_size=tournment_size, mutation_rate=mutation_rate, mutation_probability=mutation_probability,
                       crossover_probability=crossover_probability, models=models, rel_max_difference=rel_max_difference,
@@ -214,5 +272,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # cProfile.run("main()")
     # print(evaluate(np.array([[1, 0, 0, 0], [0, 0, 0, 1]])))
+    main()
