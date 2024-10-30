@@ -10,7 +10,7 @@ test_folder/compare.py
 test_folder/*/*.csv
 test_folder/*/*/*.csv
 test_folder/*/*/*/*.csv
-testfolder/*/*.pkl
+test_folder/*/*.pkl
 figures/*
 run_config/*
 .vscode/*
