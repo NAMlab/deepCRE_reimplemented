@@ -4,6 +4,7 @@ import pandas as pd
 import unittest
 import pyranges as pr
 import h5py
+from BCBio import GFF
 
 from deepcre_motifs import generate_motifs
 from train_ssr_models import extract_genes
@@ -11,6 +12,16 @@ from utils import load_input_files, make_absolute_path, get_time_stamp
 from deepcre_predict import find_newest_model_path, predict_self
 import deepcre_crosspredict as cp
 import deepcre_interpret as di
+
+
+def print_chroms():
+    with open("gene_models/Arabidopsis_thaliana.TAIR10.52.gtf", "r") as file:
+        chromosomes = set()
+        filter = dict(gff_type="Gene")
+        for rec in GFF.parse(file):
+            chromosomes.add(rec.id)
+    print(sorted(list(chromosomes)))
+
 
 def compare_lists(list1, list2) -> bool:
     if len(list1) != len(list2):
@@ -174,4 +185,5 @@ if __name__ == "__main__":
     # compare_predict_other_self()
     # test_gene_dist()
     # read_h5_datasets()
-    read_hdf5_datasets()
+    # read_hdf5_datasets()
+    print_chroms()
