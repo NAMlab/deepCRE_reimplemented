@@ -14,6 +14,54 @@ import numpy as np
 from pyfaidx import Fasta
 import pyranges as pr
 from sklearn.utils import shuffle
+import re
+
+
+def find_newest_model_path(output_name: str, model_case: str, val_chromosome: str = "", model_path: str = "") -> Dict[str, str]:
+    """finds path to newest model fitting the given parameters
+
+    Args:
+        output_name (str): output name the was used for model training
+        val_chromosome (str): validation chromosome of the model. If it is not given, all models regardless of the val_chromosome will be returned
+        model_case (str): SSR or SSC for the model to be loaded
+        model_path (str): path to the directory where models are stored. used for testing, probably not really stable
+
+    Raises:
+        ValueError: raises an error if no fitting model is found
+
+    Returns:
+        List[str]: List of path to the newest model fitting the given parameters for a single chromosome, or all fitting models if chromosome is ommitted.
+    """
+    if model_path == "":
+        path_to_models = make_absolute_path("saved_models", start_file=__file__)
+    else:
+        path_to_models = make_absolute_path(model_path, start_file=__file__)
+    # ^ and $ mark start and end of a string. \d singnifies any digit. \d+ means a sequence of digits with at least length 1
+    # more detailed explanation at https://regex101.com/, put in "^ara_(\d+)_ssr_\d+_\d+\.h5$"
+    if val_chromosome == "":
+        regex_string = f"^{output_name}_(.+)_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                                    #type:ignore
+    else:
+        regex_string = f"^{output_name}_{val_chromosome}_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                        #type:ignore
+    regex = re.compile(regex_string)
+    candidate_models = [model for model in os.listdir(path_to_models)]
+    fitting_models = {}
+    for candidate in candidate_models:
+        match = regex.match(candidate)
+        if match:
+            # group 1 is the "(.+)" part of the regex, so the name of the validation chromosome for the model
+            chromosome = val_chromosome if val_chromosome else match.group(1)
+            if chromosome in fitting_models:
+                fitting_models[chromosome].append(candidate)
+            else:
+                fitting_models[chromosome] = [candidate]
+
+    if not fitting_models:
+        raise ValueError("no trained models fitting the given parameters were found! Consider training models first (train_ssr_models.py)")
+    for chromosome, models in fitting_models.items():
+        # models per chromosome only differ in the time stamp. So if sorted, the last model will be the most recently trained
+        models.sort()
+        fitting_models[chromosome] = os.path.join(path_to_models, models[-1])
+    return fitting_models
 
 
 def extract_genes(genome: pd.DataFrame, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, tpms, target_chromosomes: Tuple[str, ...], for_prediction: bool = False) -> Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]:
