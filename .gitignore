@@ -13,6 +13,7 @@ test_folder/*/*/*/*.csv
 test_folder/*/*.pkl
 figures/*
 .vscode/*
+.vscode/launch.json
 test_folder/*.csv
 
 #### GITHUB PYTHON TEMPLATE
