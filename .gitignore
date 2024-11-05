@@ -11,6 +11,9 @@ test_folder/*/*.csv
 test_folder/*/*/*.csv
 test_folder/*/*/*/*.csv
 figures/*
+.vscode/*
+test_folder/*.csv
+test_folder/logbooks/*
 
 #### GITHUB PYTHON TEMPLATE
 
