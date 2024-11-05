@@ -1,5 +1,6 @@
 import math
 import pickle
+import pstats
 from typing import Callable, List, Tuple, Type
 import numpy as np
 import deap
@@ -170,13 +171,25 @@ def init_population(population_class: Type, init_individual: Callable, initial_m
     return population_class(individual for individual in individuals)
 
 
-def setup_stats_object() -> tools.Statistics:
+def foo(input: List):
+    return len(input)
+
+
+def bar(input: List):
+    return input[0][0]
+
+
+def setup_stats_objects() -> tools.MultiStatistics:
     stats_fitness = tools.Statistics(key=lambda ind: ind.fitness.values)
     stats_fitness.register("avg", np.mean, axis=0)
     stats_fitness.register("std", np.std, axis=0)
     stats_fitness.register("min", np.min, axis=0)
     stats_fitness.register("max", np.max, axis=0)
-    return stats_fitness
+    stats_population = tools.Statistics(key=lambda ind: ind)
+    stats_population.register("foo", foo)
+    stats_population.register("bar", bar)
+    multi_stats = tools.MultiStatistics(fitness=stats_fitness, population=stats_population)
+    return multi_stats
 
 
 def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_of_generations: int,
@@ -209,9 +222,8 @@ def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_o
 
     hall_of_fame = tools.HallOfFame(5, similar=np.allclose)
     hall_of_fame.update(population)
-    stats_fitness = setup_stats_object()
+    stats = setup_stats_objects()
     logbook = tools.Logbook()
-    initial_fitness = toolbox.evaluate(reference_sequence)
     for gen in range(number_of_generations):
         # print(population)
         # print(gen)
@@ -224,7 +236,7 @@ def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_o
             ind.fitness.values = fit
         population[:] = offspring
         hall_of_fame.update(population)
-        logbook.record(gen=gen, **stats_fitness.compile(population))
+        logbook.record(gen=gen, **stats.compile(population))
     
     print_summary(population=population, toolbox=toolbox, reference_sequence=reference_sequence, hall_of_fame=hall_of_fame, logbook=logbook)
 
@@ -240,7 +252,9 @@ def print_summary(population: list, toolbox: base.Toolbox, reference_sequence: n
     # visually_compare_sequences(reference_sequence, best_ind)
     print(f"best fitness total: {hall_of_fame.items[0].fitness.values[0].item()}")
     # visually_compare_sequences(reference_sequence, hall_of_fame.items[0])
-    logbook.header = "gen", "avg", "std", "min", "max"
+    logbook.header = "gen", "fitness", "population"
+    logbook.chapters["fitness"].header = "avg", "std", "min", "max"
+    logbook.chapters["population"].header = "foo", "bar"
     print(logbook)
     with open("test_folder/logbooks/logbook.pkl", "wb") as f:
         pickle.dump(logbook, f)
@@ -272,6 +286,12 @@ def main():
 
 
 if __name__ == "__main__":
-    # cProfile.run("main()")
+    # with cProfile.Profile() as profile:
+    #     main()
+    
+    # results = pstats.Stats(profile)
+    # results.sort_stats(pstats.SortKey.TIME)
+    # results.print_stats()
+
     # print(evaluate(np.array([[1, 0, 0, 0], [0, 0, 0, 1]])))
     main()
