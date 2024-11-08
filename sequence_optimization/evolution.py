@@ -224,7 +224,7 @@ def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_o
     hall_of_fame.update(population)
     stats = setup_stats_objects()
     logbook = tools.Logbook()
-    for gen in range(number_of_generations):
+    for i, gen in enumerate(range(number_of_generations)):
         # print(population)
         # print(gen)
         offspring = toolbox.select(population, k=len(population))
@@ -237,6 +237,10 @@ def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_o
         population[:] = offspring
         hall_of_fame.update(population)
         logbook.record(gen=gen, **stats.compile(population))
+        fits = [ind.fitness.values[0] for ind in population]
+        best_idx = fits.index(max(fits))
+        best_ind = population[best_idx]
+        print(f"gen {i}: best fitness: {best_ind.fitness.values[0]}")
     
     print_summary(population=population, toolbox=toolbox, reference_sequence=reference_sequence, hall_of_fame=hall_of_fame, logbook=logbook)
 
@@ -261,7 +265,7 @@ def print_summary(population: list, toolbox: base.Toolbox, reference_sequence: n
 
 
 def main():
-    number_of_nucleotides = 200
+    number_of_nucleotides = 3020
     reference_sequence_inds = np.random.choice(np.arange(4), number_of_nucleotides)
     nucleotides = np.array([
         [1, 0, 0, 0],
@@ -270,15 +274,15 @@ def main():
         [0, 0, 0, 1],
     ])
     reference_sequence = np.array([nucleotides[i] for i in reference_sequence_inds])
-    population_size = 20
-    number_of_generations = 10
-    tournment_size = 10
-    mutation_rate = 0.1
+    population_size = 30
+    number_of_generations = 50
+    tournment_size = 3
+    mutation_rate = 0.01
     mutation_probability = 0.5
     crossover_probability = 0.5
-    # models = [load_model("saved_models/arabidopsis_1_SSR_train_ssr_models_240816_183905.h5")]
-    models = [FakeModel()]
-    rel_max_difference = 0.2
+    models = [load_model("saved_models/arabidopsis_1_SSR_train_ssr_models_240816_183905.h5")]
+    # models = [FakeModel()]
+    rel_max_difference = 0.03
     genetic_algorithm(number_of_nucleotides=number_of_nucleotides, number_of_generations=number_of_generations, population_size=population_size,
                       tournment_size=tournment_size, mutation_rate=mutation_rate, mutation_probability=mutation_probability,
                       crossover_probability=crossover_probability, models=models, rel_max_difference=rel_max_difference,
