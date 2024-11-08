@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import pandas as pd
@@ -174,4 +175,9 @@ if __name__ == "__main__":
     # compare_predict_other_self()
     # test_gene_dist()
     # read_h5_datasets()
-    read_hdf5_datasets()
+    # read_hdf5_datasets()
+    with open("test.json", "w") as f:
+        json.dump({
+            "paper1": ["seq1", "seq2"],
+            "paper2": ["seq3", "seq4"]
+        }, f, indent=2)
