@@ -273,10 +273,10 @@ def print_summary(population: list, toolbox: base.Toolbox, reference_sequence: n
 def parse_args():
     parser = argparse.ArgumentParser("Evolutionary algorithm to mutate a given sequence in an optimal way to maximize output from a model.")
     parser.add_argument("--population_size", "-p", type=int, required=False, default=30, help="determines how many sequences will be used per generation.")
-    parser.add_argument("--number_of_generations", "-n", type=int, required=False, default=5, help="determines how many generations will be used.")
+    parser.add_argument("--number_of_generations", "-n", type=int, required=False, default=50, help="determines how many generations will be used.")
     parser.add_argument("--tournament_size", "-t", type=int, required=False, default=3, help="Determines how many sequences will be chosen per round when selecting the offspring. only the sequence with the highest fitness scoure out of each round will be picked.")
-    parser.add_argument("--mutation_rate", "-m", type=int, required=False, default=0.01, help="determines the fraction of bases that will be changed on a single mutation step.")
-    parser.add_argument("--max_mutation_difference", "-mm", type=int, required=False, default=0.03, help="determines the fraction of bases the original sequence is allowed to change.")
+    parser.add_argument("--mutation_rate", "-m", type=float, required=False, default=0.01, help="determines the fraction of bases that will be changed on a single mutation step.")
+    parser.add_argument("--max_mutation_difference", "-mm", type=float, required=False, default=0.03, help="determines the fraction of bases the original sequence is allowed to change.")
     args = parser.parse_args()
     return args
 
