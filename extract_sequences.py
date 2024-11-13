@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 from pyfaidx import Fasta
 from BCBio import GFF
@@ -26,7 +27,7 @@ def onehot(seq):
     return encoded
 
 
-def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filter: List[str]) -> pd.DataFrame:
+def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filter: List[str], genes_of_interest: List[str]) -> pd.DataFrame:
     chromosomes, starts, ends, strands, gene_ids = [], [], [], [], []
     weird_strand_counter = 0
     with open(annotation_path, "r") as file:
@@ -35,10 +36,16 @@ def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filt
         for rec in GFF.parse(file, limit_info=filter):
             feat: SeqFeature.SeqFeature
             for feat in rec.features:
-                # extracted_seq = feat.extract(fasta_obj[rec.id])
+                gene_id = feat.qualifiers[gene_name_attribute][0]
+                # print(f"original gene id: {gene_id}")
+                gene_id = gene_id.replace("gene:", "")
+                # print(f"cleaned gene id: {gene_id}")
+                if genes_of_interest and gene_id not in genes_of_interest:
+                    continue
+                gene_id = gene_id + "_" + feat.type
+                # print(f"{gene_name_attribute}: {gene_id}")
                 strand = feat.location.strand #type:ignore
                 if strand not in [-1, 1]:
-                    # print(f"no proper strand available for {feat.id} on {rec.id}")
                     weird_strand_counter += 1
                     # nothing should be appended, if one of the columns cant be filled properly. 
                     continue
@@ -47,10 +54,6 @@ def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filt
                 starts.append(feat.location.start) #type:ignore
                 ends.append(feat.location.end) #type:ignore
                 strands.append(strand)
-                # gene_id = feat.id.replace("gene:", "")  # Clean up gene_id
-                gene_id = feat.qualifiers[gene_name_attribute][0] + "_" + feat.type
-                gene_id = gene_id.replace("gene:", "")
-                # print(f"{gene_name_attribute}: {gene_id}")
                 gene_ids.append(gene_id)
 
     print(f"{weird_strand_counter} entries missing due to unclear strand (only \"+\" and \"-\" allowed).")
@@ -160,11 +163,11 @@ def extract_string(fasta_obj: Fasta, gene_df: pd.DataFrame, intragenic: int, ext
 
 def extract_gene_flanking_regions(fasta_path: str, annotation_path: str, output_path: str, extract_one_hot_flag: bool,
                                   extract_string_flag: bool, extragenic: int, intragenic: int, gene_name_attribute: str,
-                                  feature_type_filter: List[str]) -> Optional[Tuple[List, List]]:
+                                  feature_type_filter: List[str], genes_of_interest: List[str]) -> Optional[Tuple[List, List]]:
     if not (extract_one_hot_flag or extract_string_flag):
         raise  ValueError("either extraction  as string or one hot coded np array is necessary!")
     fasta_obj = Fasta(fasta_path, as_raw=True, sequence_always_upper=True, read_ahead=10000)
-    gene_df = find_genes(annotation_path=annotation_path, gene_name_attribute=gene_name_attribute, feature_type_filter=feature_type_filter)
+    gene_df = find_genes(annotation_path=annotation_path, gene_name_attribute=gene_name_attribute, feature_type_filter=feature_type_filter, genes_of_interest=genes_of_interest)
     if extract_string_flag:
         extract_string(fasta_obj, gene_df, intragenic=intragenic, extragenic=extragenic, output_file=output_path, central_padding=CENTRAL_PADDING)
     if extract_one_hot_flag:
@@ -182,6 +185,7 @@ def parse_args():
     parser.add_argument("--overwrite", "-ow", type=str, choices=["true", "false"], default="false", help="allows to overwrite an existing file for the output.")
     parser.add_argument("--gene_name_attribute", "-g", type=str, default="gene_id", help="name of the attribute that contains the name of the gene. Can be found in the last column of both gff3 and gtf files.")
     parser.add_argument("--feature_type", "-ft", type=str, default="gene", help="type of features for which gene flanking reagions are supposed to be extracted. Will filter entries based on column 3 in gff3 (\"type\") and gff/gtf (\"feature\"). Multiple values can be separated by semicolons.")
+    parser.add_argument("--genes_of_interest", "-goi", type=str, default="", help="list of genes to be extracted in the json format. Names must be matching the description in the genome annotation.")
     args = parser.parse_args()
     return args
 
@@ -189,12 +193,17 @@ def parse_args():
 def main():
     args = parse_args()
     feature_type_filter = args.feature_type.split(";")
+    genes_of_interest = []
+    if args.genes_of_interest:
+        with open(args.genes_of_interest, "r") as f:
+            genes_of_interest = json.load(f)
     if os.path.isfile(args.output_path):
         if args.overwrite == "false":
             raise ValueError(f"file {args.output_path} already exists!")
     extract_gene_flanking_regions(fasta_path=args.fasta_path, annotation_path=args.annotation_path, output_path=args.output_path,
                                   extract_string_flag=True, extract_one_hot_flag=False, extragenic=args.extragenic,
-                                  intragenic=args.intragenic, gene_name_attribute=args.gene_name_attribute, feature_type_filter=feature_type_filter)
+                                  intragenic=args.intragenic, gene_name_attribute=args.gene_name_attribute, feature_type_filter=feature_type_filter,
+                                  genes_of_interest=genes_of_interest)
 
 
 if __name__ == "__main__":
