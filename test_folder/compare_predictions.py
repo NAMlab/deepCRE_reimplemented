@@ -4,7 +4,16 @@ import pandas as pd
 
 def compile_results():
     data_dict = {}
-    for res_file_name in ["arabidopsis_leaf_1_SSR_train_ssr_models_241104_110233_deepcre_crosspredict_arabidopsis_leaf_241104_183042.csv", ]:
+    for res_file_name in [
+                "arabidopsis_leaf_1_SSR_train_ssr_models_241104_110233_deepcre_crosspredict_arabidopsis_leaf_241105_145517.csv",
+                "arabidopsis_root_1_SSR_train_ssr_models_241104_110852_deepcre_crosspredict_arabidopsis_root_241105_145548.csv",
+                "sbicolor_leaf_10_SSR_train_ssr_models_241102_154942_deepcre_crosspredict_sorghum_leaf_241105_152337.csv",
+                "sbicolor_root_10_SSR_train_ssr_models_241102_160722_deepcre_crosspredict_sorghum_root_241105_152635.csv",
+                "solanum_leaf_1_SSR_train_ssr_models_241102_150215_deepcre_crosspredict_solanum_leaf_241105_150818.csv",
+                "solanum_root_10_SSR_train_ssr_models_241102_153052_deepcre_crosspredict_solanum_root_241105_152020.csv",
+                "zea_leaf_10_SSR_train_ssr_models_241102_162527_deepcre_crosspredict_zea_leaf_241105_153539.csv",
+                "zea_root_10_SSR_train_ssr_models_241102_164341_deepcre_crosspredict_zea_root_241105_154308.csv",
+            ]:
         name = "_".join(res_file_name.split("_")[:2])
         res_dict = compare_results_crosspred(res_file_name)
         res_list = []
@@ -21,11 +30,12 @@ def compile_results():
         list_.extend(to_append)
     df = pd.DataFrame(data_dict)
     print(df)
+    df.to_csv("compiled_results.csv")
 
 
 
 def compare_results_crosspred(file_name: str):
-    data = pd.read_csv(f"test_folder/{file_name}")
+    data = pd.read_csv(f"results/predictions/{file_name}")
     data = data.loc[data["true_targets"] != 2]
     length = len(data)
     rename_cols(data)
