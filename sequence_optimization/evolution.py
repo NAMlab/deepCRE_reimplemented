@@ -1,3 +1,4 @@
+import argparse
 import math
 import pickle
 import pstats
@@ -6,6 +7,10 @@ import numpy as np
 import deap
 import itertools
 import cProfile
+import sys
+from os import path
+sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
+import utils
 
 import random
 from deap import base, creator, tools, algorithms
@@ -193,7 +198,7 @@ def setup_stats_objects() -> tools.MultiStatistics:
 
 
 def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_of_generations: int,
-                      tournment_size: int, mutation_rate: float, mutation_probability: float,
+                      tournament_size: int, mutation_rate: float, mutation_probability: float,
                       crossover_probability: float, models: List, reference_sequence: np.ndarray,
                       rel_max_difference: float, optimize: bool = True):
     # Run the genetic algorithm
@@ -211,7 +216,7 @@ def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_o
     toolbox.register("evaluate", evaluate_model, models=models)
     toolbox.register("mate", cxOnePointNumPy)
     toolbox.register("mutate", mutate_one_hot_genes, mutation_rate=mutation_rate)
-    toolbox.register("select", tools.selTournament, tournsize=tournment_size)
+    toolbox.register("select", tools.selTournament, tournsize=tournament_size)
     toolbox.register("limit_mutations", limit_mutations, reference_sequence=reference_sequence, rel_max_difference=rel_max_difference)
     
 
@@ -260,11 +265,24 @@ def print_summary(population: list, toolbox: base.Toolbox, reference_sequence: n
     logbook.chapters["fitness"].header = "avg", "std", "min", "max"
     logbook.chapters["population"].header = "foo", "bar"
     print(logbook)
-    with open("test_folder/logbooks/logbook.pkl", "wb") as f:
+    time_stamp = utils.get_time_stamp()
+    with open(f"test_folder/logbooks/logbook_{time_stamp}.pkl", "wb") as f:
         pickle.dump(logbook, f)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser("Evolutionary algorithm to mutate a given sequence in an optimal way to maximize output from a model.")
+    parser.add_argument("--population_size", "-p", type=int, required=False, default=30, help="determines how many sequences will be used per generation.")
+    parser.add_argument("--number_of_generations", "-n", type=int, required=False, default=5, help="determines how many generations will be used.")
+    parser.add_argument("--tournament_size", "-t", type=int, required=False, default=3, help="Determines how many sequences will be chosen per round when selecting the offspring. only the sequence with the highest fitness scoure out of each round will be picked.")
+    parser.add_argument("--mutation_rate", "-m", type=int, required=False, default=0.01, help="determines the fraction of bases that will be changed on a single mutation step.")
+    parser.add_argument("--max_mutation_difference", "-mm", type=int, required=False, default=0.03, help="determines the fraction of bases the original sequence is allowed to change.")
+    args = parser.parse_args()
+    return args
+
+
 def main():
+    args = parse_args()
     number_of_nucleotides = 3020
     reference_sequence_inds = np.random.choice(np.arange(4), number_of_nucleotides)
     nucleotides = np.array([
@@ -274,18 +292,13 @@ def main():
         [0, 0, 0, 1],
     ])
     reference_sequence = np.array([nucleotides[i] for i in reference_sequence_inds])
-    population_size = 30
-    number_of_generations = 50
-    tournment_size = 3
-    mutation_rate = 0.01
     mutation_probability = 0.5
     crossover_probability = 0.5
     models = [load_model("saved_models/arabidopsis_1_SSR_train_ssr_models_240816_183905.h5")]
     # models = [FakeModel()]
-    rel_max_difference = 0.03
-    genetic_algorithm(number_of_nucleotides=number_of_nucleotides, number_of_generations=number_of_generations, population_size=population_size,
-                      tournment_size=tournment_size, mutation_rate=mutation_rate, mutation_probability=mutation_probability,
-                      crossover_probability=crossover_probability, models=models, rel_max_difference=rel_max_difference,
+    genetic_algorithm(number_of_nucleotides=number_of_nucleotides, number_of_generations=args.number_of_generations, population_size=args.population_size,
+                      tournament_size=args.tournament_size, mutation_rate=args.mutation_rate, mutation_probability=mutation_probability,
+                      crossover_probability=crossover_probability, models=models, rel_max_difference=args.max_mutation_difference,
                       reference_sequence=reference_sequence)
 
 
