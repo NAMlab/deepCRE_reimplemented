@@ -7,40 +7,12 @@ import h5py
 import numpy as np
 from deeplift.dinuc_shuffle import dinuc_shuffle
 import shap
+from pyfaidx import Fasta 
 
-from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, result_summary
+from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, load_annotation_msr
 from deepcre_predict import predict_self
-from train_ssr_models import extract_genes
-import re
+from train_models import extract_genes
 
-
-def find_newest_interpretation_results(output_name: str, results_path: str = "") -> str:
-    """finds path to newest model fitting the given parameters
-
-    Args:
-        output_name (str): output name the was used for creating the predictions in the first place
-        results_path (str): path to the directory where prediction results are stored.
-
-    Raises:
-        ValueError: raises an error if no fitting model is found
-
-    Returns:
-        str: Path to the newest prediction results for the given output name.
-    """
-    if results_path == "":
-        path_to_interpretations = make_absolute_path("saved_models", start_file=__file__)
-    else:
-        path_to_interpretations = make_absolute_path(results_path, start_file=__file__)
-    # ^ and $ mark start and end of a string. \d singnifies any digit. \d+ means a sequence of digits with at least length 1
-    regex_string = f"^{output_name}_deepcre_interpret_\d+_\d+\.h5$"                                                        #type:ignore
-    regex = re.compile(regex_string)
-    candidate_models = [model for model in os.listdir(path_to_interpretations) if regex.match(model)]
-    if not candidate_models:
-        raise ValueError("no interpretation results fitting the given parameters were found! Consider running the interpretation script (deepcre_interpret.py)")
-    # models only differ in the time stamp. So if sorted, the last model will be the most recently trained
-    candidate_models.sort()
-    full_path = os.path.join(path_to_interpretations, candidate_models[-1])
-    return full_path
 
 # 1. Shap
 def dinuc_shuffle_several_times(list_containing_input_modes_for_an_example, seed=1234):
@@ -107,34 +79,72 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
     shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, preds_seqs = [], [], [], [], []
-    loaded_input_files = load_input_files(genome_file_name=genome_file_name, annotation_file_name=annotation_file_name, tpm_counts_file_name=tpm_counts_file_name)
-    genome = loaded_input_files["genome"]
-    annotation = loaded_input_files["annotation"]
-    tpms = loaded_input_files["tpms"]
-    extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
-    for val_chrom in chromosome_list:
-        x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
-                                               output_name=output_name, model_case=model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
-        preds = preds > 0.5
-        preds = preds.astype(int)
-        correct_x, correct_y, correct_gene_ids = [], [], []
-        for idx in range(x.shape[0]): #type:ignore
-            if preds[idx] == y[idx]:
-                correct_x.append(x[idx])
-                correct_y.append(y[idx])
-                correct_gene_ids.append(gene_ids[idx])
+    
+    if model_case.lower() in ["ssr", "ssc"]:
+        loaded_input_files = load_input_files(genome_file_name=genome_file_name, annotation_file_name=annotation_file_name, tpm_counts_file_name=tpm_counts_file_name)
+        genome = loaded_input_files["genome"]
+        annotation = loaded_input_files["annotation"]
+        tpms = loaded_input_files["tpms"]
+    
+        extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, model_case=model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
+        for val_chrom in chromosome_list:
+            x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
+                                                output_name=output_name, model_case=model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
+            preds = preds > 0.5
+            preds = preds.astype(int)
+            correct_x, correct_y, correct_gene_ids = [], [], []
+            for idx in range(x.shape[0]): #type:ignore
+                if preds[idx] == y[idx]:
+                    correct_x.append(x[idx])
+                    correct_y.append(y[idx])
+                    correct_gene_ids.append(gene_ids[idx])
 
-        correct_x = np.array(correct_x)
+            correct_x = np.array(correct_x)
 
-        # Compute scores
-        print(f"Chromosome: {val_chrom}: Species: {output_name}\n")
+            # Compute scores
+            print(f"Running shap for chromosome -----------------------------------------\n")
+            print(f"Chromosome: {val_chrom}: Species: {output_name}\n")
+            print(f"Running shap for chromosome -----------------------------------------\n")
 
-        actual_scores, hypothetical_scores = compute_actual_hypothetical_scores(x=correct_x, model=model)
-        shap_actual_scores.append(actual_scores)
-        shap_hypothetical_scores.append(hypothetical_scores)
-        one_hots_seqs.append(correct_x)
-        gene_ids_seqs.extend(correct_gene_ids)
-        preds_seqs.extend(correct_y)
+            actual_scores, hypothetical_scores = compute_actual_hypothetical_scores(x=correct_x, model=model)
+            shap_actual_scores.append(actual_scores)
+            shap_hypothetical_scores.append(hypothetical_scores)
+            one_hots_seqs.append(correct_x)
+            gene_ids_seqs.extend(correct_gene_ids)
+            preds_seqs.extend(correct_y)
+
+    if model_case.lower() =="msr":
+        genome = Fasta(filename=genome_file_name, as_raw=True, read_ahead=10000, sequence_always_upper=True)
+        tpms = pd.read_csv(filepath_or_buffer=tpm_counts_file_name, sep=',')
+        tpms.set_index('gene_id', inplace=True)
+        annotation = load_annotation_msr(annotation_file_name)
+
+        extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, model_case=model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
+        for val_chrom in chromosome_list:
+            x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
+                                                output_name=output_name, model_case=model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
+            preds = preds > 0.5
+            preds = preds.astype(int)
+            correct_x, correct_y, correct_gene_ids = [], [], []
+            for idx in range(x.shape[0]): #type:ignore
+                if preds[idx] == y[idx]:
+                    correct_x.append(x[idx])
+                    correct_y.append(y[idx])
+                    correct_gene_ids.append(gene_ids[idx])
+
+            correct_x = np.array(correct_x)
+
+            # Compute scores
+            print(f"Running shap for chromosome -----------------------------------------\n")
+            print(f"Chromosome: {val_chrom}: Species: {output_name}\n")
+            print(f"Running shap for chromosome -----------------------------------------\n")
+
+            actual_scores, hypothetical_scores = compute_actual_hypothetical_scores(x=correct_x, model=model)
+            shap_actual_scores.append(actual_scores)
+            shap_hypothetical_scores.append(hypothetical_scores)
+            one_hots_seqs.append(correct_x)
+            gene_ids_seqs.extend(correct_gene_ids)
+            preds_seqs.extend(correct_y)
 
     shap_actual_scores = np.concatenate(shap_actual_scores, axis=0)
     shap_hypothetical_scores = np.concatenate(shap_hypothetical_scores, axis=0)
@@ -170,7 +180,7 @@ def parse_args():
 
     parser.add_argument('--input',
                         help="""
-                        This is a 5 column csv file with entries: genome, gtf, tpm, output name, number of chromosomes.""",
+                        This is a 7 column csv file with entries: enome, gtf, tpm, output name, number of chromosomegs.""",
                         required=True)
     parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True)
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
@@ -190,29 +200,61 @@ def main():
     extragenic = 1000
 
     args = parse_args()
+    model_case = args.model_case 
+
     data = pd.read_csv(args.input, sep=',', header=None,
-                    dtype={0: str, 1: str, 2: str, 3: str, 4: str},
-                    names=['genome', 'gtf', 'tpm', 'output', 'chroms'])
+                        dtype={0: str, 1: str, 2: str, 3: str, 4: str},
+                        names=["specie",'genome', 'gtf', 'tpm', 'output', 'chroms', "p_key"])
     print(data.head())
-    if data.shape[1] != 5:
-        raise Exception("Input file incorrect. Your input file must contain 5 columns and must be .csv")
+    if data.shape[1] != 7:
+        raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
 
     ignore_small_genes_flag = args.ignore_small_genes.lower() == "yes"
 
-    failed_trainings = []
-    for i, (genome, gtf, tpm_counts, output_name, chromosomes_file) in enumerate(data.values):
-        try:
-            chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-            extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=extragenic, downstream=intragenic,
-                           chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag, train_val_split=args.train_val_split
-                           output_name=output_name, model_case=args.model_case)
-        except Exception as e:
-            print(e)
-            failed_trainings.append((output_name, i, e))
+
+    if model_case.lower() == "msr":
+        p_keys = "_".join(data['p_key'].unique())
+        input_filename = args.input.split('.')[0] 
+
+        genome_path = make_absolute_path("genome", f"genome_{p_keys}.fa", start_file=__file__)     
+        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
+        annotation_path = make_absolute_path("gene_models", f"gtf_{p_keys}.csv", start_file=__file__)  
+        annotation = load_annotation_msr(annotation_path)
+
+
+        for specie in data['specie'].unique():                                                                     
+            test_specie = data.copy()
+            test_specie = test_specie[test_specie['specie'] == specie]
+            train_specie = data.copy()
+            train_specie = train_specie[train_specie['specie'] != specie]
+
+            output_name = "_".join([sp[:3].lower() for sp in train_specie['specie'].unique()])
+            
+            test_specie_name = test_specie['specie'].values[0]
+            chromosomes = annotation[annotation['species'] == test_specie_name]['Chromosome'].unique().tolist()
+            chromosomes = sorted(chromosomes, key=lambda x: int("".join(filter(str.isdigit, x))))
+
+            results = extract_scores(genome_file_name=genome_path, annotation_file_name=annotation_path, tpm_counts_file_name=tpm_path, upstream=1000, downstream=500,
+                        chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
+                        output_name=output_name, model_case=args.model_case, train_val_split=args.train_val_split)
+            shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
+            save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
+                        output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=pred_seqs)
+
+
     
-
-    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
-
+    if model_case.lower() in ["ssr", "ssc"]:
+    
+        for _,genome, gtf, tpm_counts, output_name, chromosomes_file in data.values:
+            chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
+            results = extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=1000, downstream=500,
+                        chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
+                        output_name=output_name, model_case=args.model_case, train_val_split=args.train_val_split)
+            shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
+            save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
+                        output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=pred_seqs)
+            
+    print("Restults saved in results/shap.")
 
 if __name__ == "__main__":
     main()

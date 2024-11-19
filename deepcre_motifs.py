@@ -5,7 +5,7 @@ import os
 import modisco
 from importlib import reload
 import h5py
-from utils import get_filename_from_path, get_time_stamp, make_absolute_path, result_summary
+from utils import get_filename_from_path, get_time_stamp, make_absolute_path, load_annotation_msr, result_summary
 from deepcre_interpret import extract_scores, find_newest_interpretation_results
 
 
@@ -100,28 +100,58 @@ def main():
     tf.compat.v1.disable_v2_behavior()
     tf.config.set_visible_devices([], 'GPU')
     args = parse_args()
+    model_case = args.model_case 
+
+
     force_interpretation = args.force_interpretations == "true"
     data = pd.read_csv(args.input, sep=',', header=None,
-                    dtype={0: str, 1: str, 2: str, 3: str, 4: str},
-                    names=['genome', 'gtf', 'tpm', 'output', 'chroms'])
-    ignore_small_genes = args.ignore_small_genes.lower() == "yes"
+                        dtype={0: str, 1: str, 2: str, 3: str, 4: str},
+                        names=["specie",'genome', 'gtf', 'tpm', 'output', 'chroms', "p_key"])
     print(data.head())
-    if data.shape[1] != 5:
-        raise Exception("Input file incorrect. Your input file must contain 5 columns and must be .csv")
+    if data.shape[1] != 7:
+        raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
+    
+    ignore_small_genes_flag = args.ignore_small_genes.lower() == "yes"
+    
+    if model_case.lower() == "msr":
+        p_keys = "_".join(data['p_key'].unique())
+        input_filename = args.input.split('.')[0] 
 
+        genome_path = make_absolute_path("genome", f"genome_{p_keys}.fa", start_file=__file__)     
+        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
+        annotation_path = make_absolute_path("gene_models", f"gtf_{p_keys}.csv", start_file=__file__)  
+        annotation = load_annotation_msr(annotation_path)
+
+
+        for specie in data['specie'].unique():                                                                     
+            test_specie = data.copy()
+            test_specie = test_specie[test_specie['specie'] == specie]
+            train_specie = data.copy()
+            train_specie = train_specie[train_specie['specie'] != specie]
+
+            output_name = "_".join([sp[:3].lower() for sp in train_specie['specie'].unique()])
+            
+            test_specie_name = test_specie['specie'].values[0]
+            chromosomes = annotation[annotation['species'] == test_specie_name]['Chromosome'].unique().tolist()
+            chromosomes = sorted(chromosomes, key=lambda x: int("".join(filter(str.isdigit, x))))
+
+            generate_motifs(genome=genome_path, annot=annotation_path, tpm_targets=tpm_path, upstream=1000, downstream=500,
+                            ignore_small_genes=ignore_small_genes_flag, output_name=output_name,
+                            model_case=args.model_case, chromosome_list=chromosomes, train_val_split=args.train_val_split)
 
     failed_trainings = []
-    for i, (genome, gtf, tpm_counts, output_name, chromosomes_file) in enumerate(data.values):
-        try:
-            chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-            generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
-                            ignore_small_genes=ignore_small_genes, output_name=output_name,
-                            model_case=args.model_case, chromosome_list=chromosomes, train_val_split=args.train_val_split, force_interpretation=force_interpretation)
-        except Exception as e:
-            print(e)
-            failed_trainings.append((output_name, i, e))
+    if model_case.lower() in ["ssr", "ssc"]:
+        for i, (genome, gtf, tpm_counts, output_name, chromosomes_file) in enumerate(data.values):
+            try:
+                chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
+                generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
+                                ignore_small_genes=ignore_small_genes_flag, output_name=output_name,
+                                model_case=args.model_case, chromosome_list=chromosomes, train_val_split=args.train_val_split, force_interpretation=force_interpretation)
+            except Exception as e:
+                print(e)
+                failed_trainings.append((output_name, i, e))
 
-    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
+        result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
 
 if __name__ == "__main__":

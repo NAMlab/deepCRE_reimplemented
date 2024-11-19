@@ -14,69 +14,26 @@ import numpy as np
 from pyfaidx import Fasta
 import pyranges as pr
 from sklearn.utils import shuffle
-import re
 import sys
 
 
-def find_newest_model_path(output_name: str, model_case: str, val_chromosome: str = "", model_path: str = "") -> Dict[str, str]:
-    """finds path to newest model fitting the given parameters
+def extract_genes(genome: pd.DataFrame, annotation: pd.DataFrame, extragenic: int, intragenic: int, model_case, ignore_small_genes: bool,train_val_split: bool, tpms, target_chromosomes: Tuple[str, ...], for_prediction: bool = False) -> Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]:
 
-    Args:
-        output_name (str): output name the was used for model training
-        val_chromosome (str): validation chromosome of the model. If it is not given, all models regardless of the val_chromosome will be returned
-        model_case (str): SSR or SSC for the model to be loaded
-        model_path (str): path to the directory where models are stored. used for testing, probably not really stable
-
-    Raises:
-        ValueError: raises an error if no fitting model is found
-
-    Returns:
-        List[str]: List of path to the newest model fitting the given parameters for a single chromosome, or all fitting models if chromosome is ommitted.
-    """
-    if model_path == "":
-        path_to_models = make_absolute_path("saved_models", start_file=__file__)
-    else:
-        path_to_models = make_absolute_path(model_path, start_file=__file__)
-    # ^ and $ mark start and end of a string. \d singnifies any digit. \d+ means a sequence of digits with at least length 1
-    # more detailed explanation at https://regex101.com/, put in "^ara_(\d+)_ssr_\d+_\d+\.h5$"
-    if val_chromosome == "":
-        regex_string = f"^{output_name}_(.+)_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                                    #type:ignore
-    else:
-        regex_string = f"^{output_name}_{val_chromosome}_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                        #type:ignore
-
-    if model_case.lower() == "msr": 
-        regex_string = f"{output_name}_\d[a-zA-Z]{{3}}_{model_case}_train_models_\d+_\d+\.h5$"     # specific for now
-        #print(regex_string) 
-        
-    regex = re.compile(regex_string)
-    candidate_models = [model for model in os.listdir(path_to_models)]
-    fitting_models = {}
-    for candidate in candidate_models:
-        match = regex.match(candidate)
-        if match:
-            # group 1 is the "(.+)" part of the regex, so the name of the validation chromosome for the model
-            chromosome = val_chromosome if val_chromosome else match.group(1)
-            if chromosome in fitting_models:
-                fitting_models[chromosome].append(candidate)
-            else:
-                fitting_models[chromosome] = [candidate]
-
-    if not fitting_models:
-        raise ValueError("no trained models fitting the given parameters were found! Consider training models first (train_ssr_models.py)")
-    for chromosome, models in fitting_models.items():
-        # models per chromosome only differ in the time stamp. So if sorted, the last model will be the most recently trained
-        models.sort()
-        fitting_models[chromosome] = os.path.join(path_to_models, models[-1])
-    return fitting_models
-
-
-def extract_genes(genome: pd.DataFrame, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, train_val_split, tpms, target_chromosomes: Tuple[str, ...], for_prediction: bool = False) -> Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]:
     extracted_seqs = {}
     expected_final_size = 2 * (extragenic + intragenic) + 20
     # tpms are absolutely necessary for training, but not for predictions, so can miss if data is for predictions
     if tpms is None and not for_prediction:
         raise ValueError(f"tpms have to be given if \"for_prediction\" is not set to True!")
-    for chrom, start, end, strand, gene_id in annotation.values:#type:ignore
+    
+    unpack_variables = ("specie", "chrom", "start", "end", "strand", "gene_id") if model_case.lower() == "msr" else ("chrom", "start", "end", "strand", "gene_id")
+
+    for values in annotation.values:
+        if len(unpack_variables) == 6:
+            specie, chrom, start, end, strand, gene_id = values
+        else:
+            chrom, start, end, strand, gene_id = values
+
+    #for chrom, start, end, strand, gene_id in annotation.values:#type:ignore
         # skip all chromosomes that are not in the target chromosomes. Empty tuple () means, that all chromosomes should be extracted
         if target_chromosomes != () and chrom not in target_chromosomes:
             continue
@@ -231,7 +188,6 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
     
     if model_case.lower() == "msr":
 
-        print("MSR train / val sorting: ")
         
         # do i even need this anymore? 
         args = parse_args() 
@@ -241,22 +197,23 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
         
         # concat all species to one fasta/gtf/tpm file
         p_keys = "_".join(data['p_key'].unique())
-
+        input_filename = args.input.split('.')[0]
         
         # adjust file names to combined ones: 
         genome_path = make_absolute_path("genome", f"genome_{p_keys}.fa", start_file=__file__)     
-        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
+        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
         annotation_path = make_absolute_path("gene_models", f"gtf_{p_keys}.csv", start_file=__file__)  
-        #print(f"Annotation file path: {annotation_path}")
-        #print(f"Does the annotation file exist? {os.path.exists(annotation_path)}")
         genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
         tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
         tpms.set_index('gene_id', inplace=True)
         annot = load_annotation_msr(annotation_path)
-
- 
+        #print("Annotation data:")
+        #print(annot.head())
+        
+        skipped_genes = [] 
         validation_genes = []
         for specie, chrom, start, end, strand, gene_id in annot.values:
+                    #print(gene_id)
                     gene_size = end - start
                     extractable_downstream = intragenic if gene_size//2 > intragenic else gene_size//2
                     prom_start, prom_end = start - extragenic, start + extractable_downstream
@@ -282,27 +239,48 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
                             promoter[::-1, ::-1]
                         ])
 
+                    if gene_id not in tpms.index:
+                        skipped_genes.append(gene_id)
+                        continue
+                        #if len(skipped_genes) > 5000:
+                        #    print(f"Warning: More than 5000 gene IDs were skipped. Stopping processing.")
+                        #    sys.exit()
+
                     #if test_specie['specie'].any() and specie in test_specie['specie'].values:
                     if specie in test_specie['specie'].values:
                         validation_genes.append(gene_id)
+                        #print(f"val gene added {gene_id}")
 
                     # val: one species, one chromosome 
                     if seq.shape[0] == expected_final_size:
-                        if chrom == val_chromosome:               
-                            if gene_id in validation_genes:        #species not in train species
-                                val_seqs.append(seq)
-                                val_targets.append(tpms.loc[gene_id, 'target'])
+                        if chrom == val_chromosome and gene_id in validation_genes:        #species not in train species
+                            val_seqs.append(seq)
+                            val_targets.append(tpms.loc[gene_id, 'target'])
+                            #print(f"val_targets: {gene_id}")
                                 
-
-                    # train: all species except one 
-                    if specie not in test_specie['specie'].values:
-                        if seq.shape[0] == expected_final_size:
+                                
+                        # train: all species except one 
+                        elif specie not in test_specie['specie'].values:
                             train_seqs.append(seq)
                             train_targets.append(tpms.loc[gene_id, 'target'])
-                           
+                            #print(f"train_targets: {gene_id}")
 
-
+        
+        if skipped_genes:  # This checks if the set/list is not empty
+            timestamp = get_time_stamp()
+            filename = f'skipped_genes_MSR_{p_keys}_{timestamp}.txt'
+            with open(filename, 'w') as skipped_genes_file:
+                for gene in skipped_genes:
+                    skipped_genes_file.write(f"{gene}\n")
             
+            if len(skipped_genes) > 5000:
+                print(f"Warning: {len(skipped_genes)} gene IDs were skipped. Please check that the gene name formats are identical in both the GTF and TPM files.")
+                 
+            else:
+                print(f"Some gene IDs in the gtf file were not found in TPM counts. Skipped gene IDs have been written to {filename}.")
+
+        
+        
           
     if model_case.lower() in ["ssr", "ssc"]:
 
@@ -331,7 +309,7 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
                     np.random.shuffle(promoter)
                     np.random.shuffle(terminator)
 
-                pad_size = 20 if ignore_small_genes else central_pad_size
+                pad_size = 20 if ignore_small_genes.lower() == 'yes' else central_pad_size
 
                 if strand == '+':
                     seq = np.concatenate([
@@ -433,6 +411,10 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
     train_seqs, val_seqs = np.array(train_seqs), np.array(val_seqs)
     train_targets, val_targets = np.array(train_targets), np.array(val_targets)
     print(train_seqs.shape, val_seqs.shape)
+    if train_seqs.size == 0 or val_seqs.size == 0:
+        print("Error: Validation sequences or training sequences are empty. Stopping execution.")
+        exit(1)
+
     mask_sequences(train_seqs=train_seqs, val_seqs=val_seqs, extragenic=extragenic, intragenic=intragenic)
     return train_seqs, train_targets, val_seqs, val_targets
 
@@ -506,49 +488,55 @@ def parse_args():
 def main():
     args = parse_args()
     model_case = args.model_case 
+    #input_filename = args.input
+    #input_filename = input_filename.split('.')[0]
+    input_filename = args.input.split('.')[0]
+    #print(input_filename)
+
 
     data = pd.read_csv(args.input, sep=',', header=None,
                     dtype={0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str},
                     names=['specie','genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key'])
     ignore_small_genes = args.ignore_small_genes.lower() == "yes"
-    model_cases = ["SSR", "SSC"] if args.model_case == "BOTH" else [args.model_case]
     print(data.head())
 
     if data.shape[1] != 7:
         raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
 
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-    training_results_path = make_absolute_path('results', "training", start_file=__file__)
+    result_path = make_absolute_path("results", start_file=__file__)
     models_path = make_absolute_path("saved_models", start_file=__file__)
-    if not os.path.exists(training_results_path):
-        os.makedirs(training_results_path)
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
     if not os.path.exists(models_path):
         os.makedirs(models_path)
 
     file_name = get_filename_from_path(__file__)
-    failed_trainings = []
-    for model_case in model_cases:
-        
-        # MSR training 
+    failed_trainings, passed_trainings = [],[]
+    
+    # MSR training 
 
-        if model_case.lower() == "msr":
-            
-            print(f'Multi species Training: ---------------------\n')
+    if model_case.lower() == "msr":
+        
+        print(f'Multi species Training: ---------------------\n')
 
         p_keys = "_".join(data['p_key'].unique())
         # genreate concat files
-        combine_files(data=data, file_type='tpm', file_extension='csv', output_dir='tpm_counts', file_key=p_keys)
+        combine_files(data=data, file_type='tpm', file_extension='csv', output_dir='tpm_counts', file_key=p_keys, input_filename=input_filename)
         combine_files(data=data, file_type='genome', file_extension='fa', output_dir='genome', file_key=p_keys)
         combine_files(data=data, file_type='gtf', file_extension='csv', output_dir='gene_models', file_key=p_keys, load_func=load_annotation)
         
         # get concat files
         genome_path = make_absolute_path("genome", f"genome_{p_keys}.fa", start_file=__file__)     
-        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
+        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
         annotation_path = make_absolute_path("gene_models", f"gtf_{p_keys}.csv", start_file=__file__)  
         genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
         tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
         tpms.set_index('gene_id', inplace=True)
         annot = load_annotation_msr(annotation_path)
+
+        results_genome = []
+
 
         for specie in data['specie'].unique():                                                                     # use this 
             test_specie = data.copy()
@@ -556,46 +544,68 @@ def main():
             train_specie = data.copy()
             train_specie = train_specie[train_specie['specie'] != specie]
 
-                print(f'Training on specie: {train_specie["specie"].unique()}')
-                print(f'Testing on species: {test_specie["specie"].unique()}')
+            print(f'Training on species: {train_specie["specie"].unique()}')
+            print(f'Testing on specie: {test_specie["specie"].unique()}')
 
             
-            # same as SSR training  
-            for specie, genome, gtf, tpm_counts, output_name, chromosomes_file, pickled_key in train_specie.values:   # loop over only train_specie, not total data
+            output_name = "_".join([sp[:3].lower() for sp in train_specie['specie'].unique()])
+            print(f"Output name for training: {output_name}")
+
+            #optional: other data directory 
+            #chromosomes_file = test_specie['chroms'].values[0]
+            #chromosomes = pd.read_csv(filepath_or_buffer=f'../../simon/projects/deepCRE_reimplemented/genome/{chromosomes_file}', header=None).values.ravel().tolist()
+            #chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
+        
+
+            # get chromosome names from annot data due to renaming of chromosomes 
+            test_specie_name = test_specie['specie'].values[0]
+            chromosomes = annot[annot['species'] == test_specie_name]['Chromosome'].unique().tolist()
+            chromosomes = sorted(chromosomes, key=lambda x: int("".join(filter(str.isdigit, x))))
+            #print("sorted Unique chromosomes for the test species:", chromosomes)
+        
+            # same as SSR training 
+
+            for i, val_chrom in enumerate(chromosomes):
                 try: 
-                    chromosomes_file = test_specie['chroms'].values[0]  
-                    results_genome = []
-                    chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-                    for i, val_chrom in enumerate(chromosomes):
-                            print(f"Using chromosome {val_chrom} from {test_specie['specie'].values[0]} as validation chromosome")
-                            results = train_deep_cre(genome=genome,
-                                                    annot=gtf,
-                                                    tpm_targets=tpm_counts,
+                    print(f"Now: using chromosome {val_chrom} from {test_specie['specie'].values[0]} as validation chromosome")
+                    results = train_deep_cre(genome=genome,
+                                                    annot=annot,
+                                                    tpm_targets=tpms,
                                                     upstream=1000,
                                                     downstream=500,
                                                     genes_picked=args.pickle,
                                                     val_chromosome=str(val_chrom),
                                                     output_name=output_name,
                                                     model_case=args.model_case,
-                                                    pickled_key=pickled_key,
+                                                    pickled_key=None,
                                                     ignore_small_genes=args.ignore_small_genes,
                                                     train_val_split=args.train_val_split,
-                                                    test_specie=test_specie)
-                            results_genome.append(results)
-                            print(f"Results for genome: {genome}, chromosome: {val_chrom}: {results}")
-                                                
-                    results_genome = pd.DataFrame(results_genome, columns=['loss', 'accuracy', 'auROC', 'auPR'])
-                    save_file = make_absolute_path('results', f"{output_name}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
-                    results_genome.to_csv(path_or_buf=save_file, index=False)
-                    print(results_genome.head())
+                                                    test_specie=test_specie) 
 
+                    results_with_info = {
+                        'loss': results[0],
+                        'accuracy': results[1],
+                        'auROC': results[2],
+                        'auPR': results[3],
+                        'test_specie': test_specie['specie'].values[0],
+                        'chromosome': val_chrom
+                    }
+                    
+                    results_genome.append(results_with_info)
+                    print(f"Results for genome: {genome_path}, validation chromosome: {val_chrom}: {results_with_info}")
+                                                
 
                     passed_trainings.append((output_name, i))
                 except Exception as e:
                     print(e)
                     failed_trainings.append((output_name, i, e))
 
-        result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
+    results_genome = pd.DataFrame(results_genome, columns=['test_specie', 'chromosome','loss', 'accuracy', 'auROC', 'auPR'])
+    save_file = make_absolute_path('results', f"{p_keys}_{input_filename}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
+    results_genome.to_csv(path_or_buf=save_file, index=False)
+    print(results_genome.head())
+        
+    result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
                 
                     

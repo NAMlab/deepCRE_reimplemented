@@ -53,7 +53,9 @@ def get_filename_from_path(path: str) -> str:
 def load_annotation(annotation_path):
     if annotation_path.endswith('.gtf'):
         gene_model = pr.read_gtf(f=annotation_path, as_df=True)
-        gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
+        #gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
+        if 'gene_biotype' in gene_model.columns:
+            gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
         gene_model = gene_model[gene_model['Feature'] == 'gene']
         gene_model = gene_model[['Chromosome', 'Start', 'End', 'Strand', 'gene_id']]
     else:
@@ -65,47 +67,121 @@ def load_annotation(annotation_path):
 
 
 def load_annotation_msr(annotation_path):
-    if annotation_path.endswith('.gtf'):
-        gene_model = pr.read_gtf(f=annotation_path, as_df=True)
-        gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
-        gene_model = gene_model[gene_model['Feature'] == 'gene']
-        gene_model = gene_model[["Specie",'Chromosome', 'Start', 'End', 'Strand', 'gene_id']]
+    gene_model = pd.read_csv(annotation_path, header=None, sep=" ")
 
+    expected_columns = ['species', 'Chromosome', 'Start', 'End', 'Strand', 'gene_id']
+    dtypes = {
+        'species': 'category',
+        'Chromosome': 'str', 
+        'Start': 'int32',
+        'End': 'int32',
+        'Strand': 'category',
+        'gene_id': 'str'
+        }
+    
+    if gene_model.shape[1] != len(expected_columns):
+        raise ValueError(f"CSV file must contain exactly {len(expected_columns)} columns.")
+    gene_model.columns = expected_columns
+    #gene_model['gene_id'] = gene_model['gene_id'].str.split(':').str[1]
+
+    # Check if Chromosome is a single number and modify accordingly, same naming change in fasta
+    for index, row in gene_model.iterrows():
+        if row['Chromosome'].isdigit():  # Check if Chromosome is a number
+            species_abbr = row['species'][:3]  # Get the first 3 letters of the species
+            gene_model.at[index, 'Chromosome'] = f"{row['Chromosome']}{species_abbr}"  # Concatenate
+
+    # Remove rows where 'Chromosome' contains 'Mt' or 'Pt'
+    gene_model = gene_model[~gene_model['Chromosome'].str.contains('Mt|Pt|^scaffold', na=False)]
+
+    
     return gene_model
 
 
 # for MSR training
-def combine_files(data, file_type, file_extension, output_dir, file_key, load_func=None):
-    combined_file = f"{output_dir}/{file_type}_{file_key}.{file_extension}"
+def combine_files(data, file_type, file_extension, output_dir, file_key, input_filename=None, load_func=None):
     
+    # optional: other data directory 
+    read_dir = "../../simon/projects/deepCRE_reimplemented"
+    #read_dir = "'
+    
+
+    if file_type in ['gtf', 'gff', 'gff3']:
+        file_extension = 'csv'
+
+    combined_file = f"{output_dir}/{file_type}_{file_key}.{file_extension}"
+    combined_file_tpm = f"{output_dir}/{file_type}_{file_key}_{input_filename}.{file_extension}"
+
     # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
-    if not os.path.exists(combined_file):
+    if os.path.exists(combined_file_tpm):
+        print(f"Combined file {combined_file_tpm} already exists.")
+        return
+    
+    if os.path.exists(combined_file):
+        print(f"Combined file {combined_file} already exists.")
+        return
+    
+    
+    if not os.path.exists(combined_file) or not os.path.exists(combined_file_tpm):
         print(f'Now generating combined {file_type} file:')
         combined_data = []
 
+    
         for index, row in data.iterrows():
-            file_path = os.path.join(output_dir, row[file_type])
+            file_path = os.path.join(read_dir,output_dir, row[file_type]) 
+               
             species_name = row['specie']
+            species_abbr = species_name[:3]
 
             if os.path.exists(file_path):
+                #print(f"Found file: {file_path}") 
                 if file_type == 'tpm':
                     file_data = pd.read_csv(file_path)
-                elif file_type in ['gtf', 'gff']:  # Handle both GTF and GFF
-                    if load_func:  # If a loading function is provided
-                        file_data = load_func(file_path)
-                        # Add species name as a new column
-                        file_data.insert(0, 'species', species_name)
-                    else:
-                        print(f"Warning: No loading function provided for {file_type}.")
-                        continue  # Skip if no loading function is available
+                    # Select only the "gene_id" and "target" columns
+                    file_data = file_data.loc[:, ["gene_id", "target"]]
+                    combined_data.append(file_data)
+                elif file_type in ['gtf', 'gff','gff3']:  # Handle both GTF and GFF
+                        if load_func:  
+                            file_data = load_func(file_path)
+                            # Add species name as a new column
+                            file_data.insert(0, 'species', species_name)
+                            combined_data.append(file_data)
+                        else:
+                            print(f"Warning: No loading function provided for {file_type}.")
+                            continue  # Skip if no loading function is available
                 else:  # For fasta
                     with open(file_path, 'r') as f:
-                        file_data = f.read()
-                
-          
-                combined_data.append(file_data)
+                            fasta_data = []
+                            include_sequence = False
+
+                            for line in f:
+                                if line.startswith('>'):  # Header line in FASTA
+                                    parts = line.strip().split()
+                                    chrom_name = parts[0][1:]  # Remove '>' from chromosome name
+
+                                    # Skip headers containing 'Mt', 'Pt', or 'scaffold'
+                                    if any(term in chrom_name for term in ['Mt', 'Pt', 'scaffold']):
+                                        include_sequence = False
+                                        continue  # Skip this header and go to the next line
+                                    
+                                    # Otherwise, mark the sequence for inclusion
+                                    include_sequence = True  
+
+                                    # Modify the header if the chromosome name is numeric
+                                    if chrom_name.isdigit():
+                                        line = f">{chrom_name}{species_abbr}\n"
+                                    
+                                    # Append the modified header to `fasta_data`
+                                    fasta_data.append(line.strip())
+
+                                elif include_sequence:
+                                    # Append sequence lines if the header was marked for inclusion
+                                    fasta_data.append(line.strip())
+                    
+                    # Add the modified FASTA data as a single string block
+                    combined_data.append("\n".join(fasta_data))
+                       
             else:
                 print(f"Warning: {file_path} does not exist.")
                 break
@@ -114,19 +190,25 @@ def combine_files(data, file_type, file_extension, output_dir, file_key, load_fu
         if combined_data:
             if file_type == 'tpm':
                 combined_data_df = pd.concat(combined_data, ignore_index=True)
-                combined_data_df.to_csv(combined_file, index=False)
+                combined_data_df.to_csv(combined_file_tpm, index=False)
+                print(f"Combined {file_type} file saved as {combined_file_tpm}")
             else:  # For fasta and GTF/GFF
-                if file_type in ['gtf', 'gff']:
+                if file_type in ['gtf', 'gff','gff3']:
                     combined_data_df = pd.concat(combined_data, ignore_index=True)
-                    combined_data_df.to_csv(combined_file, sep='\t', index=False, header=False)  # Save as GTF
-                else:  # For fasta
+                    combined_data_df.to_csv(combined_file, sep=' ', index=False, header=False)  # Save as GTF
+                else:  # For fata
                     with open(combined_file, 'w') as f_out:
                         f_out.write("\n".join(combined_data))
-            print(f"Combined {file_type} file saved as {combined_file}")
+                print(f"Combined {file_type} file saved as {combined_file}")
         else:
-            print(f"No {file_type} files found. No output generated.")
-    else:
-        print(f"Combined {file_type} file already exists at {combined_file}.")
+            print(f"No output generated.")
+    
+    
+
+            
+   
+
+
 
 
 
@@ -166,13 +248,21 @@ def load_input_files(genome_file_name: str = "", annotation_file_name: str = "",
     results = {}
 
     if genome_file_name != "":
-        #see if given name is full path to file
-        if os.path.isfile(genome_file_name):
-            genome = Fasta(filename=genome_file_name, as_raw=True, read_ahead=10000, sequence_always_upper=True)
-        else:
-            genome_path = make_absolute_path("genome", genome_file_name, start_file=__file__)
-            genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
-        results["genome"] = genome
+        try:    
+            #see if given name is full path to file
+            if os.path.isfile(genome_file_name):
+                genome = Fasta(filename=genome_file_name, as_raw=True, read_ahead=10000, sequence_always_upper=True)
+            else:
+                genome_path = make_absolute_path("genome", genome_file_name, start_file=__file__)
+                genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
+            results["genome"] = genome
+
+        except ValueError as e:
+            # Check if the error is due to duplicate keys
+            if 'Duplicate key' in str(e):
+                raise ValueError("Error: Chromosome names in the FASTA file cannot be the same across species. "
+                                 "Please ensure unique chromosome identifiers for each species. ") from e
+            
 
     if annotation_file_name != "":
         #see if given name is full path to file
