@@ -1,6 +1,24 @@
+import os
 import re
 import pandas as pd
 
+
+def get_best_model():
+    df = pd.read_csv("/home/gernot/Data/deepCRE_website_paper/compiled_results.csv", index_col=0)
+    print(df.idxmax())
+
+
+def get_best_model_val_chrom():
+    results_folder = "/home/gernot/Data/deepCRE_website_paper/training_outputs"
+    data_dict =  {}
+    for file in sorted(os.listdir(results_folder)):
+        name = "_".join(file.split("_")[:2])
+        results_df = pd.read_csv(os.path.join(results_folder, file))
+        results_list = list(results_df["accuracy"])
+        data_dict[name] = results_list
+    match_list_lengths(data_dict)
+    df = pd.DataFrame(data_dict)
+    print(df.idxmax() + 1)
 
 def compile_results():
     data_dict = {}
@@ -23,6 +41,11 @@ def compile_results():
         for key in keys:
             res_list.append(res_dict[key])
         data_dict[name] = res_list
+    match_list_lengths(data_dict)
+    df = pd.DataFrame(data_dict)
+    print(df)
+
+def match_list_lengths(data_dict):
     max_length = max([len(list_) for list_ in data_dict.values()])
     for list_ in data_dict.values():
         length_diff = max_length - len(list_)
@@ -95,4 +118,5 @@ def predicionts_equal():
 if __name__ == "__main__":
     # predicionts_equal()
     # print(compare_results_crosspred(file_name="arabidopsis_leaf_1_SSR_train_ssr_models_241104_110233_deepcre_crosspredict_arabidopsis_leaf_241104_183042.csv"))
-    compile_results()
+    # compile_results()
+    get_best_model_val_chrom()
