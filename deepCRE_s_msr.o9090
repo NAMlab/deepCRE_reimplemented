@@ -1,0 +1,221 @@
+2024-11-18 15:34:48.893354: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  SSE4.1 SSE4.2 AVX
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING:tensorflow:From /mnt/data/project/2024_deep_phy/shared_envs/deepCRE_shapworking_p38tf210/lib/python3.8/site-packages/tensorflow/python/compat/v2_compat.py:107: disable_resource_variables (from tensorflow.python.ops.variable_scope) is deprecated and will be removed in a future version.
+Instructions for updating:
+non-resource variables are not supported in the long term
+2024-11-18 15:36:11.586355: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  SSE4.1 SSE4.2 AVX
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2024-11-18 15:36:11.698825: I tensorflow/compiler/mlir/mlir_graph_optimization_pass.cc:354] MLIR V1 optimization pass is not enabled
+/mnt/data/project/2024_deep_phy/shared_envs/deepCRE_shapworking_p38tf210/lib/python3.8/site-packages/keras/engine/training_v1.py:2356: UserWarning: `Model.state_updates` will be removed in a future version. This property should not be used in TensorFlow 2.0, as `updates` are applied automatically.
+  updates=self.state_updates,
+WARNING:tensorflow:From /mnt/data/project/2024_deep_phy/shared_envs/deepCRE_shapworking_p38tf210/lib/python3.8/site-packages/shap/explainers/deep/deep_tf.py:140: The name tf.keras.backend.get_session is deprecated. Please use tf.compat.v1.keras.backend.get_session instead.
+
+/mnt/data/project/2024_deep_phy/shared_envs/deepCRE_shapworking_p38tf210/lib/python3.8/site-packages/keras/engine/training_v1.py:2356: UserWarning: `Model.state_updates` will be removed in a future version. This property should not be used in TensorFlow 2.0, as `updates` are applied automatically.
+  updates=self.state_updates,
+/mnt/data/project/2024_deep_phy/shared_envs/deepCRE_shapworking_p38tf210/lib/python3.8/site-packages/keras/engine/training_v1.py:2356: UserWarning: `Model.state_updates` will be removed in a future version. This property should not be used in TensorFlow 2.0, as `updates` are applied automatically.
+  updates=self.state_updates,
+/mnt/data/project/2024_deep_phy/shared_envs/deepCRE_shapworking_p38tf210/lib/python3.8/site-packages/keras/engine/training_v1.py:2356: UserWarning: `Model.state_updates` will be removed in a future version. This property should not be used in TensorFlow 2.0, as `updates` are applied automatically.
+  updates=self.state_updates,
+        specie  ...      p_key
+0  arabidopsis  ...  Athaliana
+1  anemorensis  ...      Anem2
+2     ahalleri  ...       Ahal
+3      alyrata  ...    Alyrata
+
+[4 rows x 7 columns]
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ane_aha_aly_5ara_MSR_train_models_241113_073219.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 1ara: Species: ane_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ane_aha_aly_5ara_MSR_train_models_241113_073219.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 2ara: Species: ane_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ane_aha_aly_5ara_MSR_train_models_241113_073219.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 3ara: Species: ane_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ane_aha_aly_5ara_MSR_train_models_241113_073219.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 4ara: Species: ane_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ane_aha_aly_5ara_MSR_train_models_241113_073219.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 5ara: Species: ane_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_aha_aly_8ane_MSR_train_models_241113_203744.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 1ane: Species: ara_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_aha_aly_8ane_MSR_train_models_241113_203744.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 2ane: Species: ara_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_aha_aly_8ane_MSR_train_models_241113_203744.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 3ane: Species: ara_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_aha_aly_8ane_MSR_train_models_241113_203744.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 4ane: Species: ara_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_aha_aly_8ane_MSR_train_models_241113_203744.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 5ane: Species: ara_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_aha_aly_8ane_MSR_train_models_241113_203744.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 6ane: Species: ara_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_aha_aly_8ane_MSR_train_models_241113_203744.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 7ane: Species: ara_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_aha_aly_8ane_MSR_train_models_241113_203744.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 8ane: Species: ara_aha_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aly_7aha_MSR_train_models_241114_070254.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 1aha: Species: ara_ane_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aly_7aha_MSR_train_models_241114_070254.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 2aha: Species: ara_ane_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aly_7aha_MSR_train_models_241114_070254.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 3aha: Species: ara_ane_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aly_7aha_MSR_train_models_241114_070254.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 4aha: Species: ara_ane_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aly_7aha_MSR_train_models_241114_070254.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 5aha: Species: ara_ane_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aly_7aha_MSR_train_models_241114_070254.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 6aha: Species: ara_ane_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aly_7aha_MSR_train_models_241114_070254.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 7aha: Species: ara_ane_aly
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aha_8aly_MSR_train_models_241115_113858.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 1aly: Species: ara_ane_aha
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aha_8aly_MSR_train_models_241115_113858.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 2aly: Species: ara_ane_aha
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aha_8aly_MSR_train_models_241115_113858.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 3aly: Species: ara_ane_aha
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aha_8aly_MSR_train_models_241115_113858.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 4aly: Species: ara_ane_aha
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aha_8aly_MSR_train_models_241115_113858.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 5aly: Species: ara_ane_aha
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aha_8aly_MSR_train_models_241115_113858.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 6aly: Species: ara_ane_aha
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aha_8aly_MSR_train_models_241115_113858.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 7aly: Species: ara_ane_aha
+
+Running shap for chromosome -----------------------------------------
+
+model path: {'1|2|3': '/mnt/data/personal/merle/deepCRE_reimplemented_G/saved_models/ara_ane_aha_8aly_MSR_train_models_241115_113858.h5'}
+Running shap for chromosome -----------------------------------------
+
+Chromosome: 8aly: Species: ara_ane_aha
+
+Running shap for chromosome -----------------------------------------
+
