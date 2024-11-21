@@ -284,7 +284,7 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
         
         
           
-    if model_case.lower() in ["ssr", "ssc"]:
+    elif model_case.lower() in ["ssr", "ssc"]:
 
         genome_path = make_absolute_path("genome", genome, start_file=__file__)
         tpm_path = make_absolute_path("tpm_counts", tpm_targets, start_file=__file__)
@@ -296,6 +296,10 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
 
         # chromosome wise train-val splitting, OG code
         if train_val_split.lower() == "no":                             
+            with open(genes_picked, 'rb') as handle:
+                validation_genes = pickle.load(handle)
+                validation_genes = validation_genes[pickled_key]
+
             for chrom, start, end, strand, gene_id in annot.values:#type:ignore
                 gene_size = end - start
                 extractable_downstream = intragenic if gene_size//2 > intragenic else gene_size//2
@@ -325,10 +329,6 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
                         np.zeros(shape=(pad_size, 4)),
                         promoter[::-1, ::-1]
                     ])
-
-                with open(genes_picked, 'rb') as handle:
-                    validation_genes = pickle.load(handle)
-                    validation_genes = validation_genes[pickled_key]
 
                 if seq.shape[0] == expected_final_size:
                     if chrom == val_chromosome:
@@ -402,11 +402,11 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
                         train_targets.append(tpms.loc[gene_id, 'target'])
                         current_train_size += 1 
 
-        # check if desired 80/20 split is reached 
-        if current_val_size < target_val_size:
-            raise ValueError(f"Validation set is not 20%. Current size: {current_val_size} genes, "
-                                f"Target size: {target_val_size} genes. Total genes in pickle file: {len(validation_genes)}. "
-                                f"(Only genes from pickle file can be in the validation set.)")
+            # check if desired 80/20 split is reached 
+            if current_val_size < target_val_size:
+                raise ValueError(f"Validation set is not 20%. Current size: {current_val_size} genes, "
+                                    f"Target size: {target_val_size} genes. Total genes in pickle file: {len(validation_genes)}. "
+                                    f"(Only genes from pickle file can be in the validation set.)")
 
     
     
@@ -495,15 +495,12 @@ def main():
     input_filename = args.input.split('.')[0]
     #print(input_filename)
 
+    dtypes = {0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str} if model_case.lower() == "msr" else {0: str, 1: str, 2: str, 3: str, 4: str, 5: str}
+    names = ['specie','genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key']
+    data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
 
-    data = pd.read_csv(args.input, sep=',', header=None,
-                    dtype={0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str},
-                    names=['specie','genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key'])
     ignore_small_genes = args.ignore_small_genes.lower() == "yes"
     print(data.head())
-
-    if data.shape[1] != 7:
-        raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
 
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     result_path = make_absolute_path("results", start_file=__file__)
@@ -615,8 +612,7 @@ def main():
         
 
     if model_case.lower() in ["ssr", "ssc"]:
-
-        for specie, genome, gtf, tpm_counts, output_name, chromosomes_file, pickled_key in data.values:
+        for genome, gtf, tpm_counts, output_name, chromosomes_file, pickled_key in data.values:
             try:
                 print(f'Single species Training on genome: ---------------------\n')
                 print(genome)
@@ -637,7 +633,7 @@ def main():
                     
                 
                 # New random gene-based split
-                if args.train_val_split.lower() == 'yes':
+                elif args.train_val_split.lower() == 'yes':
                     chromosomes=[1,2,3]
                     print(f"Using random 80/20 gene-based split for validation")
                     for i, val_chrom in enumerate(chromosomes):
