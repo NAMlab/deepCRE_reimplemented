@@ -531,7 +531,7 @@ def parse_args():
                         number of chromosomes and pickle_key.""", required=True)
     parser.add_argument('--pickle', help="path to pickle file", required=True)
     parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True, choices=["msr", "ssr", "ssc", "both"])
-    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True, choices=["yes", "no"])
+    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=False, choices=["yes", "no"], default="yes")
     parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=False, choices=["yes", "no"], default="no")
 
 
@@ -709,18 +709,10 @@ def main():
                         results_genome.append(results)
                         print(f"Results for genome: {genome}, iteration: {val_chrom}: {results}")
                     
-                else: 
-                    print(f"Invalid input for --train_val_split argument. Please enter 'yes' or 'no'.")
-                    break 
-                    
-                    
-                    
                 results_genome = pd.DataFrame(results_genome, columns=['loss', 'accuracy', 'auROC', 'auPR'])
                 save_file = make_absolute_path('results', f"{output_name}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
                 results_genome.to_csv(path_or_buf=save_file, index=False)
                 print(results_genome.head())
-
-
 
                 passed_trainings.append((output_name, i))
             except Exception as e:
