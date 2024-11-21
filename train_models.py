@@ -1,6 +1,6 @@
 import argparse
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 import pandas as pd
 from utils import get_filename_from_path, get_time_stamp, one_hot_encode, make_absolute_path, load_annotation, load_annotation_msr, combine_files, result_summary
 from tensorflow.keras.layers import Dropout, Dense, Input, Conv1D, Activation, MaxPool1D, Flatten               #type:ignore
@@ -166,7 +166,7 @@ def mask_sequences(train_seqs: np.ndarray, val_seqs: np.ndarray, extragenic: int
 
 
 def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, genes_picked, pickled_key, val_chromosome,
-                model_case, ignore_small_genes, train_val_split, test_specie):
+                model_case, ignore_small_genes, train_val_split, test_specie: Optional[str] = None):
     """
      This function extract sequences from the genome. It implements a gene size aware padding
     :param genome: reference genome from Ensembl Plants database
@@ -187,6 +187,8 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
     train_seqs, val_seqs, train_targets, val_targets = [], [], [], []
     
     if model_case.lower() == "msr":
+        if test_specie is None:
+            raise ValueError("test specie parameter necessary for msr training!")
 
         
         # do i even need this anymore? 
@@ -446,7 +448,7 @@ def balance_dataset(x, y):
 
 
 def train_deep_cre(genome, annot, tpm_targets, upstream, downstream, genes_picked, val_chromosome, output_name,
-                   model_case, pickled_key, ignore_small_genes, train_val_split,  test_specie):
+                   model_case, pickled_key, ignore_small_genes, train_val_split,  test_specie: Optional[str] = None):
     train_seqs, train_targets, val_seqs, val_targets = extract_seq(genome, annot, tpm_targets, upstream, downstream,
                                                                    genes_picked, pickled_key, val_chromosome,
                                                                    model_case, ignore_small_genes, train_val_split, test_specie)
@@ -476,9 +478,9 @@ def parse_args():
                         This is a seven column csv file with entries: species, genome, gtf, tpm, output name,
                         number of chromosomes and pickle_key.""", required=True)
     parser.add_argument('--pickle', help="path to pickle file", required=True)
-    parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True)
-    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
-    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
+    parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True, choices=["msr", "ssr", "ssc", "both"])
+    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True, choices=["yes", "no"])
+    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=False, choices=["yes", "no"], default="no")
 
 
     args = parser.parse_args()
@@ -626,18 +628,10 @@ def main():
                     chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
                     for i, val_chrom in enumerate(chromosomes):
                         print(f"Using chromosome {val_chrom} as validation chromosome")
-                        results = train_deep_cre(genome=genome,
-                                                annot=gtf,
-                                                tpm_targets=tpm_counts,
-                                                upstream=1000,
-                                                downstream=500,
-                                                genes_picked=args.pickle,
-                                                val_chromosome=str(val_chrom),
-                                                output_name=output_name,
-                                                model_case=args.model_case,
-                                                pickled_key=pickled_key,
-                                                ignore_small_genes=args.ignore_small_genes,
-                                                train_val_split=args.train_val_split)
+                        results = train_deep_cre(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000,
+                                                 downstream=500, genes_picked=args.pickle, val_chromosome=str(val_chrom),
+                                                 output_name=output_name, model_case=args.model_case, pickled_key=pickled_key,
+                                                 ignore_small_genes=args.ignore_small_genes, train_val_split=args.train_val_split)
                         results_genome.append(results)
                         print(f"Results for genome: {genome}, chromosome: {val_chrom}: {results}")
                     
@@ -648,18 +642,19 @@ def main():
                     print(f"Using random 80/20 gene-based split for validation")
                     for i, val_chrom in enumerate(chromosomes):
                         results = train_deep_cre(
-                                genome=genome,
-                                annot=gtf,
-                                tpm_targets=tpm_counts,
-                                upstream=1000,
-                                downstream=500,
-                                genes_picked=args.pickle,
-                                val_chromosome=val_chrom,  # 3 iterations
-                                output_name=output_name,
-                                model_case=args.model_case,
-                                pickled_key=pickled_key,
-                                ignore_small_genes=args.ignore_small_genes,
-                                train_val_split=args.train_val_split )
+                                      genome=genome,
+                                      annot=gtf,
+                                      tpm_targets=tpm_counts,
+                                      upstream=1000,
+                                      downstream=500,
+                                      genes_picked=args.pickle,
+                                      val_chromosome=val_chrom,  # 3 iterations
+                                      output_name=output_name,
+                                      model_case=args.model_case,
+                                      pickled_key=pickled_key,
+                                      ignore_small_genes=args.ignore_small_genes,
+                                      train_val_split=args.train_val_split
+                                  )
                         
                         results_genome.append(results)
                         print(f"Results for genome: {genome}, iteration: {val_chrom}: {results}")
