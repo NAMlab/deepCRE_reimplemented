@@ -602,12 +602,12 @@ def main():
                     print(e)
                     failed_trainings.append((output_name, i, e))
 
-    results_genome = pd.DataFrame(results_genome, columns=['test_specie', 'chromosome','loss', 'accuracy', 'auROC', 'auPR'])
-    save_file = make_absolute_path('results', f"{p_keys}_{input_filename}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
-    results_genome.to_csv(path_or_buf=save_file, index=False)
-    print(results_genome.head())
-        
-    result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
+        results_genome = pd.DataFrame(results_genome, columns=['test_specie', 'chromosome','loss', 'accuracy', 'auROC', 'auPR'])
+        save_file = make_absolute_path('results', f"{p_keys}_{input_filename}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
+        results_genome.to_csv(path_or_buf=save_file, index=False)
+        print(results_genome.head())
+            
+        result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
                 
                     
