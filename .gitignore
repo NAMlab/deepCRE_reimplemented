@@ -15,6 +15,7 @@ run_config/*
 .vscode/*
 test_folder/*.csv
 test_folder/logbooks/*
+run_config/*
 
 #### GITHUB PYTHON TEMPLATE
 

@@ -10,12 +10,16 @@ from utils import make_absolute_path, load_input_files, get_filename_from_path, 
 
 
 def predict_other(extragenic: int, intragenic: int, val_chromosome: str, model_names: List[str], extracted_genes: Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    no_genes = False
+    try:
+        x, y, gene_ids = extracted_genes[val_chromosome]
+        # Masking
+        x[:, extragenic:extragenic + 3, :] = 0                                                                                                  #type:ignore
+        x[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0                                                      #type:ignore
+    except KeyError:
+        no_genes = True
+        print(f"no genes found for Chromosome \"{val_chromosome}\"")
 
-    x, y, gene_ids = extracted_genes[val_chromosome]
-
-    # Masking
-    x[:, extragenic:extragenic + 3, :] = 0                                                                                                  #type:ignore
-    x[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0                                                      #type:ignore
 
     path_to_models = make_absolute_path("saved_models", start_file=__file__)
     model_names_dict = {}
@@ -34,11 +38,18 @@ def predict_other(extragenic: int, intragenic: int, val_chromosome: str, model_n
 
     models = {model_name: load_model(model_path) for model_name, model_path in model_names_dict.items()}
 
-    df_dict = {model_name: model.predict(x).ravel() for model_name, model in models.items()}
+    if no_genes:
+        df_dict = {model_name: np.zeros((0)) for model_name, model in models.items()}
+    else:
+        df_dict = {model_name: model.predict(x).ravel() for model_name, model in models.items()}
     result_df = pd.DataFrame(df_dict)
     result_df["pred_probs"] = result_df.mean(axis=1)
-    result_df['true_targets'] = y
-    result_df['genes'] = gene_ids
+    if no_genes:
+        result_df['true_targets'] = result_df["pred_probs"]
+        result_df['genes'] = result_df["pred_probs"]
+    else:
+        result_df['true_targets'] = y
+        result_df['genes'] = gene_ids
     return result_df, models
 
 
@@ -110,7 +121,7 @@ def set_defaults(ignore_small_genes: str, intragenic: str, extragenic: str) -> T
     Returns:
         Tuple[bool, int, int]: returns the values for ignore_small_genes, intragenic and extragenic.
     """
-    if ignore_small_genes == "yes":
+    if ignore_small_genes.lower() == "yes":
         ignore_small_genes_res = True
     elif ignore_small_genes.lower() in ["no", ""]:
         ignore_small_genes_res = False

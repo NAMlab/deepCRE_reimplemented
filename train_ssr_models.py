@@ -352,10 +352,10 @@ def main():
         raise Exception("Input file incorrect. Your input file must contain 6 columns and must be .csv")
 
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-    result_path = make_absolute_path("results", start_file=__file__)
+    training_results_path = make_absolute_path('results', "training", start_file=__file__)
     models_path = make_absolute_path("saved_models", start_file=__file__)
-    if not os.path.exists(result_path):
-        os.makedirs(result_path)
+    if not os.path.exists(training_results_path):
+        os.makedirs(training_results_path)
     if not os.path.exists(models_path):
         os.makedirs(models_path)
 
@@ -385,7 +385,7 @@ def main():
                     results_genome.append(results)
                     print(f"Results for genome: {genome}, chromosome: {val_chrom}: {results}")
                 results_genome = pd.DataFrame(results_genome, columns=['loss', 'accuracy', 'auROC', 'auPR'])
-                save_file = make_absolute_path('results', f"{output_name}_{model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
+                save_file = os.path.join(training_results_path, f"{output_name}_{model_case}_{file_name}_{get_time_stamp()}.csv")
                 results_genome.to_csv(path_or_buf=save_file, index=False)
                 print(results_genome.head())
 
