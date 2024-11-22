@@ -98,12 +98,7 @@ def load_annotation_msr(annotation_path):
 
 
 # for MSR training
-def combine_files(data, file_type, file_extension, output_dir, file_key, input_filename=None, load_func=None):
-    
-    # optional: other data directory 
-    read_dir = "../../simon/projects/deepCRE_reimplemented"
-    #read_dir = "'
-    
+def combine_files(data, file_type, file_extension, output_dir, file_key, input_filename=None, load_func=None): 
 
     if file_type in ['gtf', 'gff', 'gff3']:
         file_extension = 'csv'
@@ -129,7 +124,15 @@ def combine_files(data, file_type, file_extension, output_dir, file_key, input_f
 
     
         for index, row in data.iterrows():
-            file_path = os.path.join(read_dir,output_dir, row[file_type]) 
+            # in case the data lays somehwere else
+            default_path = os.path.join(output_dir, row[file_type])
+            fallback_path = os.path.join(row[file_type])
+            
+            if os.path.exists(default_path):
+                file_path = default_path
+            elif os.path.exists(fallback_path):
+                file_path = fallback_path
+ 
                
             species_name = row['specie']
             species_abbr = species_name[:3]
@@ -183,8 +186,8 @@ def combine_files(data, file_type, file_extension, output_dir, file_key, input_f
                     combined_data.append("\n".join(fasta_data))
                        
             else:
-                print(f"Warning: {file_path} does not exist.")
-                break
+                raise Exception(f"Warning: {file_path} does not exist.")
+
 
         # Concatenate and save combined data if files were processed
         if combined_data:
