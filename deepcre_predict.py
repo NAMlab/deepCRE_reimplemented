@@ -10,18 +10,38 @@ from train_ssr_models import extract_genes, find_newest_model_path
 
 def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case, extracted_genes, train_val_split):
 
-    x, y, gene_ids = extracted_genes[str(val_chromosome)]
+    if train_val_split.lower() == 'yes':
+        val_chromosome = "1|2|3" 
+        
+    if model_case.lower() == "msr":
+        # Combine data from all chromosomes
+        x,y,gene_ids = [], [],[]
+        for chrom, tuple_ in extracted_genes.items():
+            if tuple_:  
+                x_chrom, y_chrom, gene_ids_chrom = tuple_
+                x.extend(x_chrom)  
+                y.extend(y_chrom)
+                gene_ids.extend(gene_ids_chrom)
+        # Convert lists to arrays
+        x = np.array(x)
+        y = np.array(y)
+        gene_ids = np.array(gene_ids)
+
+        newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=None, model_case=model_case)
+        model = load_model(newest_model_paths)
+        #print(f"Trying to load model from: {newest_model_paths}")
+
+    else:
+        # Handle specific chromosome
+        x, y, gene_ids = extracted_genes[str(val_chromosome)]
+        newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=val_chromosome, model_case=model_case)
+        model = load_model(newest_model_paths[val_chromosome])
 
     # Masking
     x[:, extragenic:extragenic + 3, :] = 0                                                                                                  #type:ignore
     x[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0                                                      #type:ignore
 
-    if train_val_split.lower() == 'yes':
-        val_chromosome = "1|2|3" 
-
-    newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=val_chromosome, model_case=model_case)
-    #print(f"model path: {newest_model_paths}")
-    model = load_model(newest_model_paths[val_chromosome])
+    
     pred_probs = model.predict(x).ravel()
     return x, y, pred_probs, gene_ids, model
 
@@ -33,11 +53,11 @@ def parse_args():
                         "directories:tmp_counts (contains your counts files), genome (contains the genome fasta files), gene_models (contains the gtf files)")
 
     parser.add_argument('--input', "-i", 
-                        help="This is a 7 column csv file with entries: specie, genome, gtf, tpm, output name, number of chromosomes and pickle_key.",
-                        required=True)
-    parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True)
-    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
-    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
+                        help="""For model case SSR/SSC: This is a six column csv file with entries: species, genome, gtf, tpm, output name, number of chromosomes and pickle_key. \n 
+                        For model case MSR: This is a five column csv file with entries: species, genome, gtf, tpm, output name.""", required=True)
+    parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True, choices=["msr", "ssr", "ssc", "both"])
+    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=False, choices=["yes", "no"], default="yes")
+    parser.add_argument('--train_val_split', help="For SSR /SSC training: Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=False, choices=["yes", "no"], default="no")
 
     args = parser.parse_args()
     return args
@@ -47,12 +67,15 @@ def main():
     args = parse_args()
     model_case = args.model_case 
 
-    data = pd.read_csv(args.input, sep=',', header=None,
-                    dtype={0: str, 1: str, 2: str, 3: str, 4: str},
-                    names=["specie",'genome', 'gtf', 'tpm', 'output', 'chroms', "p_key"])
+    dtypes = {0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str} if model_case.lower() == "msr" else {0: str, 1: str, 2: str, 3: str, 4: str, 5: str}
+    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key']
+    data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
+    expected_columns = len(names)
+
     print(data.head())
-    if data.shape[1] != 7:
+    if data.shape[1] != expected_columns:
         raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
+    
 
     folder_name = make_absolute_path('results', 'predictions', start_file=__file__)
     if not os.path.exists(folder_name):
@@ -62,13 +85,13 @@ def main():
        
     
     if model_case.lower() == "msr":
-        p_keys = "_".join(data['p_key'].unique())
+        naming = "_".join([specie[:3] for specie in data['specie'].unique()])
         input_filename = args.input.split('.')[0] 
 
-        genome_path = make_absolute_path("genome", f"genome_{p_keys}.fa", start_file=__file__)     
-        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
-        annotation_path = make_absolute_path("gene_models", f"gtf_{p_keys}.csv", start_file=__file__)  
-
+        genome_path = make_absolute_path("genome", f"genome_{naming}.fa", start_file=__file__)     
+        tpm_path = make_absolute_path("tpm_counts", f"tpm_{naming}_{input_filename}.csv", start_file=__file__) 
+        annotation_path = make_absolute_path("gene_models", f"gtf_{naming}.csv", start_file=__file__)  
+        
         genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
         tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
         tpms.set_index('gene_id', inplace=True)
@@ -85,22 +108,20 @@ def main():
             train_specie = data.copy()
             train_specie = train_specie[train_specie['specie'] != specie]
 
-            output_name = "_".join([sp[:3].lower() for sp in train_specie['specie'].unique()])
+            output_name = test_specie['output'].values[0]
+            chrom = ""
 
             true_targets, preds, genes = [], [], []
             
-            test_specie_name = test_specie['specie'].values[0]
-            chromosomes = annotation[annotation['species'] == test_specie_name]['Chromosome'].unique().tolist()
-            chromosomes = sorted(chromosomes, key=lambda x: int("".join(filter(str.isdigit, x))))
-
             extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, model_case=args.model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
 
-            for chrom in chromosomes:
-                _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
-                                                        model_case=args.model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
-                true_targets.extend(y)
-                preds.extend(pred_probs)
-                genes.extend(gene_ids)
+            # one predcition per model 
+            print(f"Predicting for: {output_name}")
+            _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
+                                                    model_case=args.model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
+            true_targets.extend(y)
+            preds.extend(pred_probs)
+            genes.extend(gene_ids)
 
             result = pd.DataFrame({'true_targets': true_targets, 'pred_probs': preds, 'genes': genes})
             print(result.head())

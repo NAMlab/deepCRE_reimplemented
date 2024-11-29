@@ -118,33 +118,34 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
         tpms = pd.read_csv(filepath_or_buffer=tpm_counts_file_name, sep=',')
         tpms.set_index('gene_id', inplace=True)
         annotation = load_annotation_msr(annotation_file_name)
+        val_chrom=""
 
         extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, model_case=model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
-        for val_chrom in chromosome_list:
-            x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
+        #for val_chrom in chromosome_list:
+        x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
                                                 output_name=output_name, model_case=model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
-            preds = preds > 0.5
-            preds = preds.astype(int)
-            correct_x, correct_y, correct_gene_ids = [], [], []
-            for idx in range(x.shape[0]): #type:ignore
-                if preds[idx] == y[idx]:
-                    correct_x.append(x[idx])
-                    correct_y.append(y[idx])
-                    correct_gene_ids.append(gene_ids[idx])
+        preds = preds > 0.5
+        preds = preds.astype(int)
+        correct_x, correct_y, correct_gene_ids = [], [], []
+        for idx in range(x.shape[0]): #type:ignore
+            if preds[idx] == y[idx]:
+                correct_x.append(x[idx])
+                correct_y.append(y[idx])
+                correct_gene_ids.append(gene_ids[idx])
 
-            correct_x = np.array(correct_x)
+        correct_x = np.array(correct_x)
 
-            # Compute scores
-            print(f"Running shap for chromosome -----------------------------------------\n")
-            print(f"Chromosome: {val_chrom}: Species: {output_name}\n")
-            print(f"Running shap for chromosome -----------------------------------------\n")
+        # Compute scores
+        print(f"Running shap -----------------------------------------\n")
+        print(f"Validation species: {output_name}\n")
+        print(f"Running shap -----------------------------------------\n")
 
-            actual_scores, hypothetical_scores = compute_actual_hypothetical_scores(x=correct_x, model=model)
-            shap_actual_scores.append(actual_scores)
-            shap_hypothetical_scores.append(hypothetical_scores)
-            one_hots_seqs.append(correct_x)
-            gene_ids_seqs.extend(correct_gene_ids)
-            preds_seqs.extend(correct_y)
+        actual_scores, hypothetical_scores = compute_actual_hypothetical_scores(x=correct_x, model=model)
+        shap_actual_scores.append(actual_scores)
+        shap_hypothetical_scores.append(hypothetical_scores)
+        one_hots_seqs.append(correct_x)
+        gene_ids_seqs.extend(correct_gene_ids)
+        preds_seqs.extend(correct_y)
 
     shap_actual_scores = np.concatenate(shap_actual_scores, axis=0)
     shap_hypothetical_scores = np.concatenate(shap_hypothetical_scores, axis=0)
@@ -172,20 +173,15 @@ def save_results(output_name: str, shap_actual_scores, shap_hypothetical_scores,
 def parse_args():
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
-                        description="""
-                        This script performs the deepCRE prediction. We assume you have the following three directories:
-                        tmp_counts (contains your counts files), genome (contains the genome fasta files),
-                        gene_models (contains the gtf files)
-                        """)
+                        description="This script performs the deepCRE prediction. We assume you have the following three" + 
+                        "directories:tmp_counts (contains your counts files), genome (contains the genome fasta files), gene_models (contains the gtf files)")
 
-    parser.add_argument('--input',
-                        help="""
-                        This is a 7 column csv file with entries: enome, gtf, tpm, output name, number of chromosomegs.""",
-                        required=True)
-    parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True)
-    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=True)
-    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
-
+    parser.add_argument('--input', "-i", 
+                        help="""For model case SSR/SSC: This is a six column csv file with entries: species, genome, gtf, tpm, output name, number of chromosomes and pickle_key. \n 
+                        For model case MSR: This is a five column csv file with entries: species, genome, gtf, tpm, output name.""", required=True)
+    parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True, choices=["msr", "ssr", "ssc", "both"])
+    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=False, choices=["yes", "no"], default="yes")
+    parser.add_argument('--train_val_split', help="For SSR /SSC training: Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=False, choices=["yes", "no"], default="no")
 
     args = parser.parse_args()
     return args
@@ -202,24 +198,28 @@ def main():
     args = parse_args()
     model_case = args.model_case 
 
-    data = pd.read_csv(args.input, sep=',', header=None,
-                        dtype={0: str, 1: str, 2: str, 3: str, 4: str},
-                        names=["specie",'genome', 'gtf', 'tpm', 'output', 'chroms', "p_key"])
+    dtypes = {0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str} if model_case.lower() == "msr" else {0: str, 1: str, 2: str, 3: str, 4: str, 5: str}
+    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key']
+    data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
+    expected_columns = len(names)
+
     print(data.head())
-    if data.shape[1] != 7:
+    if data.shape[1] != expected_columns:
         raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
 
+    
+    
     ignore_small_genes_flag = args.ignore_small_genes.lower() == "yes"
 
 
     if model_case.lower() == "msr":
-        p_keys = "_".join(data['p_key'].unique())
+        naming = "_".join([specie[:3] for specie in data['specie'].unique()])
         input_filename = args.input.split('.')[0] 
 
-        genome_path = make_absolute_path("genome", f"genome_{p_keys}.fa", start_file=__file__)     
-        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
-        annotation_path = make_absolute_path("gene_models", f"gtf_{p_keys}.csv", start_file=__file__)  
-        annotation = load_annotation_msr(annotation_path)
+        genome_path = make_absolute_path("genome", f"genome_{naming}.fa", start_file=__file__)     
+        tpm_path = make_absolute_path("tpm_counts", f"tpm_{naming}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
+        annotation_path = make_absolute_path("gene_models", f"gtf_{naming}.csv", start_file=__file__)  
+        #annotation = load_annotation_msr(annotation_path)
 
 
         for specie in data['specie'].unique():                                                                     
@@ -228,11 +228,8 @@ def main():
             train_specie = data.copy()
             train_specie = train_specie[train_specie['specie'] != specie]
 
-            output_name = "_".join([sp[:3].lower() for sp in train_specie['specie'].unique()])
-            
-            test_specie_name = test_specie['specie'].values[0]
-            chromosomes = annotation[annotation['species'] == test_specie_name]['Chromosome'].unique().tolist()
-            chromosomes = sorted(chromosomes, key=lambda x: int("".join(filter(str.isdigit, x))))
+            output_name = test_specie['output'].values[0]
+            chromosomes = ""
 
             results = extract_scores(genome_file_name=genome_path, annotation_file_name=annotation_path, tpm_counts_file_name=tpm_path, upstream=1000, downstream=500,
                         chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,

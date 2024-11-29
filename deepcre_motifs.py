@@ -76,20 +76,16 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
 def parse_args():
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
-                        description="""
-                        This script performs the deepCRE prediction. We assume you have the following three directories:
-                        tmp_counts (contains your counts files), genome (contains the genome fasta files),
-                        gene_models (contains the gtf files)
-                        """)
+                        description="This script performs the deepCRE prediction. We assume you have the following three" + 
+                        "directories:tmp_counts (contains your counts files), genome (contains the genome fasta files), gene_models (contains the gtf files)")
 
-    parser.add_argument('--input', "-i",
-                        help="""
-                        This is a 5 column csv file with entries: genome, gtf, tpm, output name, number of chromosomes.""",
-                        required=True)
-    parser.add_argument('--model_case', "-mc", help="Can be SSC, SSR or MSR", required=True)
-    parser.add_argument('--ignore_small_genes', "-isg", help="Ignore small genes, can be yes or no", required=True)
+    parser.add_argument('--input', "-i", "-i", 
+                        help="""For model case SSR/SSC: This is a six column csv file with entries: species, genome, gtf, tpm, output name, number of chromosomes and pickle_key. \n 
+                        For model case MSR: This is a five column csv file with entries: species, genome, gtf, tpm, output name.""", required=True)
+    parser.add_argument('--model_case', "-mc", help="Can be SSC, SSR or MSR", required=True, choices=["msr", "ssr", "ssc", "both"])
+    parser.add_argument('--ignore_small_genes', "-isg", help="Ignore small genes, can be yes or no", required=False, choices=["yes", "no"], default="yes")
     parser.add_argument('--force_interpretations', "-fi", help="determines whether interpretations are recalculated, even if there are saved interpretations. If false (default), saved values will be used.", required=False, default="false", choices=["true", "false"])
-    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=True)
+    parser.add_argument('--train_val_split', help="For SSR /SSC training: Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=False, choices=["yes", "no"], default="no")
 
     args = parser.parse_args()
     return args
@@ -103,13 +99,15 @@ def main():
     model_case = args.model_case 
 
 
-    force_interpretation = args.force_interpretations == "true"
-    data = pd.read_csv(args.input, sep=',', header=None,
-                        dtype={0: str, 1: str, 2: str, 3: str, 4: str},
-                        names=["specie",'genome', 'gtf', 'tpm', 'output', 'chroms', "p_key"])
+    dtypes = {0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str} if model_case.lower() == "msr" else {0: str, 1: str, 2: str, 3: str, 4: str, 5: str}
+    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key']
+    data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
+    expected_columns = len(names)
+
     print(data.head())
-    if data.shape[1] != 7:
+    if data.shape[1] != expected_columns:
         raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
+    
     
     ignore_small_genes_flag = args.ignore_small_genes.lower() == "yes"
     
@@ -132,8 +130,9 @@ def main():
             output_name = "_".join([sp[:3].lower() for sp in train_specie['specie'].unique()])
             
             test_specie_name = test_specie['specie'].values[0]
-            chromosomes = annotation[annotation['species'] == test_specie_name]['Chromosome'].unique().tolist()
-            chromosomes = sorted(chromosomes, key=lambda x: int("".join(filter(str.isdigit, x))))
+            #chromosomes = annotation[annotation['species'] == test_specie_name]['Chromosome'].unique().tolist()
+            #chromosomes = sorted(chromosomes, key=lambda x: int("".join(filter(str.isdigit, x)))) 
+            chromosomes=""
 
             generate_motifs(genome=genome_path, annot=annotation_path, tpm_targets=tpm_path, upstream=1000, downstream=500,
                             ignore_small_genes=ignore_small_genes_flag, output_name=output_name,
