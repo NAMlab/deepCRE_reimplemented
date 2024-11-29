@@ -194,17 +194,17 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
         # do i even need this anymore? 
         args = parse_args() 
         data = pd.read_csv(args.input, sep=',', header=None,
-                    dtype={0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str},
-                    names=['specie','genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key'])
+                    dtype={0: str, 1: str, 2: str, 3: str, 4: str},
+                    names=['specie','genome', 'gtf', 'tpm', 'output'])
         
         # concat all species to one fasta/gtf/tpm file
-        p_keys = "_".join(data['p_key'].unique())
+        naming = "_".join([specie[:3] for specie in data['specie'].unique()])
         input_filename = args.input.split('.')[0]
         
         # adjust file names to combined ones: 
-        genome_path = make_absolute_path("genome", f"genome_{p_keys}.fa", start_file=__file__)     
-        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
-        annotation_path = make_absolute_path("gene_models", f"gtf_{p_keys}.csv", start_file=__file__)  
+        genome_path = make_absolute_path("genome", f"genome_{naming}.fa", start_file=__file__)     
+        tpm_path = make_absolute_path("tpm_counts", f"tpm_{naming}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
+        annotation_path = make_absolute_path("gene_models", f"gtf_{naming}.csv", start_file=__file__)  
         genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
         tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
         tpms.set_index('gene_id', inplace=True)
@@ -244,33 +244,28 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
                     if gene_id not in tpms.index:
                         skipped_genes.append(gene_id)
                         continue
-                        #if len(skipped_genes) > 5000:
-                        #    print(f"Warning: More than 5000 gene IDs were skipped. Stopping processing.")
-                        #    sys.exit()
+                        
 
-                    #if test_specie['specie'].any() and specie in test_specie['specie'].values:
                     if specie in test_specie['specie'].values:
                         validation_genes.append(gene_id)
-                        #print(f"val gene added {gene_id}")
 
-                    # val: one species, one chromosome 
+                    # val: one species, all chromosomes
                     if seq.shape[0] == expected_final_size:
-                        if chrom == val_chromosome and gene_id in validation_genes:        #species not in train species
+                        if gene_id in validation_genes:               
                             val_seqs.append(seq)
                             val_targets.append(tpms.loc[gene_id, 'target'])
-                            #print(f"val_targets: {gene_id}")
-                                
+                               
                                 
                         # train: all species except one 
                         elif specie not in test_specie['specie'].values:
                             train_seqs.append(seq)
                             train_targets.append(tpms.loc[gene_id, 'target'])
-                            #print(f"train_targets: {gene_id}")
+                    
 
         
         if skipped_genes:  # This checks if the set/list is not empty
             timestamp = get_time_stamp()
-            filename = f'skipped_genes_MSR_{p_keys}_{timestamp}.txt'
+            filename = f'skipped_genes_MSR_{naming}_{timestamp}.txt'
             with open(filename, 'w') as skipped_genes_file:
                 for gene in skipped_genes:
                     skipped_genes_file.write(f"{gene}\n")
@@ -475,12 +470,14 @@ def parse_args():
                         """)
     parser.add_argument('--input',
                         help="""
-                        This is a seven column csv file with entries: species, genome, gtf, tpm, output name,
-                        number of chromosomes and pickle_key.""", required=True)
-    parser.add_argument('--pickle', help="path to pickle file", required=True)
+                        For model case SSR/SSC: This is a six column csv file with entries: species, genome, gtf, tpm, output name,
+                        number of chromosomes and pickle_key. \n 
+                        For model case MSR: This is a five column csv file with entries: species, genome, gtf, tpm, output name.
+                        """, required=True)
+    parser.add_argument('--pickle', help="path to pickle file. Necessary for SSR and SSC training.", required=False)
     parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True, choices=["msr", "ssr", "ssc", "both"])
     parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=False, choices=["yes", "no"], default="yes")
-    parser.add_argument('--train_val_split', help="Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=False, choices=["yes", "no"], default="no")
+    parser.add_argument('--train_val_split', help="For SSR /SSC training: Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=False, choices=["yes", "no"], default="no")
 
 
     args = parser.parse_args()
@@ -490,15 +487,17 @@ def parse_args():
 def main():
     args = parse_args()
     model_case = args.model_case 
-    #input_filename = args.input
-    #input_filename = input_filename.split('.')[0]
     input_filename = args.input.split('.')[0]
-    #print(input_filename)
 
     dtypes = {0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str} if model_case.lower() == "msr" else {0: str, 1: str, 2: str, 3: str, 4: str, 5: str}
-    names = ['specie','genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key']
+    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key']
     data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
 
+    expected_columns = len(names)
+    if data.shape[1] != expected_columns:
+        raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
+    
+    
     ignore_small_genes = args.ignore_small_genes.lower() == "yes"
     print(data.head())
 
@@ -514,21 +513,20 @@ def main():
     failed_trainings, passed_trainings = [],[]
     
     # MSR training 
-
     if model_case.lower() == "msr":
         
         print(f'Multi species Training: ---------------------\n')
 
-        p_keys = "_".join(data['p_key'].unique())
-        # genreate concat files
-        combine_files(data=data, file_type='tpm', file_extension='csv', output_dir='tpm_counts', file_key=p_keys, input_filename=input_filename)
-        combine_files(data=data, file_type='genome', file_extension='fa', output_dir='genome', file_key=p_keys)
-        combine_files(data=data, file_type='gtf', file_extension='csv', output_dir='gene_models', file_key=p_keys, load_func=load_annotation)
+        naming = "_".join([specie[:3] for specie in data['specie'].unique()])
+        # generate concat files
+        combine_files(data=data, file_type='tpm', file_extension='csv', output_dir='tpm_counts', file_key=naming, input_filename=input_filename)
+        combine_files(data=data, file_type='genome', file_extension='fa', output_dir='genome', file_key=naming)
+        combine_files(data=data, file_type='gtf', file_extension='csv', output_dir='gene_models', file_key=naming, load_func=load_annotation)
         
-        # get concat files
-        genome_path = make_absolute_path("genome", f"genome_{p_keys}.fa", start_file=__file__)     
-        tpm_path = make_absolute_path("tpm_counts", f"tpm_{p_keys}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
-        annotation_path = make_absolute_path("gene_models", f"gtf_{p_keys}.csv", start_file=__file__)  
+        # load concat files
+        genome_path = make_absolute_path("genome", f"genome_{naming}.fa", start_file=__file__)     
+        tpm_path = make_absolute_path("tpm_counts", f"tpm_{naming}_{input_filename}.csv", start_file=__file__) 
+        annotation_path = make_absolute_path("gene_models", f"gtf_{naming}.csv", start_file=__file__)  
         genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
         tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
         tpms.set_index('gene_id', inplace=True)
@@ -536,81 +534,59 @@ def main():
 
         results_genome = []
 
+        for specie in data['specie'].unique():                                                                   
+            try:
+                test_specie = data.copy()
+                test_specie = test_specie[test_specie['specie'] == specie]
+                train_specie = data.copy()
+                train_specie = train_specie[train_specie['specie'] != specie]
 
-        for specie in data['specie'].unique():                                                                     # use this 
-            test_specie = data.copy()
-            test_specie = test_specie[test_specie['specie'] == specie]
-            train_specie = data.copy()
-            train_specie = train_specie[train_specie['specie'] != specie]
+                print(f'Training on species: {train_specie["specie"].unique()}')
+                print(f'Testing on specie: {test_specie["specie"].unique()}')
 
-            print(f'Training on species: {train_specie["specie"].unique()}')
-            print(f'Testing on specie: {test_specie["specie"].unique()}')
+                output_name = test_specie['output'].values[0]
+                print(f"Output name for training: {output_name}")
 
-            
-            output_name = "_".join([sp[:3].lower() for sp in train_specie['specie'].unique()])
-            print(f"Output name for training: {output_name}")
-
-            #optional: other data directory 
-            #chromosomes_file = test_specie['chroms'].values[0]
-            #chromosomes = pd.read_csv(filepath_or_buffer=f'../../simon/projects/deepCRE_reimplemented/genome/{chromosomes_file}', header=None).values.ravel().tolist()
-            #chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-        
-
-            # get chromosome names from annot data due to renaming of chromosomes 
-            test_specie_name = test_specie['specie'].values[0]
-            chromosomes = annot[annot['species'] == test_specie_name]['Chromosome'].unique().tolist()
-            chromosomes = sorted(chromosomes, key=lambda x: int("".join(filter(str.isdigit, x))))
-            #print("sorted Unique chromosomes for the test species:", chromosomes)
-        
-            # same as SSR training 
-
-            for i, val_chrom in enumerate(chromosomes):
-                try: 
-                    print(f"Now: using chromosome {val_chrom} from {test_specie['specie'].values[0]} as validation chromosome")
-                    results = train_deep_cre(genome=genome,
-                                                    annot=annot,
-                                                    tpm_targets=tpms,
-                                                    upstream=1000,
-                                                    downstream=500,
-                                                    genes_picked=args.pickle,
-                                                    val_chromosome=str(val_chrom),
-                                                    output_name=output_name,
-                                                    model_case=args.model_case,
-                                                    pickled_key=None,
-                                                    ignore_small_genes=args.ignore_small_genes,
-                                                    train_val_split=args.train_val_split,
-                                                    test_specie=test_specie) 
-
-                    results_with_info = {
+                results = train_deep_cre(genome=genome,
+                                                        annot=annot,
+                                                        tpm_targets=tpms,
+                                                        upstream=1000,
+                                                        downstream=500,
+                                                        genes_picked=args.pickle,
+                                                        val_chromosome="model",
+                                                        output_name=output_name,
+                                                        model_case=args.model_case,
+                                                        pickled_key=None,
+                                                        ignore_small_genes=args.ignore_small_genes,
+                                                        train_val_split=args.train_val_split,
+                                                        test_specie=test_specie) 
+                results_with_info = {
                         'loss': results[0],
                         'accuracy': results[1],
                         'auROC': results[2],
                         'auPR': results[3],
                         'test_specie': test_specie['specie'].values[0],
-                        'chromosome': val_chrom
                     }
                     
-                    results_genome.append(results_with_info)
-                    print(f"Results for genome: {genome_path}, validation chromosome: {val_chrom}: {results_with_info}")
-                                                
+                results_genome.append(results_with_info)
+                print(f"Results for genome: {genome_path}, validation species: {test_specie['specie'].values[0]}: {results}")
+                                                    
 
-                    passed_trainings.append((output_name, i))
-                except Exception as e:
-                    print(e)
-                    failed_trainings.append((output_name, i, e))
+                passed_trainings.append((output_name, specie))
+            except Exception as e:
+                print(e)
+                failed_trainings.append((output_name,specie, e))
 
-        results_genome = pd.DataFrame(results_genome, columns=['test_specie', 'chromosome','loss', 'accuracy', 'auROC', 'auPR'])
-        save_file = make_absolute_path('results', f"{p_keys}_{input_filename}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
+        results_genome = pd.DataFrame(results_genome, columns=['test_specie','loss', 'accuracy', 'auROC', 'auPR'])
+        save_file = make_absolute_path('results', f"{output_name}_{input_filename}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
         results_genome.to_csv(path_or_buf=save_file, index=False)
         print(results_genome.head())
             
         result_summary(failed_trainings=failed_trainings, passed_trainings=passed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
                 
-                    
-            
+                       
         
-
     if model_case.lower() in ["ssr", "ssc"]:
         for genome, gtf, tpm_counts, output_name, chromosomes_file, pickled_key in data.values:
             try:
