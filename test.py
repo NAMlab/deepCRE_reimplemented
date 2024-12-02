@@ -5,6 +5,7 @@ import unittest
 import pyranges as pr
 import h5py
 from BCBio import GFF
+import json
 
 from deepcre_motifs import generate_motifs
 from train_ssr_models import extract_genes
@@ -110,6 +111,12 @@ def test_predict_other():
         result.to_csv(f"results/predictions/arabidopsis_deepcre_predict_other_{get_time_stamp()}.csv")
 
 
+def save_json_list():
+    list_ = ["AT1G53910"]
+    with open("test.json", "w") as f:
+        json.dump(list_, f)
+
+
 def compare_predict_other_self():
     self_name = "arabidopsis_deepcre_predict_240820_175307.csv"
     other_name = "arabidopsis_deepcre_predict_other_240823_105835.csv"
@@ -186,4 +193,5 @@ if __name__ == "__main__":
     # test_gene_dist()
     # read_h5_datasets()
     # read_hdf5_datasets()
-    print_chroms()
+    # print_chroms()
+    save_json_list()
