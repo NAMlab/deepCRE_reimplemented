@@ -1,5 +1,7 @@
 import argparse
+import json
 import math
+import os
 import pickle
 import pstats
 from typing import Callable, List, Tuple, Type
@@ -200,7 +202,7 @@ def setup_stats_objects() -> tools.MultiStatistics:
 def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_of_generations: int,
                       tournament_size: int, mutation_rate: float, mutation_probability: float,
                       crossover_probability: float, models: List, reference_sequence: np.ndarray,
-                      rel_max_difference: float, optimize: bool = True):
+                      rel_max_difference: float, optimize: bool = True) -> str:
     # Run the genetic algorithm
     toolbox = base.Toolbox()
     # Define the problem as a maximization problem
@@ -247,10 +249,10 @@ def genetic_algorithm(number_of_nucleotides: int, population_size: int, number_o
         best_ind = population[best_idx]
         print(f"gen {i}: best fitness: {best_ind.fitness.values[0]}")
     
-    print_summary(population=population, toolbox=toolbox, reference_sequence=reference_sequence, hall_of_fame=hall_of_fame, logbook=logbook)
+    return print_summary(population=population, toolbox=toolbox, reference_sequence=reference_sequence, hall_of_fame=hall_of_fame, logbook=logbook)
 
 
-def print_summary(population: list, toolbox: base.Toolbox, reference_sequence: np.ndarray, hall_of_fame: tools.HallOfFame, logbook: tools.Logbook):
+def print_summary(population: list, toolbox: base.Toolbox, reference_sequence: np.ndarray, hall_of_fame: tools.HallOfFame, logbook: tools.Logbook) -> str:
     # Get the best individual
     fits = [ind.fitness.values[0] for ind in population]
     best_idx = fits.index(max(fits))
@@ -266,8 +268,19 @@ def print_summary(population: list, toolbox: base.Toolbox, reference_sequence: n
     logbook.chapters["population"].header = "foo", "bar"
     print(logbook)
     time_stamp = utils.get_time_stamp()
-    with open(f"test_folder/logbooks/logbook_{time_stamp}.pkl", "wb") as f:
+    logs_dir = os.path.join("test_folder", "logs")
+    if not os.path.isdir(logs_dir):
+        os.makedirs(logs_dir)
+    run_folder = os.path.join(logs_dir, time_stamp)
+    os.mkdir(run_folder)
+    with open(os.path.join(run_folder, "logbook"), "wb") as f:
         pickle.dump(logbook, f)
+    with open(os.path.join(run_folder, "results.json"), "w") as f:
+        json.dump({
+            "intital_fitness": float(initial_fitness[0]),
+            "best_fitness_total": float(hall_of_fame.items[0].fitness.values[0].item())
+        }, f, indent=2)
+    return run_folder
 
 
 def parse_args():
@@ -296,10 +309,15 @@ def main():
     crossover_probability = 0.5
     models = [load_model("saved_models/arabidopsis_1_SSR_train_ssr_models_240816_183905.h5")]
     # models = [FakeModel()]
-    genetic_algorithm(number_of_nucleotides=number_of_nucleotides, number_of_generations=args.number_of_generations, population_size=args.population_size,
+    run_folder = genetic_algorithm(number_of_nucleotides=number_of_nucleotides, number_of_generations=args.number_of_generations, population_size=args.population_size,
                       tournament_size=args.tournament_size, mutation_rate=args.mutation_rate, mutation_probability=mutation_probability,
                       crossover_probability=crossover_probability, models=models, rel_max_difference=args.max_mutation_difference,
                       reference_sequence=reference_sequence)
+    parameters = args.__dict__.copy()
+    parameters["mutation_probability"] = mutation_probability
+    parameters["crossover_probability"] = crossover_probability
+    with open(os.path.join(run_folder, "parameters.json"), "w") as f:
+        json.dump(parameters, f, indent=2)
 
 
 if __name__ == "__main__":
