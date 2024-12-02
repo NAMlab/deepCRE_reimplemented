@@ -627,13 +627,13 @@ def main():
                 print(f"Results for genome: {genome_path}, validation species: {test_specie['specie'].values[0]}: {results}")
                                                     
 
-                passed_trainings.append((output_name, specie))
+                passed_trainings.append((output_name, i))
             except Exception as e:
                 print(e)
-                failed_trainings.append((output_name,specie, e))
+                failed_trainings.append((output_name, i, e))
 
         results_genome = pd.DataFrame(results_genome, columns=['test_specie','loss', 'accuracy', 'auROC', 'auPR'])
-        save_file = make_absolute_path('results', f"{output_name}_{input_filename}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
+        save_file = make_absolute_path('results', f"{naming}_{input_filename}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
         results_genome.to_csv(path_or_buf=save_file, index=False)
         print(results_genome.head())
             
