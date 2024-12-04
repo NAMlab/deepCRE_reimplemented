@@ -66,8 +66,9 @@ def load_annotation(annotation_path):
     return gene_model
 
 
+# Function for reading and adapting the concatenated gtf file for MSR training
 def load_annotation_msr(annotation_path):
-    gene_model = pd.read_csv(annotation_path, header=None, sep=" ")
+    gene_model = pd.read_csv(annotation_path, header=None, sep="\s+")
 
     expected_columns = ['species', 'Chromosome', 'Start', 'End', 'Strand', 'gene_id']
     dtypes = {
@@ -97,13 +98,9 @@ def load_annotation_msr(annotation_path):
     return gene_model
 
 
-# for MSR training
-def combine_files(data, file_type, file_extension, output_dir, file_key, input_filename=None, load_func=None):
-    
-    # optional: other data directory 
-    read_dir = "../../simon/projects/deepCRE_reimplemented"
-    #read_dir = "'
-    
+# Funciton for MSR training: concatenating tpm/fast/gtf file for all species. 
+# Only done once if the exact same pickle_ids and species order is trained again.
+def combine_files(data, file_type, file_extension, output_dir, file_key, input_filename=None, load_func=None): 
 
     if file_type in ['gtf', 'gff', 'gff3']:
         file_extension = 'csv'
@@ -129,7 +126,18 @@ def combine_files(data, file_type, file_extension, output_dir, file_key, input_f
 
     
         for index, row in data.iterrows():
-            file_path = os.path.join(read_dir,output_dir, row[file_type]) 
+            
+            # tpm / fasta /gff data cann be located somewhere else
+            default_path = os.path.join(output_dir, row[file_type])
+            fallback_path = os.path.join(row[file_type])
+            
+            if os.path.exists(default_path):
+                file_path = default_path
+            elif os.path.exists(fallback_path):
+                file_path = fallback_path
+            else:
+                raise Exception(f"Warning: {default_path} and {fallback_path} do not exist for {row['specie']}.")
+ 
                
             species_name = row['specie']
             species_abbr = species_name[:3]
@@ -182,9 +190,6 @@ def combine_files(data, file_type, file_extension, output_dir, file_key, input_f
                     # Add the modified FASTA data as a single string block
                     combined_data.append("\n".join(fasta_data))
                        
-            else:
-                print(f"Warning: {file_path} does not exist.")
-                break
 
         # Concatenate and save combined data if files were processed
         if combined_data:
@@ -204,10 +209,6 @@ def combine_files(data, file_type, file_extension, output_dir, file_key, input_f
             print(f"No output generated.")
     
     
-
-            
-   
-
 
 
 
