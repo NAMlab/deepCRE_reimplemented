@@ -128,6 +128,54 @@ def compare_predict_other_self():
     print((comparison_chrom_2).all())
 
 
+def test_json():
+    to_train = []
+    to_train.append({
+        "genome": "genome_file.fa",
+        "gene_model": "annotation.gff",
+        "target_class": "tpms.csv",
+        "chromosomes": "chroms.csv",
+        "model_names": ["model1.pkl", "model2.pkl", "model3.pkl"],
+    })
+    to_train.append({
+        "genome": "genome.fasta",
+        "gene_model": "gene_model.gff",
+        "chromosomes": "chroms.csv",
+        "model_names": ["modelA.pkl", "modelB.pkl", "modelC.pkl"],
+        "ignore_small_genes": "no",
+        "intragenic": 1000
+    })
+    msr = []
+    msr.append({
+        "species": ["specie1", "specie2", "specie3"],
+        "genomes": ["specie1.fasta", "specie2.fasta", "specie3.fasta"],
+        "gene_models": ["gene_model1.gff", "gene_model2.gff", "gene_model3.gff", ],
+        "target_classes": ["tpms1.csv", "tpms2.csv", "tpms3.csv"],
+        "chromosomes": ["chroms1.csv", "chroms2.csv", "chroms3.csv", ],
+        "pickle_keys": ["ara", "zea", "sol", "sor"],
+        "output_name": "MSR_123",
+        "ignore_small_genes": "no",
+        "extragenic": 700
+    })
+    msr.append({
+        "species": ["specie1", "specie2", "specie3"],
+        "genomes": ["specie1.fasta", "specie2.fasta", "specie3.fasta"],
+        "gene_models": ["gene_model1.gff", "gene_model2.gff", "gene_model3.gff", ],
+        "target_classes": ["tpms1.csv", "tpms2.csv", "tpms3.csv"],
+        "chromosomes": ["chroms1.csv", "chroms2.csv", "chroms3.csv", ],
+        "pickle_keys": ["ara", "zea", "sol", "sor"],
+        "output_name": "MSR_123",
+        "intragenic": 700,
+        "ignore_small_genes": "yes",
+        "extragenic": 700,
+        "model_case": ""
+    })
+    with open("json_training_example.json", "w") as f:
+        json.dump(to_train, f, indent=2)
+    with open("json_msr_example.json", "w") as f:
+        json.dump(msr, f, indent=2)
+
+
 def read_h5_datasets():
     with h5py.File("results/shap/arabidopsis_deepcre_interpret_241018_105035.h5", "r") as f:
         # read and print datasets
@@ -187,4 +235,5 @@ if __name__ == "__main__":
     # test_gene_dist()
     # read_h5_datasets()
     # read_hdf5_datasets()
-    print_chroms()
+    # print_chroms()
+    test_json()
