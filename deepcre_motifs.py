@@ -99,16 +99,12 @@ def main():
     model_case = args.model_case 
 
 
-    dtypes = {0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str} if model_case.lower() == "msr" else {0: str, 1: str, 2: str, 3: str, 4: str, 5: str}
-    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key']
+    dtypes = {0: str, 1: str, 2: str, 3: str, 4: str}
+    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms']
     data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
     expected_columns = len(names)
 
     print(data.head())
-    if data.shape[1] != expected_columns:
-        raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
-    
-    
     ignore_small_genes_flag = args.ignore_small_genes.lower() == "yes"
     
     if model_case.lower() == "msr":
