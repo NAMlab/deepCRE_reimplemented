@@ -39,34 +39,44 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
         path_to_models = make_absolute_path(model_path, start_file=__file__)
     # ^ and $ mark start and end of a string. \d singnifies any digit. \d+ means a sequence of digits with at least length 1
     # more detailed explanation at https://regex101.com/, put in "^ara_(\d+)_ssr_\d+_\d+\.h5$"
+    
     if val_chromosome == "":
         regex_string = f"^{output_name}_(.+)_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                                    #type:ignore
     else:
         regex_string = f"^{output_name}_{val_chromosome}_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                        #type:ignore
-
-    if model_case.lower() == "msr": 
-        regex_string = f"{output_name}_\d[a-zA-Z]{{3}}_{model_case}_train_models_\d+_\d+\.h5$"     # specific for now
-        #print(regex_string) 
         
+    if model_case.lower() == "msr": 
+        regex_string = f"^{output_name}_model_{model_case}_train_ssr_models_\d+_\d+\.h5$"     # specific for now
+      
+
     regex = re.compile(regex_string)
+    #print(regex)
     candidate_models = [model for model in os.listdir(path_to_models)]
     fitting_models = {}
     for candidate in candidate_models:
         match = regex.match(candidate)
+
         if match:
             # group 1 is the "(.+)" part of the regex, so the name of the validation chromosome for the model
-            chromosome = val_chromosome if val_chromosome else match.group(1)
+            if model_case.lower() == "msr":
+                chromosome = "model"
+            elif val_chromosome:
+                model_case = val_chromosome
+            else:
+                chromosome = match.group(1)
             if chromosome in fitting_models:
                 fitting_models[chromosome].append(candidate)
             else:
                 fitting_models[chromosome] = [candidate]
 
     if not fitting_models:
-        raise ValueError("no trained models fitting the given parameters were found! Consider training models first (train_ssr_models.py)")
+        raise ValueError(f"no trained models fitting the given parameters (output_name: '{output_name}', val_chromosome: '{val_chromosome}', model_case: '{model_case}') were found! Consider training models first (train_models.py)")
     for chromosome, models in fitting_models.items():
         # models per chromosome only differ in the time stamp. So if sorted, the last model will be the most recently trained
         models.sort()
         fitting_models[chromosome] = os.path.join(path_to_models, models[-1])
+
+
     return fitting_models
 
 

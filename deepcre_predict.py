@@ -27,8 +27,8 @@ def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case
         y = np.array(y)
         gene_ids = np.array(gene_ids)
 
-        newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=None, model_case=model_case)
-        model = load_model(newest_model_paths)
+        newest_model_paths = find_newest_model_path(output_name=output_name, model_case=model_case)
+        model = load_model(newest_model_paths["model"])
         #print(f"Trying to load model from: {newest_model_paths}")
 
     else:
