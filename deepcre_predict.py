@@ -54,7 +54,7 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
             if model_case.lower() == "msr":
                 chromosome = "model"
             elif val_chromosome:
-                model_case = val_chromosome
+                chromosome = val_chromosome
             else:
                 chromosome = match.group(1)
             if chromosome in fitting_models:
