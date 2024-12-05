@@ -133,7 +133,7 @@ def main():
     model_case = args.model_case 
 
     dtypes = {0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str} if model_case.lower() == "msr" else {0: str, 1: str, 2: str, 3: str, 4: str, 5: str}
-    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key']
+    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms']
     data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
     expected_columns = len(names)
 
@@ -196,11 +196,11 @@ def main():
     
     if model_case.lower() in ["ssr", "ssc"]:
     # og ssr case 
-        for _,genome_file_name, annotation_file_name, tpm_counts_file_name, output_name, chromosome_file in data.values:
+        for genome_file_name, annotation_file_name, tpm_counts_file_name, output_name, chromosome_file in data.values:
             true_targets, preds, genes = [], [], []
             loaded_input_files = load_input_files(genome_file_name=genome_file_name, annotation_file_name=annotation_file_name, tpm_counts_file_name=tpm_counts_file_name)
             genome = loaded_input_files["genome"]
-            annotation = load_annotation_msr["annotation"]
+            annotation = loaded_input_files["annotation"]
             tpms = loaded_input_files["tpms"]
             extragenic = 1000
             intragenic = 500
@@ -208,7 +208,7 @@ def main():
             train_val_split=args.train_val_split
             chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosome_file}', header=None).values.ravel().tolist()
             
-            extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
+            extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=tuple(chromosomes), model_case=args.model_case.lower())
 
             for chrom in chromosomes:
                 _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
