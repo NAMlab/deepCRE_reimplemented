@@ -48,28 +48,27 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
     fitting_models = {}
     for candidate in candidate_models:
         match = regex.match(candidate)
-        if match:
-            print(f"Match found: {candidate}")
 
-        if match and model_case.lower() in ["ssr", "ssc"]:
+        if match:
             # group 1 is the "(.+)" part of the regex, so the name of the validation chromosome for the model
-            chromosome = val_chromosome if val_chromosome else match.group(1)
+            if model_case.lower() == "msr":
+                chromosome = "model"
+            elif val_chromosome:
+                model_case = val_chromosome
+            else:
+                chromosome = match.group(1)
             if chromosome in fitting_models:
                 fitting_models[chromosome].append(candidate)
             else:
                 fitting_models[chromosome] = [candidate]
 
-            if not fitting_models:
-                raise ValueError(f"no trained models fitting the given parameters (output_name: '{output_name}', val_chromosome: '{val_chromosome}', model_case: '{model_case}') were found! Consider training models first (train_models.py)")
-            for chromosome, models in fitting_models.items():
-                # models per chromosome only differ in the time stamp. So if sorted, the last model will be the most recently trained
-                models.sort()
-                fitting_models[chromosome] = os.path.join(path_to_models, models[-1])
+    if not fitting_models:
+        raise ValueError(f"no trained models fitting the given parameters (output_name: '{output_name}', val_chromosome: '{val_chromosome}', model_case: '{model_case}') were found! Consider training models first (train_models.py)")
+    for chromosome, models in fitting_models.items():
+        # models per chromosome only differ in the time stamp. So if sorted, the last model will be the most recently trained
+        models.sort()
+        fitting_models[chromosome] = os.path.join(path_to_models, models[-1])
 
-        if match and model_case.lower() == "msr":
-            #chromosome = "all"
-            #fitting_models["all"] = os.path.join(path_to_models, candidate)
-            return os.path.join(path_to_models, candidate)
 
     return fitting_models
 
@@ -93,8 +92,8 @@ def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case
         y = np.array(y)
         gene_ids = np.array(gene_ids)
 
-        newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=None, model_case=model_case)
-        model = load_model(newest_model_paths)
+        newest_model_paths = find_newest_model_path(output_name=output_name, model_case=model_case)
+        model = load_model(newest_model_paths["model"])
         #print(f"Trying to load model from: {newest_model_paths}")
 
     else:
