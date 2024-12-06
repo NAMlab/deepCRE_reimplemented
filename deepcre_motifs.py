@@ -134,8 +134,8 @@ def main():
                             ignore_small_genes=ignore_small_genes_flag, output_name=output_name,
                             model_case=args.model_case, chromosome_list=chromosomes, train_val_split=args.train_val_split)
 
-    failed_trainings = []
-    if model_case.lower() in ["ssr", "ssc"]:
+    elif model_case.lower() in ["ssr", "ssc"]:
+        failed_trainings = []
         for i, (genome, gtf, tpm_counts, output_name, chromosomes_file) in enumerate(data.values):
             try:
                 chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
