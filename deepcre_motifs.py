@@ -96,11 +96,12 @@ def main():
     tf.compat.v1.disable_v2_behavior()
     tf.config.set_visible_devices([], 'GPU')
     args = parse_args()
+    force_interpretation = args.force_interpretations == "true"
     model_case = args.model_case 
 
 
     dtypes = {0: str, 1: str, 2: str, 3: str, 4: str}
-    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms']
+    names = ['specie','genome', 'gtf', 'tpm', 'output', "chroms", "p_key"] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms']
     data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
     expected_columns = len(names)
 
