@@ -3,8 +3,10 @@ import os
 from typing import Any, Dict, List, Tuple
 from tensorflow.keras.models import load_model #type:ignore
 import pandas as pd
-from utils import get_filename_from_path, get_time_stamp, load_input_files, one_hot_encode, make_absolute_path, result_summary
+from utils import get_filename_from_path, get_time_stamp, load_annotation_msr, load_input_files, one_hot_encode, make_absolute_path, result_summary
 from train_ssr_models import extract_genes, find_newest_model_path
+import numpy as np
+from pyfaidx import Fasta
 
 
 def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case, extracted_genes, train_val_split):
@@ -67,7 +69,7 @@ def main():
     model_case = args.model_case 
 
     dtypes = {0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str} if model_case.lower() == "msr" else {0: str, 1: str, 2: str, 3: str, 4: str, 5: str}
-    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms']
+    names = ['specie','genome', 'gtf', 'tpm', 'output', "chroms", "p_keys"] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms']
     data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
     expected_columns = len(names)
 
