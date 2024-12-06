@@ -694,7 +694,6 @@ def main():
                 print(results_genome.head())
 
             except Exception as e:
-                raise e
                 print(e)
                 failed_trainings.append((output_name, i, e))
 
