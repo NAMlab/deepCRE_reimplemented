@@ -129,34 +129,37 @@ def main():
             output_location = os.path.join(folder_name, f'{output_name}_MSR_{file_name}_{get_time_stamp()}.csv')
             result.to_csv(output_location, index=False)
 
-    
+    failed_trainings = []
     if model_case.lower() in ["ssr", "ssc"]:
     # og ssr case 
-        for genome_file_name, annotation_file_name, tpm_counts_file_name, output_name, chromosome_file in data.values:
-            true_targets, preds, genes = [], [], []
-            loaded_input_files = load_input_files(genome_file_name=genome_file_name, annotation_file_name=annotation_file_name, tpm_counts_file_name=tpm_counts_file_name)
-            genome = loaded_input_files["genome"]
-            annotation = loaded_input_files["annotation"]
-            tpms = loaded_input_files["tpms"]
-            extragenic = 1000
-            intragenic = 500
-            ignore_small_genes = args.ignore_small_genes.lower() == "yes"
-            train_val_split=args.train_val_split
-            chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosome_file}', header=None).values.ravel().tolist()
-            
-            extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=(), model_case=args.model_case.lower())
+        for i, (genome_file_name, annotation_file_name, tpm_counts_file_name, output_name, chromosome_file) in enumerate(data.values):
+            try:
+                true_targets, preds, genes = [], [], []
+                loaded_input_files = load_input_files(genome_file_name=genome_file_name, annotation_file_name=annotation_file_name, tpm_counts_file_name=tpm_counts_file_name)
+                genome = loaded_input_files["genome"]
+                annotation = loaded_input_files["annotation"]
+                tpms = loaded_input_files["tpms"]
+                extragenic = 1000
+                intragenic = 500
+                ignore_small_genes = args.ignore_small_genes.lower() == "yes"
+                train_val_split=args.train_val_split
+                chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosome_file}', header=None).values.ravel().tolist()
+                
+                extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=(), model_case=args.model_case.lower())
 
-            for chrom in chromosomes:
-                _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
-                                                        model_case=args.model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
-                true_targets.extend(y)
-                preds.extend(pred_probs)
-                genes.extend(gene_ids)
+                for chrom in chromosomes:
+                    _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
+                                                            model_case=args.model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
+                    true_targets.extend(y)
+                    preds.extend(pred_probs)
+                    genes.extend(gene_ids)
 
-            result = pd.DataFrame({'true_targets': true_targets, 'pred_probs': preds, 'genes': genes})
-            print(result.head())
-            output_location = os.path.join(folder_name, f'{output_name}_{file_name}_{get_time_stamp()}.csv')
-            result.to_csv(output_location, index=False)
+                result = pd.DataFrame({'true_targets': true_targets, 'pred_probs': preds, 'genes': genes})
+                print(result.head())
+                output_location = os.path.join(folder_name, f'{output_name}_{file_name}_{get_time_stamp()}.csv')
+                result.to_csv(output_location, index=False)
+            except Exception as e:
+                failed_trainings.append((output_name, i, e))
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from deeplift.dinuc_shuffle import dinuc_shuffle
 import shap
 from pyfaidx import Fasta 
 
-from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, load_annotation_msr
+from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, load_annotation_msr, result_summary
 from deepcre_predict import predict_self
 from train_models import extract_genes
 
@@ -208,6 +208,7 @@ def main():
     ignore_small_genes_flag = args.ignore_small_genes.lower() == "yes"
 
 
+    failed_trainings = []
     if model_case.lower() == "msr":
         naming = "_".join([specie[:3] for specie in data['specie'].unique()])
         input_filename = args.input.split('.')[0] 
@@ -216,7 +217,6 @@ def main():
         tpm_path = make_absolute_path("tpm_counts", f"tpm_{naming}_{input_filename}.csv", start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
         annotation_path = make_absolute_path("gene_models", f"gtf_{naming}.csv", start_file=__file__)  
         #annotation = load_annotation_msr(annotation_path)
-
 
         for specie in data['specie'].unique():                                                                     
             test_specie = data.copy()
@@ -227,27 +227,25 @@ def main():
             output_name = test_specie['output'].values[0]
             chromosomes = ""
 
-            results = extract_scores(genome_file_name=genome_path, annotation_file_name=annotation_path, tpm_counts_file_name=tpm_path, upstream=extragenic, downstream=intragenic,
+            extract_scores(genome_file_name=genome_path, annotation_file_name=annotation_path, tpm_counts_file_name=tpm_path, upstream=extragenic, downstream=intragenic,
                         chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
                         output_name=output_name, model_case=args.model_case, train_val_split=args.train_val_split)
-            shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
-            save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
-                        output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=pred_seqs)
 
 
     
     if model_case.lower() in ["ssr", "ssc"]:
     
-        for genome, gtf, tpm_counts, output_name, chromosomes_file in data.values:
-            chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-            results = extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=1000, downstream=500,
-                        chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
-                        output_name=output_name, model_case=args.model_case, train_val_split=args.train_val_split)
-            shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
-            save_results(shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
-                        output_name=output_name, gene_ids_seqs=gene_ids_seqs, preds_seqs=pred_seqs)
+        for i, (genome, gtf, tpm_counts, output_name, chromosomes_file) in enumerate(data.values):
+            try:
+                chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
+                extract_scores(genome_file_name=genome, annotation_file_name=gtf, tpm_counts_file_name=tpm_counts, upstream=1000, downstream=500,
+                            chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
+                            output_name=output_name, model_case=args.model_case, train_val_split=args.train_val_split)
+            except Exception as e:
+                print(e)
+                failed_trainings.append((output_name, i, e))
             
-    print("Restults saved in results/shap.")
+    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
 if __name__ == "__main__":
     main()
