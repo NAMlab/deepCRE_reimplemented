@@ -1,11 +1,26 @@
+import argparse
+import os
 import pandas as pd
 import numpy as np
 import os
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Convert RNA seq data into targets for training.")
+    parser.add_argument("--input_path", "-i", help="path to the RNA seq data.", required=True)
+    parser.add_argument("--output_path", "-o", help="path to output file.", default="")
+    args = parser.parse_args()
+    return args
+
+
 def main():
-    # Define the directory containing the input files and the output directory
-    tpm_dir = "../../simon/projects/deepCRE_reimplemented/tpm_counts"
-    output_dir = "tpm_counts"
+    args = parse_args()
+    tpm_path = args.input_path
+    if args.output_path:
+        output_path = args.output_path
+    else:
+        base_name = os.path.splitext(os.path.basename(tpm_path))[0]
+        output_path = make_absolute_path("tpm_counts", f"{base_name}_targets.csv", start_file=__file__)
 
     # Create the output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)

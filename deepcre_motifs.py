@@ -5,8 +5,8 @@ import os
 import modisco
 from importlib import reload
 import h5py
-from utils import get_filename_from_path, get_time_stamp, make_absolute_path, load_annotation_msr
-from deepcre_interpret import extract_scores
+from utils import get_filename_from_path, get_time_stamp, make_absolute_path, load_annotation_msr, result_summary
+from deepcre_interpret import extract_scores, find_newest_interpretation_results
 
 
 def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name):
@@ -49,16 +49,23 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
 
 
 def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_small_genes,
-                    output_name, model_case, chromosome_list: pd.DataFrame, train_val_split):
-
-    actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
-                                                                        tpm_counts_file_name=tpm_targets,
-                                                                        upstream=upstream, downstream=downstream,
-                                                                        chromosome_list=chromosome_list,
-                                                                        ignore_small_genes=ignore_small_genes,
-                                                                        output_name=output_name,
-                                                                        model_case=model_case, 
-                                                                        train_val_split=train_val_split)
+                    output_name, model_case, chromosome_list: pd.DataFrame, train_val_split, force_interpretation: bool = False):
+    try:
+        if force_interpretation:
+            raise ValueError()
+        saved_interpretation_results_path = find_newest_interpretation_results(output_name=output_name, results_path=os.path.join("results", "shap"))
+        with h5py.File(saved_interpretation_results_path, "r") as f:
+            actual_scores = f["contrib_scores"][:] #type:ignore
+            hypothetical_scores = f["hypothetical_contrib_scores"][:] #type:ignore
+            one_hots = f["one_hot_seqs"][:] #type:ignore
+    except ValueError:
+        actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
+                                                                            tpm_counts_file_name=tpm_targets,
+                                                                            upstream=upstream, downstream=downstream,
+                                                                            chromosome_list=chromosome_list,
+                                                                            ignore_small_genes=ignore_small_genes,
+                                                                            output_name=output_name,
+                                                                            model_case=model_case, train_val_split=train_val_split)
 
     print("Now running MoDisco --------------------------------------------------\n")
     print(f"Species: {output_name} \n")
@@ -72,11 +79,12 @@ def parse_args():
                         description="This script performs the deepCRE prediction. We assume you have the following three" + 
                         "directories:tmp_counts (contains your counts files), genome (contains the genome fasta files), gene_models (contains the gtf files)")
 
-    parser.add_argument('--input', "-i", 
+    parser.add_argument('--input', "-i", "-i", 
                         help="""For model case SSR/SSC: This is a six column csv file with entries: species, genome, gtf, tpm, output name, number of chromosomes and pickle_key. \n 
                         For model case MSR: This is a five column csv file with entries: species, genome, gtf, tpm, output name.""", required=True)
-    parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True, choices=["msr", "ssr", "ssc", "both"])
-    parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=False, choices=["yes", "no"], default="yes")
+    parser.add_argument('--model_case', "-mc", help="Can be SSC, SSR or MSR", required=True, choices=["msr", "ssr", "ssc", "both"])
+    parser.add_argument('--ignore_small_genes', "-isg", help="Ignore small genes, can be yes or no", required=False, choices=["yes", "no"], default="yes")
+    parser.add_argument('--force_interpretations', "-fi", help="determines whether interpretations are recalculated, even if there are saved interpretations. If false (default), saved values will be used.", required=False, default="false", choices=["true", "false"])
     parser.add_argument('--train_val_split', help="For SSR /SSC training: Creates a training/validation dataset with 80%/20% of genes, can be yes or no", required=False, choices=["yes", "no"], default="no")
 
     args = parser.parse_args()
@@ -126,13 +134,19 @@ def main():
                             ignore_small_genes=ignore_small_genes_flag, output_name=output_name,
                             model_case=args.model_case, chromosome_list=chromosomes, train_val_split=args.train_val_split)
 
-
+    failed_trainings = []
     if model_case.lower() in ["ssr", "ssc"]:
-        for genome, gtf, tpm_counts, output_name, chromosomes_file in data.values:
-            chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
-            generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
-                            ignore_small_genes=ignore_small_genes_flag, output_name=output_name,
-                            model_case=args.model_case, chromosome_list=chromosomes, train_val_split=args.train_val_split)
+        for i, (genome, gtf, tpm_counts, output_name, chromosomes_file) in enumerate(data.values):
+            try:
+                chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosomes_file}', header=None).values.ravel().tolist()
+                generate_motifs(genome=genome, annot=gtf, tpm_targets=tpm_counts, upstream=1000, downstream=500,
+                                ignore_small_genes=ignore_small_genes_flag, output_name=output_name,
+                                model_case=args.model_case, chromosome_list=chromosomes, train_val_split=args.train_val_split, force_interpretation=force_interpretation)
+            except Exception as e:
+                print(e)
+                failed_trainings.append((output_name, i, e))
+
+        result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
 
 if __name__ == "__main__":

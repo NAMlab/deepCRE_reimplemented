@@ -10,7 +10,12 @@ test_folder/compare.py
 test_folder/*/*.csv
 test_folder/*/*/*.csv
 test_folder/*/*/*/*.csv
+figures/*
+run_config/*
 .vscode/*
+test_folder/*.csv
+test_folder/logbooks/*
+run_config/*
 
 #### GITHUB PYTHON TEMPLATE
 
