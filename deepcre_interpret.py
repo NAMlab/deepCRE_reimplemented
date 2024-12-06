@@ -89,7 +89,7 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
         extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, model_case=model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
         for val_chrom in chromosome_list:
             x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
-                                                output_name=output_name, model_case=model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
+                                                output_name=output_name, model_case=model_case, extracted_genes=extracted_genes)
             preds = preds > 0.5
             preds = preds.astype(int)
             correct_x, correct_y, correct_gene_ids = [], [], []

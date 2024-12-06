@@ -9,11 +9,8 @@ import numpy as np
 from pyfaidx import Fasta
 
 
-def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case, extracted_genes, train_val_split):
+def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case, extracted_genes):
 
-    if train_val_split.lower() == 'yes':
-        val_chromosome = "1|2|3" 
-        
     if model_case.lower() == "msr":
         # Combine data from all chromosomes
         x,y,gene_ids = [], [],[]
