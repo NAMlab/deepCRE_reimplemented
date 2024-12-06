@@ -116,7 +116,7 @@ def main():
             # one predcition per model 
             print(f"Predicting for: {output_name}")
             _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
-                                                    model_case=args.model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
+                                                    model_case=args.model_case, extracted_genes=extracted_genes)
             true_targets.extend(y)
             preds.extend(pred_probs)
             genes.extend(gene_ids)
@@ -126,9 +126,9 @@ def main():
             output_location = os.path.join(folder_name, f'{output_name}_MSR_{file_name}_{get_time_stamp()}.csv')
             result.to_csv(output_location, index=False)
 
-    failed_trainings = []
-    if model_case.lower() in ["ssr", "ssc"]:
+    elif model_case.lower() in ["ssr", "ssc"]:
     # og ssr case 
+        failed_trainings = []
         for i, (genome_file_name, annotation_file_name, tpm_counts_file_name, output_name, chromosome_file) in enumerate(data.values):
             try:
                 true_targets, preds, genes = [], [], []
@@ -146,7 +146,7 @@ def main():
 
                 for chrom in chromosomes:
                     _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
-                                                            model_case=args.model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
+                                                            model_case=args.model_case, extracted_genes=extracted_genes)
                     true_targets.extend(y)
                     preds.extend(pred_probs)
                     genes.extend(gene_ids)
@@ -156,7 +156,9 @@ def main():
                 output_location = os.path.join(folder_name, f'{output_name}_{file_name}_{get_time_stamp()}.csv')
                 result.to_csv(output_location, index=False)
             except Exception as e:
+                print(e)
                 failed_trainings.append((output_name, i, e))
+        result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
 
 
 if __name__ == "__main__":
