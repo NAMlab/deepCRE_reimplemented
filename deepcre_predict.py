@@ -3,7 +3,6 @@ import os
 from typing import Any, Dict, List, Tuple
 from tensorflow.keras.models import load_model #type:ignore
 import pandas as pd
-
 from utils import get_filename_from_path, get_time_stamp, load_input_files, one_hot_encode, make_absolute_path, result_summary
 from train_ssr_models import extract_genes, find_newest_model_path
 

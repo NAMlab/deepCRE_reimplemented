@@ -327,8 +327,6 @@ def extract_seq(genome, annot, tpm_targets, extragenic: int, intragenic: int, ge
             else:
                 print(f"Some gene IDs in the gtf file were not found in TPM counts. Skipped gene IDs have been written to {filename}.")
 
-        
-        
           
     elif model_case.lower() in ["ssr", "ssc"]:
 

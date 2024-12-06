@@ -227,7 +227,7 @@ def main():
             output_name = test_specie['output'].values[0]
             chromosomes = ""
 
-            results = extract_scores(genome_file_name=genome_path, annotation_file_name=annotation_path, tpm_counts_file_name=tpm_path, upstream=1000, downstream=500,
+            results = extract_scores(genome_file_name=genome_path, annotation_file_name=annotation_path, tpm_counts_file_name=tpm_path, upstream=extragenic, downstream=intragenic,
                         chromosome_list=chromosomes, ignore_small_genes=ignore_small_genes_flag,
                         output_name=output_name, model_case=args.model_case, train_val_split=args.train_val_split)
             shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, pred_seqs = results
