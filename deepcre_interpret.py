@@ -8,10 +8,40 @@ import numpy as np
 from deeplift.dinuc_shuffle import dinuc_shuffle
 import shap
 from pyfaidx import Fasta 
+import re
 
 from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, load_annotation_msr, result_summary
 from deepcre_predict import predict_self
 from train_models import extract_genes
+
+
+def find_newest_interpretation_results(output_name: str, results_path: str = "") -> str:
+    """finds path to newest model fitting the given parameters
+
+    Args:
+        output_name (str): output name the was used for creating the predictions in the first place
+        results_path (str): path to the directory where prediction results are stored.
+
+    Raises:
+        ValueError: raises an error if no fitting model is found
+
+    Returns:
+        str: Path to the newest prediction results for the given output name.
+    """
+    if results_path == "":
+        path_to_interpretations = make_absolute_path("saved_models", start_file=__file__)
+    else:
+        path_to_interpretations = make_absolute_path(results_path, start_file=__file__)
+    # ^ and $ mark start and end of a string. \d singnifies any digit. \d+ means a sequence of digits with at least length 1
+    regex_string = f"^{output_name}_deepcre_interpret_\d+_\d+\.h5$"                                                        #type:ignore
+    regex = re.compile(regex_string)
+    candidate_models = [model for model in os.listdir(path_to_interpretations) if regex.match(model)]
+    if not candidate_models:
+        raise ValueError("no interpretation results fitting the given parameters were found! Consider running the interpretation script (deepcre_interpret.py)")
+    # models only differ in the time stamp. So if sorted, the last model will be the most recently trained
+    candidate_models.sort()
+    full_path = os.path.join(path_to_interpretations, candidate_models[-1])
+    return full_path
 
 
 # 1. Shap
@@ -123,7 +153,7 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
         extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, model_case=model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
         #for val_chrom in chromosome_list:
         x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
-                                                output_name=output_name, model_case=model_case, extracted_genes=extracted_genes, train_val_split=train_val_split)
+                                                output_name=output_name, model_case=model_case, extracted_genes=extracted_genes)
         preds = preds > 0.5
         preds = preds.astype(int)
         correct_x, correct_y, correct_gene_ids = [], [], []
@@ -199,7 +229,7 @@ def main():
     model_case = args.model_case 
 
     dtypes = {0: str, 1: str, 2: str, 3: str, 4: str}
-    names = ['specie','genome', 'gtf', 'tpm', 'output'] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms']
+    names = ['specie','genome', 'gtf', 'tpm', 'output', "chroms", "p_keys"] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms']
     data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
     expected_columns = len(names)
 
