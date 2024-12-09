@@ -207,6 +207,8 @@ def deep_cre(x_train, y_train, x_val, y_val, output_name, model_case, chrom):
               callbacks=[early_stop, model_chkpt, reduce_lr])
 
     loaded_model = load_model(checkpoint_path)
+    train_eval = loaded_model.evaluate(x_train, y_train)
+    print(f"__________________\neval on training data:\n{train_eval}\n__________________")
     output = loaded_model.evaluate(x_val, y_val)
     return output
 
@@ -682,7 +684,7 @@ def main():
                                       model_case=args.model_case,
                                       pickled_key=pickled_key,
                                       ignore_small_genes=args.ignore_small_genes,
-                                      train_val_split=args.train_val_spliBOTHt
+                                      train_val_split=args.train_val_split
                                   )
                         
                         results_genome.append(results)
