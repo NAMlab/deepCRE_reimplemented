@@ -50,7 +50,7 @@ def get_filename_from_path(path: str) -> str:
     return file_name
 
 
-def load_annotation(annotation_path):
+def load_annotation(annotation_path) -> pd.DataFrame:
     if annotation_path.endswith('.gtf'):
         gene_model = pr.read_gtf(f=annotation_path, as_df=True)
         #gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
@@ -67,7 +67,7 @@ def load_annotation(annotation_path):
 
 
 # Function for reading and adapting the concatenated gtf file for MSR training
-def load_annotation_msr(annotation_path):
+def load_annotation_msr(annotation_path) -> pd.DataFrame:
     gene_model = pd.read_csv(annotation_path, header=None, sep="\s+")
 
     expected_columns = ['species', 'Chromosome', 'Start', 'End', 'Strand', 'gene_id']
@@ -96,6 +96,128 @@ def load_annotation_msr(annotation_path):
 
     
     return gene_model
+
+
+def get_input_file_path(file_name: str, output_dir: str, species_name: str) -> str:
+    combined_path = os.path.join(output_dir, file_name)
+    absolute_path = file_name
+    if os.path.exists(combined_path):
+        file_path = combined_path
+    elif os.path.exists(absolute_path):
+        file_path = absolute_path
+    else:
+        raise Exception(f"Warning: annotation {file_name} could not be found. Neither {combined_path} nor {absolute_path} do exist for {species_name}.")
+    return file_path
+
+
+def get_fasta_data(fasta_path: str, species_abbr: str) -> List[str]:
+    fasta_data = []
+    include_sequence = False
+    with open(fasta_path, 'r') as f:
+        for line in f:
+            if line.startswith('>'):  # Header line in FASTA
+                parts = line.strip().split()
+                chrom_name = parts[0][1:]  # Remove '>' from chromosome name
+
+                # Skip headers containing 'Mt', 'Pt', or 'scaffold'
+                if any(term in chrom_name for term in ['Mt', 'Pt', 'scaffold']):
+                    include_sequence = False
+                    continue  # Skip this header and go to the next line
+                
+                # Otherwise, mark the sequence for inclusion
+                include_sequence = True  
+
+                # Modify the header if the chromosome name is numeric
+                if chrom_name.isdigit():
+                    line = f">{chrom_name}{species_abbr}\n"
+                
+                # Append the modified header to `fasta_data`
+                fasta_data.append(line.strip())
+
+            elif include_sequence:
+                # Append sequence lines if the header was marked for inclusion
+                fasta_data.append(line.strip())
+    return fasta_data
+
+
+def combine_annotations(data: pd.DataFrame) -> str:
+    file_type = "gtf"
+    file_key = "_".join([specie[:3] for specie in data['specie'].unique()])
+    output_dir = 'gene_models'
+    save_path = os.path.abspath(f"{output_dir}/{file_type}_{file_key}.csv")
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # return if file already exists
+    if os.path.exists(save_path):
+        print(f"combined file for annotations \"{save_path}\" already exists.")
+        return os.path.abspath(save_path)
+
+    print(f'Now generating combined {file_type} file:')
+    combined_data = []
+    for _, row in data.iterrows():
+        input_file_path = get_input_file_path(row[file_type], output_dir=output_dir, species_name=row["species"])
+        species_name = row['specie']
+        file_data = load_annotation(input_file_path)
+        # Add species name as a new column
+        file_data.insert(0, 'species', species_name)
+        combined_data.append(file_data)
+
+    combined_data_df = pd.concat(combined_data, ignore_index=True)
+    combined_data_df.to_csv(save_path, sep=' ', index=False, header=False)  # Save as GTF
+    print(f"Combined {file_type} file saved as {save_path}")
+    return save_path
+
+
+def combine_tpms(data: pd.DataFrame, input_filename: str) -> str:
+    file_type = "tpm"
+    output_dir = "tpm_counts"
+    file_key = "_".join([specie[:3] for specie in data['specie'].unique()])
+    os.makedirs(output_dir, exist_ok=True)
+    save_path = os.path.abspath(f"{output_dir}/{file_type}_{file_key}_{input_filename}.csv")
+    if os.path.exists(save_path):
+        print(f"Combined file {save_path} already exists.")
+        return save_path
+
+    print(f'Now generating combined {file_type} file:')
+    combined_data = []
+
+    for _, row in data.iterrows():
+        input_file_path = get_input_file_path(file_name=row[file_type], output_dir=output_dir, species_name=row["species"])
+        file_data = pd.read_csv(input_file_path)
+        # Select only the "gene_id" and "target" columns
+        file_data = file_data.loc[:, ["gene_id", "target"]]
+        combined_data.append(file_data)
+    
+    combined_data_df = pd.concat(combined_data, ignore_index=True)
+    combined_data_df.to_csv(save_path, index=False)
+    print(f"Combined {file_type} file saved as {save_path}")
+    return save_path
+
+
+def combine_fasta(data: pd.DataFrame) -> str:
+    file_type = 'genome'
+    output_dir = 'genome'
+    file_key = "_".join([specie[:3] for specie in data['specie'].unique()])
+    os.makedirs(output_dir, exist_ok=True)
+    save_path = os.path.abspath(f"{output_dir}/{file_type}_{file_key}.fa")
+    if os.path.exists(save_path):
+        print(f"Combined file {save_path} already exists.")
+        return save_path
+
+    print(f'Now generating combined {file_type} file:')
+    combined_data = []
+    for _, row in data.iterrows():
+        species_name = row['specie']
+        species_abbr = species_name[:3]
+        input_file_path = get_input_file_path(file_name=row[file_type], output_dir=output_dir, species_name=row["species"])
+        fasta_data = get_fasta_data(fasta_path=input_file_path, species_abbr=species_abbr)
+        combined_data.append("\n".join(fasta_data))
+
+    with open(save_path, 'w') as f_out:
+        f_out.write("\n".join(combined_data))
+    print(f"Combined {file_type} file saved as {save_path}")
+    return save_path
+
 
 
 # Funciton for MSR training: concatenating tpm/fast/gtf file for all species. 
@@ -197,14 +319,13 @@ def combine_files(data, file_type, file_extension, output_dir, file_key, input_f
                 combined_data_df = pd.concat(combined_data, ignore_index=True)
                 combined_data_df.to_csv(combined_file_tpm, index=False)
                 print(f"Combined {file_type} file saved as {combined_file_tpm}")
-            else:  # For fasta and GTF/GFF
-                if file_type in ['gtf', 'gff','gff3']:
-                    combined_data_df = pd.concat(combined_data, ignore_index=True)
-                    combined_data_df.to_csv(combined_file, sep=' ', index=False, header=False)  # Save as GTF
-                else:  # For fata
-                    with open(combined_file, 'w') as f_out:
-                        f_out.write("\n".join(combined_data))
-                print(f"Combined {file_type} file saved as {combined_file}")
+            elif file_type in ['gtf', 'gff','gff3']:
+                combined_data_df = pd.concat(combined_data, ignore_index=True)
+                combined_data_df.to_csv(combined_file, sep=' ', index=False, header=False)  # Save as GTF
+            else:  # For fata
+                with open(combined_file, 'w') as f_out:
+                    f_out.write("\n".join(combined_data))
+            print(f"Combined {file_type} file saved as {combined_file}")
         else:
             print(f"No output generated.")
     
