@@ -556,7 +556,7 @@ def train_msr(data: pd.DataFrame, input_file_name: str, failed_trainings: List[T
             results = train_deep_cre(
                 genome_path=genome_path,
                 annotation_path=annotation_path,
-                tpm_path=annotation_path,
+                tpm_path=tpm_path,
                 upstream=1000,
                 downstream=500,
                 genes_picked=args.pickle,
