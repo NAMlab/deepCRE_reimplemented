@@ -81,68 +81,99 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
     return fitting_models
 
 
-def extract_genes(genome: pd.DataFrame, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, train_val_split, tpms, target_chromosomes: Tuple[str, ...], model_case: str, for_prediction: bool = False) -> Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]:
+def extract_gene(genome: Fasta, extragenic: int, intragenic: int, ignore_small_genes: bool, expected_final_size: int,
+                 chrom: str, start: int, end: int, strand: str, ssc_training: bool = False, val_chromosome: Optional[str] = None) -> np.ndarray:
+    """extracts the gene flanking region for a single gene and converts it to a numpy encoded one-hot encoding
+
+    Args:
+        genome (Fasta): Fasta representation of the genome to extract the gene flanking region from
+        extragenic (int): length of the sequence to be extracted before the start and after the end of the gene
+        intragenic (int): length of the sequence to be extracted after the start and before the end of the gene
+        ignore_small_genes (bool): determines how to deal with genes that are smaller than 2x intragenic. If True,
+            these genes will be extracted with the wrong length. If False, central padding will be extended.
+        expected_final_size (int): the length the extracted sequence should have at the end
+        chrom (str): chrom on which the gene lies
+        start (int): start index of the gene
+        end (int): end index of the gene
+        strand (str): determines whether the gene is on + or - strand
+
+    Returns:
+        np.ndarray: One hot encoded gene flanking region as numpy array
+    """
+    gene_size = end - start
+    extractable_intragenic = intragenic if gene_size // 2 > intragenic else gene_size // 2
+    prom_start, prom_end = start - extragenic, start + extractable_intragenic
+    term_start, term_end = end - extractable_intragenic, end + extragenic
+
+    promoter = one_hot_encode(genome[chrom][prom_start:prom_end])
+    terminator = one_hot_encode(genome[chrom][term_start:term_end])
+    extracted_size = promoter.shape[0] + terminator.shape[0]
+    central_pad_size = expected_final_size - extracted_size
+
+    if ssc_training and chrom != val_chromosome:
+            np.random.shuffle(promoter)
+            np.random.shuffle(terminator)
+
+    # this means that even with ignore small genes == true, small genes will be extracted.
+    # They just dont have the expected size and have to be filtered out later
+    pad_size = 20 if ignore_small_genes else central_pad_size
+
+    if strand == '+':
+        seq = np.concatenate([
+            promoter,
+            np.zeros(shape=(pad_size, 4)),
+            terminator
+        ])
+    else:
+        seq = np.concatenate([
+            terminator[::-1, ::-1],
+            np.zeros(shape=(pad_size, 4)),
+            promoter[::-1, ::-1]
+        ])
+        
+    return seq
+
+
+def append_sequence_prediction(tpms: pd.DataFrame, extracted_seqs: Dict[str, Tuple[List[np.ndarray], List[int], List[str]]], expected_final_size: int, chrom: str, gene_id: str, sequence_to_append: np.ndarray) -> None:
+    if sequence_to_append.shape[0] == expected_final_size:
+        extracted_tuple = extracted_seqs.get(chrom, ())
+        if extracted_tuple == ():
+            x, y, gene_ids = [], [], []
+        else:
+            x = extracted_tuple[0]                      #type:ignore
+            y = extracted_tuple[1]                      #type:ignore
+            gene_ids = extracted_tuple[2]               #type:ignore
+        x.append(sequence_to_append)
+            # tpms check for for_prediction happened earlier
+        if tpms is None:
+            y.append("NA")
+        else:
+            y.append(tpms.loc[gene_id, 'target'])       #type:ignore
+        gene_ids.append(gene_id)
+        extracted_seqs[chrom] = (x, y, gene_ids)
+
+
+def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, tpms: pd.DataFrame, target_chromosomes: Tuple[str, ...], model_case: str, for_prediction: bool = True) -> Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     extracted_seqs = {}
     expected_final_size = 2 * (extragenic + intragenic) + 20
     # tpms are absolutely necessary for training, but not for predictions, so can miss if data is for predictions
     if tpms is None and not for_prediction:
         raise ValueError(f"tpms have to be given if \"for_prediction\" is not set to True!")
     
-    unpack_variables = ("specie", "chrom", "start", "end", "strand", "gene_id") if model_case.lower() == "msr" else ("chrom", "start", "end", "strand", "gene_id")
-
     for values in annotation.values:
-        if len(unpack_variables) == 6:
+        if model_case.lower() == "msr":
             specie, chrom, start, end, strand, gene_id = values
         else:
             chrom, start, end, strand, gene_id = values
 
-    #for chrom, start, end, strand, gene_id in annotation.values:#type:ignore
         # skip all chromosomes that are not in the target chromosomes. Empty tuple () means, that all chromosomes should be extracted
         if target_chromosomes != () and chrom not in target_chromosomes:
             continue
 
-        gene_size = end - start
-        extractable_downstream = intragenic if gene_size // 2 > intragenic else gene_size // 2
-        prom_start, prom_end = start - extragenic, start + extractable_downstream
-        term_start, term_end = end - extractable_downstream, end + extragenic
+        seq = extract_gene(genome, extragenic, intragenic, ignore_small_genes, expected_final_size, chrom, start, end, strand)
+        append_sequence_prediction(tpms, extracted_seqs, expected_final_size, chrom, gene_id, seq)
 
-        promoter = one_hot_encode(genome[chrom][prom_start:prom_end])
-        terminator = one_hot_encode(genome[chrom][term_start:term_end])
-        extracted_size = promoter.shape[0] + terminator.shape[0]
-        central_pad_size = expected_final_size - extracted_size
-
-        pad_size = 20 if ignore_small_genes else central_pad_size
-
-        if strand == '+':
-            seq = np.concatenate([
-                promoter,
-                np.zeros(shape=(pad_size, 4)),
-                terminator
-            ])
-        else:
-            seq = np.concatenate([
-                terminator[::-1, ::-1],
-                np.zeros(shape=(pad_size, 4)),
-                promoter[::-1, ::-1]
-            ])
-
-        if seq.shape[0] == expected_final_size:
-            extracted_tuple = extracted_seqs.get(chrom, ())
-            if extracted_tuple == ():
-                x, y, gene_ids = [], [], []
-            else:
-                x = extracted_tuple[0]
-                y = extracted_tuple[1]
-                gene_ids = extracted_tuple[2]
-            x.append(seq)
-            # tpms check for for_prediction happened earlier
-            if tpms is None:
-                y.append("NA")
-            else:
-                y.append(tpms.loc[gene_id, 'target'])
-            gene_ids.append(gene_id)
-            extracted_seqs[chrom] = (x, y, gene_ids)
-
+    # convert lists to arrays
     for chrom, tuple_ in extracted_seqs.items():
         x, y, gene_ids = tuple_
         x, y, gene_ids = np.array(x), np.array(y), np.array(gene_ids)

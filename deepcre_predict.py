@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple
 from tensorflow.keras.models import load_model #type:ignore
 import pandas as pd
 from utils import get_filename_from_path, get_time_stamp, load_annotation_msr, load_input_files, one_hot_encode, make_absolute_path, result_summary
-from train_ssr_models import extract_genes, find_newest_model_path
+from train_models import extract_genes_prediction, find_newest_model_path
 import numpy as np
 from pyfaidx import Fasta
 
@@ -111,7 +111,7 @@ def main():
 
             true_targets, preds, genes = [], [], []
             
-            extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, model_case=args.model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
+            extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, model_case=args.model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
 
             # one predcition per model 
             print(f"Predicting for: {output_name}")
@@ -142,7 +142,7 @@ def main():
                 train_val_split=args.train_val_split
                 chromosomes = pd.read_csv(filepath_or_buffer=f'genome/{chromosome_file}', header=None).values.ravel().tolist()
                 
-                extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=(), model_case=args.model_case.lower())
+                extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=(), model_case=args.model_case.lower())
 
                 for chrom in chromosomes:
                     _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,

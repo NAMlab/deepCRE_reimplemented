@@ -12,7 +12,7 @@ import re
 
 from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, load_annotation_msr, result_summary
 from deepcre_predict import predict_self
-from train_models import extract_genes
+from train_models import extract_genes_prediction
 
 
 def find_newest_interpretation_results(output_name: str, results_path: str = "") -> str:
@@ -116,7 +116,7 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
         annotation = loaded_input_files["annotation"]
         tpms = loaded_input_files["tpms"]
     
-        extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, model_case=model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
+        extracted_genes = extract_genes_prediction(genome, annotation, extragenic=upstream, intragenic=downstream, model_case=model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
         for val_chrom in chromosome_list:
             x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
                                                 output_name=output_name, model_case=model_case, extracted_genes=extracted_genes)
@@ -150,7 +150,7 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
         annotation = load_annotation_msr(annotation_file_name)
         val_chrom=""
 
-        extracted_genes = extract_genes(genome, annotation, extragenic=upstream, intragenic=downstream, model_case=model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
+        extracted_genes = extract_genes_prediction(genome, annotation, extragenic=upstream, intragenic=downstream, model_case=model_case,ignore_small_genes=ignore_small_genes, train_val_split=train_val_split, tpms=tpms, target_chromosomes=())
         #for val_chrom in chromosome_list:
         x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
                                                 output_name=output_name, model_case=model_case, extracted_genes=extracted_genes)
