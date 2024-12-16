@@ -5,7 +5,7 @@ from tensorflow.keras.models import load_model #type:ignore
 from typing import List, Tuple, Dict, Any, Union
 import argparse
 
-from train_ssr_models import extract_genes
+from train_models import extract_genes_prediction
 from utils import make_absolute_path, load_input_files, get_filename_from_path, get_time_stamp, result_summary
 
 
@@ -230,8 +230,8 @@ def run_cross_predictions(data: Union[pd.DataFrame, None] = None):
             ignore_small_genes, intragenic, extragenic = set_defaults(ignore_small_genes=ignore_small_genes, intragenic=intragenic, extragenic=extragenic)
             loaded_input_files = load_input_files(genome_file_name=genome_file_name, annotation_file_name=annotation_file_name, tpm_counts_file_name=target_class_file)
             chromosomes, chromosomes_tuple = get_chromosomes(chromosomes_file, loaded_input_files["annotation"])
-            extracted_genes = extract_genes(genome=loaded_input_files["genome"], annotation=loaded_input_files["annotation"], extragenic=extragenic, intragenic=intragenic,
-                                            ignore_small_genes=ignore_small_genes, tpms=loaded_input_files.get("tpms", None), target_chromosomes=chromosomes_tuple, for_prediction=True)
+            extracted_genes = extract_genes_prediction(genome=loaded_input_files["genome"], annotation=loaded_input_files["annotation"], extragenic=extragenic, intragenic=intragenic,
+                                            ignore_small_genes=ignore_small_genes, tpms=loaded_input_files.get("tpms", None), target_chromosomes=chromosomes_tuple, for_prediction=True, model_case="ssr")
             results_dfs = []
             for chrom in chromosomes:
                 results, _ = predict_other(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom),
