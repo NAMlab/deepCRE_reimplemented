@@ -275,7 +275,7 @@ def append_sequence_training(include_as_validation_gene: bool, include_as_traini
             train_seqs.append(seq)
             train_targets.append(tpms.loc[gene_id, 'target'])
             added_training = 1
-        return added_val, added_training
+    return added_val, added_training
 
 
 def calculate_conditions(val_chromosome, model_case, train_val_split, test_specie, validation_genes, current_val_size, current_train_size, target_val_size, target_train_size, specie, chrom, gene_id):
@@ -385,7 +385,8 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
         seq = extract_gene(genome=genome, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes,
                             expected_final_size=expected_final_size, chrom=chrom, start=start, end=end, strand=strand, ssc_training=ssc_training,
                             val_chromosome=val_chromosome)
-        added_val, added_train = append_sequence_training(include_in_validation_set, include_in_training_set, expected_final_size, train_seqs, val_seqs, train_targets, val_targets, tpms, validation_genes, specie, gene_id, seq)
+        added_val, added_train = append_sequence_training(include_as_validation_gene=include_in_validation_set, include_as_training_gene=include_in_training_set, train_targets=train_targets,
+                                                          expected_final_size=expected_final_size, train_seqs=train_seqs, val_seqs=val_seqs, val_targets=val_targets, tpms=tpms, gene_id=gene_id, seq=seq)
         current_val_size += added_val
         current_train_size += added_train
                     
@@ -435,7 +436,7 @@ def balance_dataset(x, y):
 
 
 def train_deep_cre(genome_path: str, annotation_path: str, tpm_path: str, upstream: int, downstream: int, genes_picked, val_chromosome, output_name,
-                   model_case: str, pickled_key: str, ignore_small_genes: bool, train_val_split,  test_specie: Optional[pd.DataFrame] = None,
+                   model_case: str, pickled_key: Optional[str], ignore_small_genes: bool, train_val_split,  test_specie: Optional[pd.DataFrame] = None,
                    input_filename: Optional[str] = None):
     train_seqs, train_targets, val_seqs, val_targets = extract_genes_training(genome_path, annotation_path, tpm_path, upstream, downstream,
                                                                    genes_picked, pickled_key, val_chromosome, model_case, ignore_small_genes,
