@@ -219,121 +219,6 @@ def combine_fasta(data: pd.DataFrame) -> str:
     return save_path
 
 
-
-# Funciton for MSR training: concatenating tpm/fast/gtf file for all species. 
-# Only done once if the exact same pickle_ids and species order is trained again.
-def combine_files(data, file_type, file_extension, output_dir, file_key, input_filename=None, load_func=None): 
-
-    if file_type in ['gtf', 'gff', 'gff3']:
-        file_extension = 'csv'
-
-    combined_file = f"{output_dir}/{file_type}_{file_key}.{file_extension}"
-    combined_file_tpm = f"{output_dir}/{file_type}_{file_key}_{input_filename}.{file_extension}"
-
-    # Create the output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-
-    if os.path.exists(combined_file_tpm):
-        print(f"Combined file {combined_file_tpm} already exists.")
-        return
-    
-    if os.path.exists(combined_file):
-        print(f"Combined file {combined_file} already exists.")
-        return
-    
-    
-    if not os.path.exists(combined_file) or not os.path.exists(combined_file_tpm):
-        print(f'Now generating combined {file_type} file:')
-        combined_data = []
-
-    
-        for index, row in data.iterrows():
-            
-            # tpm / fasta /gff data cann be located somewhere else
-            default_path = os.path.join(output_dir, row[file_type])
-            fallback_path = os.path.join(row[file_type])
-            
-            if os.path.exists(default_path):
-                file_path = default_path
-            elif os.path.exists(fallback_path):
-                file_path = fallback_path
-            else:
-                raise Exception(f"Warning: {default_path} and {fallback_path} do not exist for {row['specie']}.")
- 
-               
-            species_name = row['specie']
-            species_abbr = species_name[:3]
-
-            if os.path.exists(file_path):
-                #print(f"Found file: {file_path}") 
-                if file_type == 'tpm':
-                    file_data = pd.read_csv(file_path)
-                    # Select only the "gene_id" and "target" columns
-                    file_data = file_data.loc[:, ["gene_id", "target"]]
-                    combined_data.append(file_data)
-                elif file_type in ['gtf', 'gff','gff3']:  # Handle both GTF and GFF
-                        if load_func:  
-                            file_data = load_func(file_path)
-                            # Add species name as a new column
-                            file_data.insert(0, 'species', species_name)
-                            combined_data.append(file_data)
-                        else:
-                            print(f"Warning: No loading function provided for {file_type}.")
-                            continue  # Skip if no loading function is available
-                else:  # For fasta
-                    with open(file_path, 'r') as f:
-                            fasta_data = []
-                            include_sequence = False
-
-                            for line in f:
-                                if line.startswith('>'):  # Header line in FASTA
-                                    parts = line.strip().split()
-                                    chrom_name = parts[0][1:]  # Remove '>' from chromosome name
-
-                                    # Skip headers containing 'Mt', 'Pt', or 'scaffold'
-                                    if any(term in chrom_name for term in ['Mt', 'Pt', 'scaffold']):
-                                        include_sequence = False
-                                        continue  # Skip this header and go to the next line
-                                    
-                                    # Otherwise, mark the sequence for inclusion
-                                    include_sequence = True  
-
-                                    # Modify the header if the chromosome name is numeric
-                                    if chrom_name.isdigit():
-                                        line = f">{chrom_name}{species_abbr}\n"
-                                    
-                                    # Append the modified header to `fasta_data`
-                                    fasta_data.append(line.strip())
-
-                                elif include_sequence:
-                                    # Append sequence lines if the header was marked for inclusion
-                                    fasta_data.append(line.strip())
-                    
-                    # Add the modified FASTA data as a single string block
-                    combined_data.append("\n".join(fasta_data))
-                       
-
-        # Concatenate and save combined data if files were processed
-        if combined_data:
-            if file_type == 'tpm':
-                combined_data_df = pd.concat(combined_data, ignore_index=True)
-                combined_data_df.to_csv(combined_file_tpm, index=False)
-                print(f"Combined {file_type} file saved as {combined_file_tpm}")
-            elif file_type in ['gtf', 'gff','gff3']:
-                combined_data_df = pd.concat(combined_data, ignore_index=True)
-                combined_data_df.to_csv(combined_file, sep=' ', index=False, header=False)  # Save as GTF
-            else:  # For fata
-                with open(combined_file, 'w') as f_out:
-                    f_out.write("\n".join(combined_data))
-            print(f"Combined {file_type} file saved as {combined_file}")
-        else:
-            print(f"No output generated.")
-    
-    
-
-
-
-
 def make_absolute_path(*steps_on_path, start_file: str = "") -> str:
     """creates an absoulte path from a starting location
 
@@ -351,7 +236,7 @@ def make_absolute_path(*steps_on_path, start_file: str = "") -> str:
     return result_path
 
 
-def load_input_files(genome_file_name: str = "", annotation_file_name: str = "", tpm_counts_file_name: str = "") -> Dict[str, pd.DataFrame]:
+def load_input_files(genome_file_name: str = "", annotation_file_name: str = "", tpm_counts_file_name: str = "", model_case: str = "ssr") -> Dict:
     """loads input files and returns them in a Dict
 
     Args:
@@ -388,11 +273,11 @@ def load_input_files(genome_file_name: str = "", annotation_file_name: str = "",
 
     if annotation_file_name != "":
         #see if given name is full path to file
-        if os.path.isfile(annotation_file_name):
+        annotation_file_name = annotation_file_name if os.path.isfile(annotation_file_name) else make_absolute_path("gene_models", annotation_file_name, start_file=__file__)
+        if model_case.lower() == "ssr":
             annotation = load_annotation(annotation_path=annotation_file_name)
         else:
-            annotation_path = make_absolute_path("gene_models", annotation_file_name, start_file=__file__)
-            annotation = load_annotation(annotation_path=annotation_path)
+            annotation = load_annotation_msr(annotation_path=annotation_file_name)
         # annot = annot[annot['Chromosome'] == val_chromosome]
         results["annotation"] = annotation
 
