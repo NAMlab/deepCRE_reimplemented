@@ -1,9 +1,11 @@
+from __future__ import annotations
 import argparse
 import json
+from enum import Enum, auto
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
-from utils import get_filename_from_path, get_time_stamp, one_hot_encode, make_absolute_path, load_annotation, load_annotation_msr, result_summary, combine_annotations, combine_fasta, combine_tpms, load_input_files
+from utils import get_filename_from_path, get_time_stamp, one_hot_encode, make_absolute_path, load_annotation, load_annotation_msr, result_summary, combine_annotations, combine_fasta, combine_tpms, load_input_files, read_feature_from_input_dict
 from tensorflow.keras.layers import Dropout, Dense, Input, Conv1D, Activation, MaxPool1D, Flatten               #type:ignore
 from tensorflow.keras.optimizers import Adam                                                                    #type:ignore
 from tensorflow.keras import Model                                                                              #type:ignore
@@ -17,6 +19,197 @@ import pyranges as pr
 from sklearn.utils import shuffle
 import re
 import sys
+
+possible_general_parameters = {
+    "genome": None,
+    "annotation": None,
+    "targets": None,
+    "output_name": None,
+    "chromosomes": None,
+    "pickle_key": None,
+    "pickle_file": "validation_genes.pickle",
+    "model_case": None,
+    "ignore_small_genes": True,
+    "train_val_split": False,
+}
+
+possible_species_parameters = {
+    "genome": None,
+    "annotation": None,
+    "targets": None,
+    "chromosomes": None,
+    "pickle_key": None,
+    "pickle_file": "validation_genes.pickle",
+    "species_name": None,
+}
+
+
+class RunInfo:
+    general_info: Dict[str, Any]
+    species_info: List[Dict[str, Any]]
+
+    def set_up_defaults(self):
+        #get general defaults
+        defaults = possible_species_parameters.copy()
+        #get values from general columns that can be used for species infos
+        applicable_general_inputs = list(set(possible_general_parameters.keys()).intersection(set(possible_species_parameters.keys())))
+        applicable_general_inputs = {key: self.general_info[key] for key in applicable_general_inputs if key in self.general_info.keys()}
+        #overwrite the defaults with info from general_info, where applicable
+        defaults.update(applicable_general_inputs)
+        applicable_general_inputs = defaults
+        #remove key/value pairs that dont have a meaningful default or a value from the general_info, so they dont interfere later
+        to_delete = [key for key, value in applicable_general_inputs.items() if value is None]
+        for key in to_delete:
+            del applicable_general_inputs[key]
+        return applicable_general_inputs
+
+    @staticmethod
+    def check_general_keys(general_dict: Dict[str, Any], missing_output_name_ok: bool = False):
+        necessary_parameters = list(set(possible_general_parameters).difference(set(possible_species_parameters)))
+        missing = [parameter for parameter in necessary_parameters if parameter not in general_dict.keys()]
+        if missing_output_name_ok and missing == ["output_name"]:
+            return
+        if missing:
+            raise ValueError(f"Error parsing general info dict! Input parameters {missing} missing!")
+
+    @staticmethod
+    def check_species_keys(specie_dict: Dict[str, Any], missing_species_name_ok: bool = False):
+        missing = [parameter for parameter in possible_species_parameters.keys() if parameter not in specie_dict.keys()]
+        if missing_species_name_ok and missing == ["species_name"]:
+            return
+        if missing:
+            raise ValueError(f"Error parsing specie dict! Input parameters {missing} missing!")
+
+    def parse_species(self, run_dict: Dict[str, Any]):
+        #list of parameters in both general and species parameters
+        applicable_general_inputs = self.set_up_defaults()
+        species_info = []
+        for species_dict in run_dict.get("species_data", []):
+            curr_specie_dict = {key: read_feature_from_input_dict(species_dict, key) for key in possible_species_parameters.keys() if key in species_dict.keys()}
+            #get defaults, then overwrite them with the data that was read in for all keys where data was read in
+            curr_general_info = applicable_general_inputs.copy()
+            curr_general_info.update(curr_specie_dict)
+            #make sure all necessary parameters are filled
+            RunInfo.check_species_keys(curr_general_info)
+            species_info.append(curr_general_info)
+        if not species_info:
+            curr_general_info = applicable_general_inputs.copy()
+            RunInfo.check_species_keys(curr_general_info, missing_species_name_ok=True)
+            species_info.append(curr_general_info)
+        self.species_info = species_info
+
+    def parse_general_inputs(self, run_dict: Dict[str, str]):
+        #load defaults
+        defaults = possible_general_parameters.copy()
+        read_data = {key: read_feature_from_input_dict(run_dict, key) for key in possible_general_parameters.keys() if key in run_dict.keys()}
+        #overwrite defaults with read data
+        defaults.update(read_data)
+        general_info = defaults
+        #remove empty defaults
+        to_delete = [key for key, value in general_info.items() if value is None]
+        for key in to_delete:
+            del general_info[key]
+        general_info["model_case"] = ModelCase.parse(general_info["model_case"])
+        #make check
+        missing_output_name_ok = general_info["model_case"] == ModelCase.MSR
+        RunInfo.check_general_keys(general_dict=general_info, missing_output_name_ok=missing_output_name_ok)
+        self.general_info = general_info
+
+    @staticmethod
+    def parse(run_dict: Dict[str, Any]):
+        run_info_object = RunInfo()
+        run_info_object.parse_general_inputs(run_dict=run_dict)
+        # load general info first, and use it as defaults for specific species
+        run_info_object.parse_species(run_dict)
+        if run_info_object.general_info["model_case"] == ModelCase.MSR and len(run_info_object.species_info) < 2:
+            raise ValueError(f"Need at least 2 species for MSR training! Only found {len(run_info_object.species_info)}.")
+        for species_key in possible_species_parameters.keys():
+            if species_key in run_info_object.general_info.keys():
+                del run_info_object.general_info[species_key]
+        return run_info_object
+    
+    def __str__(self) -> str:
+        self.general_info["model_case"] = str(self.general_info["model_case"])
+        specie_info_json = json.dumps(self.species_info, indent=2)
+        gen_info_json = json.dumps(self.general_info, indent=2)
+        self.general_info["model_case"] = ModelCase.parse(self.general_info["model_case"])
+        result = "RunInfo(\n  General Info{"
+        for gen_info in gen_info_json.split("\n"):
+            if gen_info in ["{", "}"]:
+                continue
+            result += "\n  " + gen_info
+        result += "\n  },\n  Species info["
+        for species_info in specie_info_json.split("\n"):
+            if species_info in ["[", "]"]:
+                continue
+            result += "\n  " + species_info
+        result += "\n  ]\n)"
+        return result
+
+
+class ParsedTrainingInputs:
+    run_infos: List[RunInfo]
+
+    def __init__(self):
+        self.run_infos = []
+
+    @staticmethod
+    def parse(json_file_name: str) -> ParsedTrainingInputs:
+        json_file_name = json_file_name if os.path.isfile(json_file_name) else make_absolute_path(json_file_name, __file__)
+        parsed_object = ParsedTrainingInputs()
+        with open(json_file_name, "r") as f:
+            input_list = json.load(f)
+        for i, run_dict in enumerate(input_list):
+            try:
+                curr_run_info = RunInfo.parse(run_dict)
+                parsed_object.run_infos.append(curr_run_info)
+            except Exception as e:
+                print(f"error reading input run number {i}.")
+                print(f"error message is: \"{e}\"")
+                print(f"the dictionary that was loaded for the run is the following:")
+                print(f"{json.dumps(run_dict, indent=2)}")
+        return parsed_object
+    
+    def __str__(self) -> str:
+        result = "ParsedTrainingInputs["
+        for info in self.run_infos:
+            for info_line in str(info).split("\n"):
+                result += "\n  " + info_line
+        result += "\n]"
+        return result
+            
+
+
+class ModelCase(Enum):
+    MSR = auto()
+    SSR = auto()
+    SSC = auto()
+    BOTH = auto()
+
+    @staticmethod
+    def parse(input_string: str) -> ModelCase:
+        if input_string.lower() == "msr":
+            return ModelCase.MSR
+        elif input_string.lower() == "ssr":
+            return ModelCase.SSR
+        elif input_string.lower() == "ssc":
+            return ModelCase.SSC
+        elif input_string.lower() == "both":
+            return ModelCase.BOTH
+        else:
+            raise ValueError(f"model case \"{input_string}\" not recognized!")
+    
+    def __str__(self) -> str:
+        if self == ModelCase.MSR:
+            return "msr"
+        elif self == ModelCase.SSR:
+            return "ssr"
+        elif self == ModelCase.SSC:
+            return "ssc"
+        elif self == ModelCase.BOTH:
+            return "both"
+        else:
+            raise NotImplementedError("string method was not implemented for this Variant yet!")
 
 
 class TerminationError(Exception):
@@ -263,7 +456,7 @@ def mask_sequences(train_seqs: np.ndarray, val_seqs: np.ndarray, extragenic: int
     val_seqs[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0
 
 
-def append_sequence_training(include_as_validation_gene: bool, include_as_training_gene: bool, expected_final_size, train_seqs, val_seqs, train_targets, val_targets, tpms, gene_id, seq):
+def append_sequence_training(include_as_validation_gene: bool, include_as_training_gene: bool, expected_final_size, train_seqs, val_seqs, train_targets, val_targets, tpms, gene_id, seq) -> Tuple[int, int]:
     added_val, added_training = 0, 0
     if seq.shape[0] == expected_final_size:
         if include_as_validation_gene:
@@ -315,12 +508,10 @@ def load_input_files_training(genome_file_name, annotation_file_name, tpm_file_n
 
 def set_up_train_val_split_variables(annotation: pd.DataFrame):
     # 80 / 20 train-val splitting 
-    current_val_size = 0
-    current_train_size = 0
     total_sequences = len(annotation)
     target_val_size = int(total_sequences * 0.2)  # Target size for validation set (20%)
     target_train_size = total_sequences - target_val_size  # Target size for training set (80%)
-    return current_val_size, current_train_size, target_val_size, target_train_size
+    return target_val_size, target_train_size
 
 
 def save_skipped_genes(skipped_genes):
@@ -369,7 +560,9 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
     if model_case.lower() in ["ssr", "ssc"] and train_val_split.lower() == "yes":
         annotation = annotation.sample(frac=1, random_state=42).reset_index(drop=True)
 
-    current_val_size, current_train_size, target_val_size, target_train_size = set_up_train_val_split_variables(annotation=annotation)
+    #only relevant for train_val_split == "yes"
+    current_val_size, current_train_size = 0, 0
+    target_val_size, target_train_size = set_up_train_val_split_variables(annotation=annotation)
         
     train_seqs, val_seqs, train_targets, val_targets = [], [], [], []
     skipped_genes = [] 
@@ -593,7 +786,7 @@ def train_ssr_ssc(data: pd.DataFrame, args, failed_trainings: List[Tuple], file_
                     print(f"Results for genome: {genome}, iteration: {val_chrom}: {results}")
                 
             results_genome = pd.DataFrame(results_genome, columns=['loss', 'accuracy', 'auROC', 'auPR'])
-            save_file = make_absolute_path('results', f"{output_name}_{args.model_case}_{file_name}_{get_time_stamp()}.csv", start_file=__file__)
+            save_file = make_absolute_path('results', f"{output_name}_{args.model_case}_{file_name}_ssr_{get_time_stamp()}.csv", start_file=__file__)
             results_genome.to_csv(path_or_buf=save_file, index=False)
             print(results_genome.head())
 
@@ -641,9 +834,14 @@ def main():
             train_ssr_ssc(data=data, args=args, failed_trainings=failed_trainings, file_name=file_name)
 
 if __name__ == "__main__":
-    main()
+    # main()
+    parsed = ParsedTrainingInputs.parse("inputs.json")
+    print(parsed)
+    print(parsed.run_infos[0])
     # TODO: test everything
         # especially gene extraction for all cases, ESPECIALL train_vla_split
     #TODO: inputs.json should work
     #TODO: make sure all models / inputs / outputs are found correctly
     #TODO: unify methods
+    #TODO: talk about 80/20 split in general; and MSR in general
+    #TODO: consistenly use ModelCase enum

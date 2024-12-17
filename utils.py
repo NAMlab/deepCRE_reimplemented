@@ -7,6 +7,10 @@ import pyranges as pr
 import pandas as pd
 
 
+def read_feature_from_input_dict(input_dict: Dict[str, str], key: str):
+    return input_dict[key].lower().strip()
+
+
 def one_hot_encode(sequence: str,
                    alphabet: str = 'ACGT',
                    neutral_alphabet: str = 'N',
