@@ -204,7 +204,7 @@ def combine_annotations_old(data: pd.DataFrame) -> str:
 def combine_tpms(species_data: List[Dict[str, Any]], naming: str) -> str:
     output_dir = "tpm_counts"
     os.makedirs(output_dir, exist_ok=True)
-    save_path = os.path.abspath(f"{output_dir}/tpm_{naming}_{input_filename}.csv")
+    save_path = os.path.abspath(f"{output_dir}/tpm_{naming}.csv")
     if os.path.exists(save_path):
         print(f"Combined file {save_path} already exists.")
         return save_path
@@ -354,10 +354,10 @@ def load_input_files(genome_file_name: str = "", annotation_file_name: str = "",
     if annotation_file_name != "":
         #see if given name is full path to file
         annotation_file_name = annotation_file_name if os.path.isfile(annotation_file_name) else make_absolute_path("gene_models", annotation_file_name, start_file=__file__)
-        if model_case.lower() == "ssr":
-            annotation = load_annotation(annotation_path=annotation_file_name)
-        else:
+        if model_case.lower() == "msr":
             annotation = load_annotation_msr(annotation_path=annotation_file_name)
+        else:
+            annotation = load_annotation(annotation_path=annotation_file_name)
         # annot = annot[annot['Chromosome'] == val_chromosome]
         results["annotation"] = annotation
 
