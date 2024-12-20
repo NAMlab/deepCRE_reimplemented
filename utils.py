@@ -8,7 +8,10 @@ import pandas as pd
 
 
 def read_feature_from_input_dict(input_dict: Dict[str, str], key: str):
-    return input_dict[key].lower().strip()
+    val = input_dict[key]
+    if isinstance(val, str):
+        return val.strip()
+    return val
 
 
 def one_hot_encode(sequence: str,
@@ -144,7 +147,33 @@ def get_fasta_data(fasta_path: str, species_abbr: str) -> List[str]:
     return fasta_data
 
 
-def combine_annotations(data: pd.DataFrame) -> str:
+def combine_annotations(species_data: List[Dict[str, Any]], naming: str) -> str:
+    output_dir = 'gene_models'
+    save_path = os.path.abspath(f"{output_dir}/gtf_{naming}.csv")
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # return if file already exists
+    if os.path.exists(save_path):
+        print(f"combined file for annotations \"{save_path}\" already exists.")
+        return os.path.abspath(save_path)
+
+    print(f'Now generating combined annotation file:')
+    combined_data = []
+    for specie_data in species_data:
+        species_name = specie_data['species_name']
+        input_file_path = get_input_file_path(specie_data["annotation"], output_dir=output_dir, species_name=species_name)
+        file_data = load_annotation(input_file_path)
+        # Add species name as a new column
+        file_data.insert(0, 'species', species_name)
+        combined_data.append(file_data)
+
+    combined_data_df = pd.concat(combined_data, ignore_index=True)
+    combined_data_df.to_csv(save_path, sep=' ', index=False, header=False)  # Save as GTF
+    print(f"Combined annotation file saved as {save_path}")
+    return save_path
+
+
+def combine_annotations_old(data: pd.DataFrame) -> str:
     file_type = "gtf"
     file_key = "_".join([specie[:3] for specie in data['specie'].unique()])
     output_dir = 'gene_models'
@@ -172,12 +201,35 @@ def combine_annotations(data: pd.DataFrame) -> str:
     return save_path
 
 
-def combine_tpms(data: pd.DataFrame, input_filename: str) -> str:
+def combine_tpms(species_data: List[Dict[str, Any]], naming: str) -> str:
+    output_dir = "tpm_counts"
+    os.makedirs(output_dir, exist_ok=True)
+    save_path = os.path.abspath(f"{output_dir}/tpm_{naming}_{input_filename}.csv")
+    if os.path.exists(save_path):
+        print(f"Combined file {save_path} already exists.")
+        return save_path
+
+    print(f'Now generating combined tpms file:')
+    combined_data = []
+
+    for specie_data in species_data:
+        input_file_path = get_input_file_path(file_name=specie_data["targets"], output_dir=output_dir, species_name=specie_data["species_name"])
+        file_data = pd.read_csv(input_file_path)
+        # Select only the "gene_id" and "target" columns
+        file_data = file_data.loc[:, ["gene_id", "target"]]
+        combined_data.append(file_data)
+    
+    combined_data_df = pd.concat(combined_data, ignore_index=True)
+    combined_data_df.to_csv(save_path, index=False)
+    print(f"Combined tpm file saved as {save_path}")
+    return save_path
+
+
+def combine_tpms_old(data: pd.DataFrame, naming: str) -> str:
     file_type = "tpm"
     output_dir = "tpm_counts"
-    file_key = "_".join([specie[:3] for specie in data['specie'].unique()])
     os.makedirs(output_dir, exist_ok=True)
-    save_path = os.path.abspath(f"{output_dir}/{file_type}_{file_key}_{input_filename}.csv")
+    save_path = os.path.abspath(f"{output_dir}/{file_type}_{naming}.csv")
     if os.path.exists(save_path):
         print(f"Combined file {save_path} already exists.")
         return save_path
@@ -198,7 +250,31 @@ def combine_tpms(data: pd.DataFrame, input_filename: str) -> str:
     return save_path
 
 
-def combine_fasta(data: pd.DataFrame) -> str:
+def combine_fasta(species_data: List[Dict[str, Any]], naming: str) -> str:
+    file_type = 'genome'
+    output_dir = 'genome'
+    os.makedirs(output_dir, exist_ok=True)
+    save_path = os.path.abspath(f"{output_dir}/{file_type}_{naming}.fa")
+    if os.path.exists(save_path):
+        print(f"Combined file {save_path} already exists.")
+        return save_path
+
+    print(f'Now generating combined {file_type} file:')
+    combined_data = []
+    for specie_data in species_data:
+        species_name = specie_data['species_name']
+        species_abbr = species_name[:3]
+        input_file_path = get_input_file_path(file_name=specie_data[file_type], output_dir=output_dir, species_name=specie_data["species_name"])
+        fasta_data = get_fasta_data(fasta_path=input_file_path, species_abbr=species_abbr)
+        combined_data.append("\n".join(fasta_data))
+
+    with open(save_path, 'w') as f_out:
+        f_out.write("\n".join(combined_data))
+    print(f"Combined {file_type} file saved as {save_path}")
+    return save_path
+
+
+def combine_fasta_old(data: pd.DataFrame) -> str:
     file_type = 'genome'
     output_dir = 'genome'
     file_key = "_".join([specie[:3] for specie in data['specie'].unique()])
