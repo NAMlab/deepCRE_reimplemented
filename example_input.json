@@ -1,0 +1,33 @@
+[
+  {
+    "species_data": [
+      {
+        "species_name": "arabidopsis_thaliana"
+      },
+      {
+        "species_name": "solanum_lycopersicum",
+        "genome": "Solanum_lycopersicum.SL3.0.dna.toplevel.fa",
+        "annotation": "Solanum_lycopersicum.SL3.0.52.gtf",
+        "targets": "solanum_leaf_counts_targets.csv",
+        "pickle_key": "sol"
+      }
+    ],
+    "model_case": "msr",
+    "genome": "Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
+    "annotation": "Arabidopsis_thaliana.TAIR10.52.gtf",
+    "targets": "arabidopsis_targets.csv",
+    "output_name": "ara_sol_multi",
+    "chromosomes": "arabidopsis_chroms.csv",
+    "pickle_key": "ara"
+  },
+  {
+    "model_case": "ssr",
+    "genome": "Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
+    "annotation": "Arabidopsis_thaliana.TAIR10.52.gtf",
+    "targets": "arabidopsis_targets.csv",
+    "output_name": "arabidopsis",
+    "chromosomes": "arabidopsis_chroms.csv",
+    "pickle_key": "ara"
+  }
+
+]

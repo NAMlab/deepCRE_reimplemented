@@ -631,7 +631,7 @@ def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
         }
             
         combined_results.append(results_with_info)
-        print(f"Results for genome: {genome_path}, validation species: {test_specie_info['specie'].values[0]}: {results}")
+        print(f"Results for genome: {genome_path}, validation species: {test_specie_info['species_name']}: {results}")
     return combined_results
 
 
@@ -660,7 +660,7 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
             'test': val_chrom,
         }
         combined_results.append(results_with_info)
-        print(f"Results for genome: {general_info['genome']}, chromosome: {val_chrom}: {results}")
+        print(f"Results for genome: {specie_info['genome']}, chromosome: {val_chrom}: {results}")
     return combined_results
 
 
@@ -686,7 +686,7 @@ def train_models(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple[str,
         except Exception as e:
             raise e
             print(e)
-            failed_trainings.append((output_name, i, e))
+            failed_trainings.append((gen_info["output_name"], i, e))
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
 
 
