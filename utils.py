@@ -70,22 +70,14 @@ def load_annotation(annotation_path) -> pd.DataFrame:
         gene_model = gene_model[gene_model['Feature'] == 'gene']
         gene_model = gene_model[['Chromosome', 'Start', 'End', 'Strand', 'ID']]
 
-    return gene_model
+    return gene_model           #type:ignore
 
 
 # Function for reading and adapting the concatenated gtf file for MSR training
 def load_annotation_msr(annotation_path) -> pd.DataFrame:
-    gene_model = pd.read_csv(annotation_path, header=None, sep="\s+")
+    gene_model = pd.read_csv(annotation_path, header=None, sep="\s+")           #type:ignore
 
     expected_columns = ['species', 'Chromosome', 'Start', 'End', 'Strand', 'gene_id']
-    dtypes = {
-        'species': 'category',
-        'Chromosome': 'str', 
-        'Start': 'int32',
-        'End': 'int32',
-        'Strand': 'category',
-        'gene_id': 'str'
-        }
     
     if gene_model.shape[1] != len(expected_columns):
         raise ValueError(f"CSV file must contain exactly {len(expected_columns)} columns.")
