@@ -20,8 +20,6 @@ import sys
 from parsing import ParsedTrainingInputs, RunInfo, ModelCase
 
 
-
-
 class TerminationError(Exception):
     pass
 
@@ -54,7 +52,7 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
         regex_string = f"^{output_name}_{val_chromosome}_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                        #type:ignore
         
     if model_case.lower() == "msr": 
-        regex_string = f"^{output_name}_model_{model_case}_train_ssr_models_\d+_\d+\.h5$"     # specific for now
+        regex_string = f"^{output_name}_model_{model_case}_train_ssr_models_\d+_\d+\.h5$"     # specific for now    #type:ignore
       
 
     regex = re.compile(regex_string)
@@ -233,7 +231,11 @@ def deep_cre(x_train, y_train, x_val, y_val, output_name, model_case, chrom, tim
     model.summary()
 
     file_name = get_filename_from_path(__file__)
-    checkpoint_path = make_absolute_path("saved_models", f"{output_name}_{chrom}_{model_case}_{file_name}_{time_stamp}.h5", start_file=__file__)
+    potential_folder = os.path.dirname(output_name)
+    if os.path.exists(potential_folder) and not os.path.isfile(potential_folder):
+        checkpoint_path = output_name
+    else:
+        checkpoint_path = make_absolute_path("saved_models", f"{output_name}_{chrom}_{model_case}_{file_name}_{time_stamp}.h5", start_file=__file__)
     model_chkpt = ModelCheckpoint(filepath=checkpoint_path,
                                   save_best_only=True,
                                   verbose=1)
@@ -282,7 +284,7 @@ def append_sequence_training(include_as_validation_gene: bool, include_as_traini
 
 def calculate_conditions(val_chromosome, model_case, train_val_split: bool, test_specie, validation_genes, current_val_size, current_train_size, target_val_size, target_train_size, specie, chrom, gene_id):
     if model_case == ModelCase.MSR:
-        include_in_validation_set = specie in test_specie['specie'].values                      #type:ignore
+        include_in_validation_set = specie == test_specie                      #type:ignore
         include_in_training_set = not include_in_validation_set
     elif not train_val_split:
         include_in_validation_set = chrom == val_chromosome
@@ -338,7 +340,7 @@ def save_skipped_genes(skipped_genes, time_stamp: str):
 
 
 def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_picked, pickled_key, val_chromosome,
-                model_case, ignore_small_genes, train_val_split, test_specie: Optional[pd.DataFrame] = None):
+                model_case, ignore_small_genes, train_val_split, time_stamp: str, test_specie: Optional[pd.DataFrame] = None):
     """
      This function extract sequences from the genome. It implements a gene size aware padding
     :param genome: reference genome from Ensembl Plants database
@@ -374,6 +376,9 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
         
     train_seqs, val_seqs, train_targets, val_targets = [], [], [], []
     skipped_genes = [] 
+    if len(annotation.columns) == 5:
+        annotation["species"] = "specie unknown"
+        annotation = annotation[['species', 'Chromosome', 'Start', 'End', 'Strand', 'gene_id']]
     for specie, chrom, start, end, strand, gene_id in annotation.values:
         if gene_id not in tpms.index:
             skipped_genes.append(gene_id)
@@ -399,13 +404,11 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
                                 f"Target size: {target_val_size} genes. Total genes in pickle file: {len(validation_genes)}. "
                                 f"(Only genes from pickle file can be in the validation set.)")
 
-    save_skipped_genes(skipped_genes)
+    save_skipped_genes(skipped_genes, time_stamp=time_stamp)
     
     train_seqs, val_seqs, train_targets, val_targets  = np.array(train_seqs), np.array(val_seqs), np.array(train_targets), np.array(val_targets)
     print(train_seqs.shape, val_seqs.shape)
     if train_seqs.size == 0 or val_seqs.size == 0:
-        if model_case.lower() == "msr":
-            raise TerminationError("Validation sequences are empty. Terminating MSR run!")
         raise ValueError("Validation sequences or training sequences are empty.")
 
     mask_sequences(train_seqs=train_seqs, val_seqs=val_seqs, extragenic=extragenic, intragenic=intragenic)
@@ -437,19 +440,14 @@ def balance_dataset(x, y):
 
 
 def train_deep_cre(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_picked, val_chromosome, output_name,
-                   model_case: str, ignore_small_genes: bool, train_val_split,  test_specie: Optional[pd.DataFrame] = None, pickled_key: Optional[str] = None):
+                   model_case: str, ignore_small_genes: bool, train_val_split: bool, time_stamp: str,  test_specie: Optional[pd.DataFrame] = None, pickled_key: Optional[str] = None):
     train_seqs, train_targets, val_seqs, val_targets = extract_genes_training(genome_path, annotation_path, tpm_path, extragenic, intragenic,
                                                                    genes_picked, pickled_key, val_chromosome, model_case, ignore_small_genes,
-                                                                   train_val_split=train_val_split, test_specie=test_specie)
+                                                                   train_val_split=train_val_split, test_specie=test_specie, time_stamp=time_stamp)
     x_train, y_train = balance_dataset(train_seqs, train_targets)
     x_val, y_val = balance_dataset(val_seqs, val_targets)
-    output = deep_cre(x_train=x_train,
-                      y_train=y_train,
-                      x_val=x_val,
-                      y_val=y_val,
-                      output_name=output_name,
-                      model_case=model_case,
-                      chrom=val_chromosome)
+    output = deep_cre(x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, output_name=output_name,
+                      model_case=model_case, chrom=val_chromosome, time_stamp=time_stamp)
     return output
 
 
@@ -475,7 +473,7 @@ def parse_args():
     return args
 
 
-def train_msr(data: pd.DataFrame, input_file_name: str, failed_trainings: List[Tuple], file_name: str, args):
+"""def train_msr(data: pd.DataFrame, input_file_name: str, failed_trainings: List[Tuple], file_name: str, args):
     print(f'Multi species Training: ---------------------\n')
     ignore_small_genes = args.ignore_small_genes.lower() == "yes"
 
@@ -596,10 +594,10 @@ def train_ssr_ssc(data: pd.DataFrame, args, failed_trainings: List[Tuple], file_
             print(e)
             failed_trainings.append((output_name, i, e))
 
-    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
+    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))"""
 
 
-def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any]) -> List[Dict[str, Any]]:
+def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str) -> List[Dict[str, Any]]:
     #msr stuff
     species: List[str] = [specie["species_name"] for specie in species_info]
     naming = "_".join([specie[:3] for specie in species])
@@ -615,14 +613,14 @@ def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any]) ->
         print(f'Training on species: {train_species}')
         print(f'Testing on specie: {test_specie_info["species_name"]}')
 
-        output_name = test_specie_info['output_name']
+        output_name = general_info['output_name']
         print(f"Output name for training: {output_name}")
 
         results = train_deep_cre(
             genome_path=genome_path, annotation_path=annotation_path, tpm_path=tpm_path, extragenic=general_info["extragenic"],
-            intragenic=general_info["intragenic"], genes_picked=test_specie_info["pickle_path"], val_chromosome="model",
-            output_name=general_info["output_name"], model_case=general_info["args.model_case"], ignore_small_genes=general_info["ignore_small_genes"],
-            train_val_split=general_info["args.train_val_split"], test_specie=test_specie_info["species_name"],
+            intragenic=general_info["intragenic"], genes_picked=test_specie_info["pickle_file"], val_chromosome=test_specie_info["species_name"],
+            output_name=general_info["output_name"], model_case=general_info["model_case"], ignore_small_genes=general_info["ignore_small_genes"],
+            train_val_split=general_info["train_val_split"], test_specie=test_specie_info["species_name"], time_stamp=time_stamp
         ) 
         results_with_info = {
             'loss': results[0],
@@ -637,7 +635,7 @@ def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any]) ->
     return combined_results
 
 
-def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any]) -> List [Dict[str, Any]]:
+def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str) -> List [Dict[str, Any]]:
     specie_info = species_info[0]
     print(f'Single species Training on genome: ---------------------\n')
     print(specie_info["genome"])
@@ -653,7 +651,7 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any]) ->
         results = train_deep_cre(genome_path=specie_info["genome"], annotation_path=specie_info["annotation"], tpm_path=specie_info["targets"], extragenic=general_info["extragenic"],
                                         intragenic=general_info["intragenic"], genes_picked=specie_info["pickle_file"], val_chromosome=val_chrom,
                                         output_name=general_info["output_name"], model_case=general_info["model_case"], pickled_key=specie_info["pickle_key"],
-                                        ignore_small_genes=general_info["ignore_small_genes"], train_val_split=general_info["train_val_split"])
+                                        ignore_small_genes=general_info["ignore_small_genes"], train_val_split=general_info["train_val_split"], time_stamp=time_stamp)
         results_with_info = {
             'loss': results[0],
             'accuracy': results[1],
@@ -666,7 +664,7 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any]) ->
     return combined_results
 
 
-def train_models(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple[str, int, Exception]]):
+def train_models(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple[str, int, Exception]], input_length: int):
     file_name = get_filename_from_path(__file__)
     time_stamp = get_time_stamp()
     run_info: RunInfo
@@ -676,9 +674,9 @@ def train_models(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple[str,
             gen_info = run_info.general_info
             spec_info = run_info.species_info
             if run_info.is_msr():
-                results = run_msr(species_info=spec_info, general_info=gen_info)
+                results = run_msr(species_info=spec_info, general_info=gen_info, time_stamp=time_stamp)
             else:
-                results = run_ssr(species_info=spec_info, general_info=gen_info)
+                results = run_ssr(species_info=spec_info, general_info=gen_info, time_stamp=time_stamp)
             results = pd.DataFrame(results, columns=['test', 'loss', 'accuracy', 'auROC', 'auPR'])
             save_file = make_absolute_path('results', f"{gen_info['output_name']}_{file_name}_{gen_info['model_case']}_{time_stamp}.csv", start_file=__file__)
             results.to_csv(path_or_buf=save_file, index=False)
@@ -689,29 +687,15 @@ def train_models(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple[str,
             raise e
             print(e)
             failed_trainings.append((output_name, i, e))
-    result_summary(failed_trainings=failed_trainings, input_length=len(inputs), script=get_filename_from_path(__file__))
+    result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
 
 
 
 def main():
     args = parse_args()
-    inputs, failed_trainings = ParsedTrainingInputs.parse(args.input)
+    inputs, failed_trainings, input_length = ParsedTrainingInputs.parse(args.input)
     print(inputs)
     inputs = inputs.replace_both()
-    # model_case = args.model_case 
-    # input_file_name = args.input.split('.')[0]
-
-    # dtypes = {0: str, 1: str, 2: str, 3: str, 4: str, 5: str, 6: str} if model_case.lower() == "msr" else {0: str, 1: str, 2: str, 3: str, 4: str, 5: str}
-    # names = ['specie','genome', 'gtf', 'tpm', 'output', "chroms", "p_key"] if model_case.lower() == "msr" else ['genome', 'gtf', 'tpm', 'output', 'chroms', 'p_key']
-    # data = pd.read_csv(args.input, sep=',', header=None, dtype=dtypes, names = names)
-
-    # expected_columns = len(names)
-    # if data.shape[1] != expected_columns:
-    #     raise Exception("Input file incorrect. Your input file must contain 7 columns and must be .csv")
-    
-    
-    # model_cases = ["ssr", "ssc"] if args.model_case == "both" else [args.model_case]
-    # print(data.head())
 
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     training_results_path = make_absolute_path('results', "training", start_file=__file__)
@@ -719,13 +703,7 @@ def main():
     os.makedirs(training_results_path, exist_ok=True)
     os.makedirs(models_path, exist_ok=True)
 
-    train_models(inputs, failed_trainings)
-    # # MSR training 
-    # if model_case.lower() == "msr":
-    #     train_msr(data=data, input_file_name=input_file_name, failed_trainings=failed_trainings, file_name=file_name, args=args)
-    
-    # if model_case.lower() in ["ssr", "ssc"]:
-    #     train_ssr_ssc(data=data, args=args, failed_trainings=failed_trainings, file_name=file_name)
+    train_models(inputs, failed_trainings,  input_length)
 
 if __name__ == "__main__":
     main()
