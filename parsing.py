@@ -160,7 +160,7 @@ class ParsedTrainingInputs:
         self.run_infos = []
 
     @staticmethod
-    def parse(json_file_name: str) -> Tuple[ParsedTrainingInputs, List[Tuple[str, int, Exception]]]:
+    def parse(json_file_name: str) -> Tuple[ParsedTrainingInputs, List[Tuple[str, int, Exception]], int]:
         json_file_name = json_file_name if os.path.isfile(json_file_name) else make_absolute_path(json_file_name, __file__)
         failed_parsings = []
         parsed_object = ParsedTrainingInputs()
@@ -171,12 +171,12 @@ class ParsedTrainingInputs:
                 curr_run_info = RunInfo.parse(run_dict)
                 parsed_object.run_infos.append(curr_run_info)
             except Exception as e:
-                print(f"error reading input run number {i}.")
+                print(f"error reading input run number {i + 1}.")
                 print(f"error message is: \"{e}\"")
                 print(f"the dictionary that was loaded for the run is the following:")
                 print(f"{json.dumps(run_dict, indent=2)}")
                 failed_parsings.append(("error during parsing!", i, e))
-        return parsed_object, failed_parsings
+        return parsed_object, failed_parsings, len(input_list)
     
     def replace_both(self) -> ParsedTrainingInputs:
         new_object = ParsedTrainingInputs()
