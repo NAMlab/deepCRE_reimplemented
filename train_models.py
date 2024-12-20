@@ -627,7 +627,7 @@ def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
             'accuracy': results[1],
             'auROC': results[2],
             'auPR': results[3],
-            'test': test_specie_info['specie'].values[0],
+            'test': test_specie_info['species_name'],
         }
             
         combined_results.append(results_with_info)
