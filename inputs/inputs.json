@@ -1,0 +1,49 @@
+[
+  {
+    "genome": "path.fa",
+    "annotation": "path2.gtf",
+    "targets": "path3.csv",
+    "output_name": "asdf",
+    "chromosomes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "pickle_key": "ara",
+    "pickle_file": "path4.pickle",
+    "model_case": "ssr",
+    "ignore_small_genes": false,
+    "train_val_split": false
+  },
+  {
+    "species_data": [
+      {
+        "species_name": "beta_vulgaris",
+        "genome": "path.fa",
+        "annotation": "path2.gtf",
+        "targets": "path3.csv",
+        "chromosomes": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "pickle_key": "bet",
+        "pickle_file": "asdf.pickle",
+        "ignore_small_genes": true
+      },
+      {
+        "species_name": "beta_vulgaris",
+        "genome": "path.fa",
+        "annotation": "path2.gtf",
+        "targets": "path3.csv",
+        "chromosomes": "bevu_chroms.csv",
+        "pickle_key": "bet"
+      }
+    ],
+    "pickle_file": "asdf1234.pickle",
+    "ignore_small_genes": false,
+    "model_case": "msr"
+  }
+]
