@@ -24,7 +24,7 @@ class TerminationError(Exception):
     pass
 
 
-def find_newest_model_path(output_name: str, model_case: str, val_chromosome: str = "", model_path: str = "") -> Dict[str, str]:
+def find_newest_model_path(output_name: str, model_case: ModelCase, val_chromosome: str = "", model_path: str = "") -> Dict[str, str]:
     """finds path to newest model fitting the given parameters
 
     Args:
@@ -51,7 +51,7 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
     else:
         regex_string = f"^{output_name}_{val_chromosome}_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                        #type:ignore
         
-    if model_case.lower() == "msr": 
+    if model_case == ModelCase.MSR: 
         regex_string = f"^{output_name}_model_{model_case}_train_ssr_models_\d+_\d+\.h5$"     # specific for now    #type:ignore
       
 
@@ -64,7 +64,7 @@ def find_newest_model_path(output_name: str, model_case: str, val_chromosome: st
 
         if match:
             # group 1 is the "(.+)" part of the regex, so the name of the validation chromosome for the model
-            if model_case.lower() == "msr":
+            if model_case == ModelCase.MSR:
                 chromosome = "model"
             elif val_chromosome:
                 chromosome = val_chromosome
@@ -139,7 +139,8 @@ def extract_gene(genome: Fasta, extragenic: int, intragenic: int, ignore_small_g
     return seq
 
 
-def append_sequence_prediction(tpms: pd.DataFrame, extracted_seqs: Dict[str, Tuple[List[np.ndarray], List[int], List[str]]], expected_final_size: int, chrom: str, gene_id: str, sequence_to_append: np.ndarray) -> None:
+def append_sequence_prediction(tpms: Optional[pd.DataFrame], extracted_seqs: Dict[str, Tuple[List[np.ndarray], List[int], List[str]]],
+                               expected_final_size: int, chrom: str, gene_id: str, sequence_to_append: np.ndarray) -> None:
     if sequence_to_append.shape[0] == expected_final_size:
         extracted_tuple = extracted_seqs.get(chrom, ())
         if extracted_tuple == ():
@@ -149,7 +150,6 @@ def append_sequence_prediction(tpms: pd.DataFrame, extracted_seqs: Dict[str, Tup
             y = extracted_tuple[1]                      #type:ignore
             gene_ids = extracted_tuple[2]               #type:ignore
         x.append(sequence_to_append)
-            # tpms check for for_prediction happened earlier
         if tpms is None:
             y.append("NA")
         else:
@@ -158,7 +158,7 @@ def append_sequence_prediction(tpms: pd.DataFrame, extracted_seqs: Dict[str, Tup
         extracted_seqs[chrom] = (x, y, gene_ids)
 
 
-def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, tpms: pd.DataFrame, target_chromosomes: Tuple[str, ...], model_case: str, for_prediction: bool = True) -> Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, tpms: Optional[pd.DataFrame], target_chromosomes: Tuple[str, ...], model_case: ModelCase, for_prediction: bool = True) -> Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     extracted_seqs = {}
     expected_final_size = 2 * (extragenic + intragenic) + 20
     # tpms are absolutely necessary for training, but not for predictions, so can miss if data is for predictions
@@ -166,7 +166,7 @@ def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic
         raise ValueError(f"tpms have to be given if \"for_prediction\" is not set to True!")
     
     for values in annotation.values:
-        if model_case.lower() == "msr":
+        if model_case == ModelCase.MSR:
             specie, chrom, start, end, strand, gene_id = values
         else:
             chrom, start, end, strand, gene_id = values
@@ -462,7 +462,7 @@ def parse_args():
                         """)
     parser.add_argument('--input', "-i",
                         help="""json file containing the required input parameters. Possible arguments can be seen in the file parsing.py in the two global dictionaries.
-                        Example file is inputs.json. """, required=True)
+                        Example file is inputs.json.""", required=True)
     # parser.add_argument('--pickle', help="path to pickle file. Necessary for SSR and SSC training.", required=False)
     # parser.add_argument('--model_case', help="Can be SSC, SSR or MSR", required=True, choices=["msr", "ssr", "ssc", "both"])
     # parser.add_argument('--ignore_small_genes', help="Ignore small genes, can be yes or no", required=False, choices=["yes", "no"], default="yes")
@@ -717,8 +717,8 @@ def main():
     }
     args = parse_args()
     inputs, failed_trainings, input_length = ParsedTrainingInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
-    print(inputs)
     inputs = inputs.replace_both()
+    print(inputs)
 
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     training_results_path = make_absolute_path('results', "training", start_file=__file__)
