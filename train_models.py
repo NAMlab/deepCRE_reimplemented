@@ -684,16 +684,39 @@ def train_models(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple[str,
         except TerminationError as e:
             raise e
         except Exception as e:
-            raise e
             print(e)
-            failed_trainings.append((output_name, i, e))
+            failed_trainings.append((run_info.general_info["output_name"], i, e))
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
 
 
 
 def main():
+    possible_general_parameters = {
+        "genome": None,
+        "annotation": None,
+        "targets": None,
+        "output_name": None,
+        "chromosomes": None,
+        "pickle_key": None,
+        "pickle_file": "validation_genes.pickle",
+        "model_case": None,
+        "ignore_small_genes": True,
+        "train_val_split": False,
+        "extragenic": 1000,
+        "intragenic": 500
+    }
+
+    possible_species_parameters = {
+        "genome": None,
+        "annotation": None,
+        "targets": None,
+        "chromosomes": None,
+        "pickle_key": None,
+        "pickle_file": "validation_genes.pickle",
+        "species_name": None,
+    }
     args = parse_args()
-    inputs, failed_trainings, input_length = ParsedTrainingInputs.parse(args.input)
+    inputs, failed_trainings, input_length = ParsedTrainingInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     print(inputs)
     inputs = inputs.replace_both()
 
@@ -708,7 +731,7 @@ def main():
 if __name__ == "__main__":
     main()
     # TODO: test everything
-        # especially gene extraction for all cases, ESPECIALL train_vla_split
+        # especially gene extraction for all cases, ESPECIALL train_val_split
     #TODO: inputs.json should work
     #TODO: make sure all models / inputs / outputs are found correctly
     #TODO: talk about 80/20 split in general; and MSR in general
