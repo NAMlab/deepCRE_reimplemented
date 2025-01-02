@@ -52,6 +52,8 @@ class RunInfo:
     
     def load_chromosomes(self) -> None:
         for specie_info in self.species_info:
+            if not "chromosomes" in specie_info.keys() or specie_info["chromosomes"] == "":
+                continue
             chromosomes = specie_info["chromosomes"]
             if isinstance(chromosomes, str):
                 if os.path.isfile(chromosomes):
