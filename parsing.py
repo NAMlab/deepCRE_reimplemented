@@ -55,11 +55,12 @@ class RunInfo:
             if not "chromosomes" in specie_info.keys() or specie_info["chromosomes"] == "":
                 continue
             chromosomes = specie_info["chromosomes"]
-            if isinstance(chromosomes, str):
-                if os.path.isfile(chromosomes):
-                    chromosomes = pd.read_csv(chromosomes).values.ravel().tolist()
-                else:
-                    chromosomes = pd.read_csv(make_absolute_path("genome", chromosomes, start_file=__file__), header=None).values.ravel().tolist()
+            if isinstance(chromosomes, list):
+                continue
+            elif not isinstance(chromosomes, str):
+                raise ValueError(f"input for chomosomes needs to be a path to a csv containing the chromosomes in a single column (type: str), or a list containing the names of the chromosomes (tpye: list of strings). Found type: {type(chromosomes)}.")
+            path = chromosomes if os.path.isfile(chromosomes) else make_absolute_path("genome", chromosomes, start_file=__file__)
+            chromosomes = pd.read_csv(path, header=None).values.ravel().tolist()
             chromosomes = [str(chrom) for chrom in chromosomes]
             specie_info["chromosomes"] = chromosomes
 
@@ -82,6 +83,20 @@ class RunInfo:
             species_info.append(curr_general_info)
         self.species_info = species_info
         self.load_chromosomes()
+    
+    def load_prediction_models(self) -> None:
+        if not "prediction_models" in self.general_info.keys():
+            return
+        prediction_models = self.general_info["prediction_models"]
+        if isinstance(prediction_models, list):
+            return
+        elif not isinstance(prediction_models, str):
+            raise ValueError(f"input for prediction models needs to be a path to a csv containing the models in a single column (type: str), or a list containing the names of the chromosomes (type: list of strings). Found type: {type(chromosomes)}.")
+
+        path = prediction_models if os.path.isfile(prediction_models) else make_absolute_path("genome", prediction_models, start_file=__file__)
+        prediction_models = pd.read_csv(path).values.ravel().tolist()
+        prediction_models = [str(chrom) for chrom in prediction_models]
+        self.general_info["prediction_models"] = prediction_models
 
     def parse_general_inputs(self, run_dict: Dict[str, str]):
         #load defaults
@@ -98,6 +113,7 @@ class RunInfo:
         #make check
         self.check_general_keys(general_dict=general_info)
         self.general_info = general_info
+        self.load_prediction_models()
 
     @staticmethod
     def parse(run_dict: Dict[str, Any], possible_general_parameters: Dict, possible_species_parameters: Dict):
