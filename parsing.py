@@ -52,7 +52,10 @@ class RunInfo:
     
     def load_chromosomes(self) -> None:
         for specie_info in self.species_info:
-            if not "chromosomes" in specie_info.keys() or specie_info["chromosomes"] == "":
+            if not "chromosomes" in specie_info.keys():
+                continue
+            if specie_info["chromosomes"] == "":
+                specie_info["chromosomes"] = []
                 continue
             chromosomes = specie_info["chromosomes"]
             if isinstance(chromosomes, list):
@@ -94,7 +97,7 @@ class RunInfo:
             raise ValueError(f"input for prediction models needs to be a path to a csv containing the models in a single column (type: str), or a list containing the names of the chromosomes (type: list of strings). Found type: {type(chromosomes)}.")
 
         path = prediction_models if os.path.isfile(prediction_models) else make_absolute_path("genome", prediction_models, start_file=__file__)
-        prediction_models = pd.read_csv(path).values.ravel().tolist()
+        prediction_models = pd.read_csv(path, header=None).values.ravel().tolist()
         prediction_models = [str(chrom) for chrom in prediction_models]
         self.general_info["prediction_models"] = prediction_models
 
@@ -109,7 +112,8 @@ class RunInfo:
         to_delete = [key for key, value in general_info.items() if value is None]
         for key in to_delete:
             del general_info[key]
-        general_info["model_case"] = ModelCase.parse(general_info["model_case"])
+        if "model_case" in general_info.keys():
+            general_info["model_case"] = ModelCase.parse(general_info["model_case"])
         #make check
         self.check_general_keys(general_dict=general_info)
         self.general_info = general_info
@@ -121,7 +125,7 @@ class RunInfo:
         run_info_object.parse_general_inputs(run_dict=run_dict)
         # load general info first, and use it as defaults for specific species
         run_info_object.parse_species(run_dict)
-        if run_info_object.general_info["model_case"] == ModelCase.MSR and len(run_info_object.species_info) < 2:
+        if "model_case" in run_info_object.general_info.keys() and run_info_object.general_info["model_case"] == ModelCase.MSR and len(run_info_object.species_info) < 2:
             raise ValueError(f"Need at least 2 species for MSR training! Only found {len(run_info_object.species_info)}.")
         for species_key in possible_species_parameters.keys():
             if species_key in run_info_object.general_info.keys():
@@ -129,13 +133,18 @@ class RunInfo:
         return run_info_object
     
     def is_msr(self) -> bool:
-        return self.general_info["model_case"] == ModelCase.MSR
+        if "model_case" in self.general_info.keys():
+            return self.general_info["model_case"] == ModelCase.MSR
+        else:
+            return False
     
     def __str__(self) -> str:
-        self.general_info["model_case"] = str(self.general_info["model_case"])
+        if "model_case" in self.general_info.keys():
+            self.general_info["model_case"] = str(self.general_info["model_case"])
         specie_info_json = json.dumps(self.species_info, indent=2)
         gen_info_json = json.dumps(self.general_info, indent=2)
-        self.general_info["model_case"] = ModelCase.parse(self.general_info["model_case"])
+        if "model_case" in self.general_info.keys():
+            self.general_info["model_case"] = ModelCase.parse(self.general_info["model_case"])
         result = "RunInfo(\n  General Info{"
         for gen_info in gen_info_json.split("\n"):
             if gen_info in ["{", "}"]:
@@ -161,7 +170,7 @@ class ParsedInputs:
         self.possible_species_parameters = possible_species_parameters
 
     @staticmethod
-    def parse(json_file_name: str, possible_general_parameters: Dict, possible_species_parameters: Dict) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
+    def parse(json_file_name: str, possible_general_parameters: Dict, possible_species_parameters: Dict, allow_multiple_species: bool = True) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
         json_file_name = json_file_name if os.path.isfile(json_file_name) else make_absolute_path(json_file_name, __file__)
         failed_parsings = []
         parsed_object = ParsedInputs(possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
@@ -170,6 +179,8 @@ class ParsedInputs:
         for i, run_dict in enumerate(input_list):
             try:
                 curr_run_info = RunInfo.parse(run_dict, possible_general_parameters=parsed_object.possible_general_parameters, possible_species_parameters=parsed_object.possible_species_parameters)
+                if len(curr_run_info.species_info) > 1 and not allow_multiple_species:
+                    raise ValueError(f"Only one species per run allowed for running this script! Found {len(curr_run_info.species_info)}!")
                 parsed_object.run_infos.append(curr_run_info)
             except Exception as e:
                 print(f"error reading input run number {i + 1}.")
@@ -182,7 +193,7 @@ class ParsedInputs:
     def replace_both(self) -> ParsedInputs:
         new_object = ParsedInputs(possible_species_parameters=self.possible_species_parameters, possible_general_parameters=self.possible_general_parameters)
         for info in self.run_infos:
-            if info.general_info["model_case"] == ModelCase.BOTH:
+            if "model_case" in info.general_info.keys() and info.general_info["model_case"] == ModelCase.BOTH:
                 info.general_info["model_case"] = ModelCase.SSR
                 ssc_version = deepcopy(info)
                 ssc_version.general_info["model_case"] = ModelCase.SSC
