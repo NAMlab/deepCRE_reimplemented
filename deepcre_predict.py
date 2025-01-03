@@ -7,7 +7,7 @@ from utils import get_filename_from_path, get_time_stamp, load_annotation_msr, l
 from train_models import extract_genes_prediction, find_newest_model_path
 import numpy as np
 from pyfaidx import Fasta
-from parsing import ModelCase, ParsedTrainingInputs, RunInfo
+from parsing import ModelCase, ParsedInputs, RunInfo
 
 
 def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case: ModelCase, extracted_genes):
@@ -92,7 +92,7 @@ def check_inputs(run_info: RunInfo):
             raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
 
 
-def predict(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple], input_length: int):
+def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int):
     folder_name = make_absolute_path('results', 'predictions', start_file=__file__)
     time_stamp = get_time_stamp()
     if not os.path.exists(folder_name):
@@ -163,7 +163,7 @@ def main():
         "species_name": ""
     }
     args = parse_args()
-    inputs, failed_trainings, input_length = ParsedTrainingInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
+    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()
     print(inputs)
     predict(inputs, failed_trainings=failed_trainings, input_length=input_length)

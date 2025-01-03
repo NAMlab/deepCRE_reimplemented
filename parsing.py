@@ -134,7 +134,7 @@ class RunInfo:
         return result
 
 
-class ParsedTrainingInputs:
+class ParsedInputs:
     run_infos: List[RunInfo]
     possible_general_parameters: Dict
     possible_species_parameters: Dict
@@ -145,10 +145,10 @@ class ParsedTrainingInputs:
         self.possible_species_parameters = possible_species_parameters
 
     @staticmethod
-    def parse(json_file_name: str, possible_general_parameters: Dict, possible_species_parameters: Dict) -> Tuple[ParsedTrainingInputs, List[Tuple[str, int, Exception]], int]:
+    def parse(json_file_name: str, possible_general_parameters: Dict, possible_species_parameters: Dict) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
         json_file_name = json_file_name if os.path.isfile(json_file_name) else make_absolute_path(json_file_name, __file__)
         failed_parsings = []
-        parsed_object = ParsedTrainingInputs(possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
+        parsed_object = ParsedInputs(possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
         with open(json_file_name, "r") as f:
             input_list = json.load(f)
         for i, run_dict in enumerate(input_list):
@@ -163,8 +163,8 @@ class ParsedTrainingInputs:
                 failed_parsings.append(("error during parsing!", i, e))
         return parsed_object, failed_parsings, len(input_list)
     
-    def replace_both(self) -> ParsedTrainingInputs:
-        new_object = ParsedTrainingInputs(possible_species_parameters=self.possible_species_parameters, possible_general_parameters=self.possible_general_parameters)
+    def replace_both(self) -> ParsedInputs:
+        new_object = ParsedInputs(possible_species_parameters=self.possible_species_parameters, possible_general_parameters=self.possible_general_parameters)
         for info in self.run_infos:
             if info.general_info["model_case"] == ModelCase.BOTH:
                 info.general_info["model_case"] = ModelCase.SSR

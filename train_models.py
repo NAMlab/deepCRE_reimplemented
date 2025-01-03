@@ -17,7 +17,7 @@ from pyfaidx import Fasta
 from sklearn.utils import shuffle
 import re
 import sys
-from parsing import ParsedTrainingInputs, RunInfo, ModelCase
+from parsing import ParsedInputs, RunInfo, ModelCase
 
 
 class TerminationError(Exception):
@@ -664,7 +664,7 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
     return combined_results
 
 
-def train_models(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple[str, int, Exception]], input_length: int):
+def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Exception]], input_length: int):
     file_name = get_filename_from_path(__file__)
     time_stamp = get_time_stamp()
     run_info: RunInfo
@@ -716,7 +716,7 @@ def main():
         "species_name": None,
     }
     args = parse_args()
-    inputs, failed_trainings, input_length = ParsedTrainingInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
+    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()
     print(inputs)
 
