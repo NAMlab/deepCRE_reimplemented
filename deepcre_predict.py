@@ -44,7 +44,7 @@ def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case
     return x, y, pred_probs, gene_ids, model
 
 
-def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: Dict, genome: Fasta, annotation: pd.DataFrame, tpms: Optional[pd.DataFrame], extragenic: int, intragenic: int, output_name: str):
+def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: Dict, genome: Fasta, annotation: pd.DataFrame, tpms: Optional[pd.DataFrame], extragenic: int, intragenic: int, output_name: str, time_stamp: str):
     true_targets, preds, genes = [], [], []
     extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic,
                                                            ignore_small_genes=general_info["ignore_small_genes"], tpms=tpms, target_chromosomes=(), model_case=general_info["model_case"])
@@ -58,11 +58,11 @@ def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: D
 
     result = pd.DataFrame({'true_targets': true_targets, 'pred_probs': preds, 'genes': genes})
     print(result.head())
-    output_location = os.path.join(folder_name, f'{output_name}_{file_name}_{get_time_stamp()}.csv')
+    output_location = os.path.join(folder_name, f'{output_name}_{file_name}_{time_stamp}.csv')
     result.to_csv(output_location, index=False)
 
 
-def run_msr(folder_name: str, file_name: str, general_info: Dict, genome: Fasta, annotation: pd.DataFrame, tpms: Optional[pd.DataFrame], extragenic: int, intragenic: int, species_name: str):
+def run_msr(folder_name: str, file_name: str, general_info: Dict, genome: Fasta, annotation: pd.DataFrame, tpms: Optional[pd.DataFrame], extragenic: int, intragenic: int, species_name: str, time_stamp: str):
     extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic,
                                                             model_case=general_info["model_case"],ignore_small_genes=general_info["ignore_small_genes"], tpms=tpms, target_chromosomes=())
                     # one predcition per model
@@ -71,7 +71,7 @@ def run_msr(folder_name: str, file_name: str, general_info: Dict, genome: Fasta,
                                                             model_case=general_info["model_case"], extracted_genes=extracted_genes)
     result = pd.DataFrame({'true_targets': true_targets, 'pred_probs': preds, 'genes': genes})
     print(result.head())
-    output_location = os.path.join(folder_name, f'{species_name}_MSR_{file_name}_{get_time_stamp()}.csv')
+    output_location = os.path.join(folder_name, f'{species_name}_MSR_{file_name}_{time_stamp}.csv')
     result.to_csv(output_location, index=False)
 
 
@@ -94,6 +94,7 @@ def check_inputs(run_info: RunInfo):
 
 def predict(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple], input_length: int):
     folder_name = make_absolute_path('results', 'predictions', start_file=__file__)
+    time_stamp = get_time_stamp()
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
     file_name = get_filename_from_path(__file__)
@@ -114,14 +115,14 @@ def predict(inputs: ParsedTrainingInputs, failed_trainings: List[Tuple], input_l
                 #for specie, genome_file_name, annotation_file_name, tpm_counts_file_name, output_name, chromosome_file,_  in data.values:
                 for specie_info in species_info:                                                                     # use this 
                     output_name = specie_info["species_name"]
-                    run_msr(folder_name=folder_name, file_name=file_name, general_info=general_info, genome=genome,
-                            annotation=annotation, tpms=tpms, extragenic=extragenic, intragenic=intragenic, species_name=output_name)
+                    run_msr(folder_name=folder_name, file_name=file_name, general_info=general_info, genome=genome, annotation=annotation,
+                            tpms=tpms, extragenic=extragenic, intragenic=intragenic, species_name=output_name, time_stamp=time_stamp)
 
             else:
                 output_name = general_info["output_name"]
                 run_ssr(folder_name=folder_name, file_name=file_name, general_info=general_info, specie_info=specie_info,
                         genome=genome, annotation=annotation, tpms=tpms, extragenic=extragenic, intragenic=intragenic,
-                        output_name=output_name)
+                        output_name=output_name, time_stamp=time_stamp)
         except Exception as e:
             print(e)
             failed_trainings.append((output_name, i, e))
