@@ -47,7 +47,7 @@ def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case
 def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: Dict, genome: Fasta, annotation: pd.DataFrame, tpms: Optional[pd.DataFrame], extragenic: int, intragenic: int, output_name: str, time_stamp: str):
     true_targets, preds, genes = [], [], []
     extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic,
-                                                           ignore_small_genes=general_info["ignore_small_genes"], tpms=tpms, target_chromosomes=(), model_case=general_info["model_case"])
+                                                           ignore_small_genes=general_info["ignore_small_genes"], tpms=tpms, target_chromosomes=())
 
     for chrom in specie_info["chromosomes"]:
         _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
@@ -64,7 +64,7 @@ def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: D
 
 def run_msr(folder_name: str, file_name: str, general_info: Dict, genome: Fasta, annotation: pd.DataFrame, tpms: Optional[pd.DataFrame], extragenic: int, intragenic: int, species_name: str, time_stamp: str):
     extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic,
-                                                            model_case=general_info["model_case"],ignore_small_genes=general_info["ignore_small_genes"], tpms=tpms, target_chromosomes=())
+                                               ignore_small_genes=general_info["ignore_small_genes"], tpms=tpms, target_chromosomes=())
                     # one predcition per model
     print(f"Predicting for: {species_name}")
     _, true_targets, preds, genes, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome="", output_name=species_name,

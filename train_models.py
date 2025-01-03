@@ -158,15 +158,13 @@ def append_sequence_prediction(tpms: Optional[pd.DataFrame], extracted_seqs: Dic
         extracted_seqs[chrom] = (x, y, gene_ids)
 
 
-def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, tpms: Optional[pd.DataFrame], target_chromosomes: Tuple[str, ...], model_case: ModelCase, for_prediction: bool = True) -> Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, tpms: Optional[pd.DataFrame],
+                             target_chromosomes: Tuple[str, ...]) -> Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     extracted_seqs = {}
     expected_final_size = 2 * (extragenic + intragenic) + 20
     # tpms are absolutely necessary for training, but not for predictions, so can miss if data is for predictions
-    if tpms is None and not for_prediction:
-        raise ValueError(f"tpms have to be given if \"for_prediction\" is not set to True!")
-    
     for values in annotation.values:
-        if model_case == ModelCase.MSR:
+        if len(annotation.columns) == 6:
             specie, chrom, start, end, strand, gene_id = values
         else:
             chrom, start, end, strand, gene_id = values
