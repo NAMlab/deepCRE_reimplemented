@@ -94,7 +94,7 @@ class RunInfo:
         if isinstance(prediction_models, list):
             return
         elif not isinstance(prediction_models, str):
-            raise ValueError(f"input for prediction models needs to be a path to a csv containing the models in a single column (type: str), or a list containing the names of the chromosomes (type: list of strings). Found type: {type(chromosomes)}.")
+            raise ValueError(f"input for prediction models needs to be a path to a csv containing the models in a single column (type: str), or a list containing the names of the chromosomes (type: list of strings). Found type: {type(prediction_models)}.")
 
         path = prediction_models if os.path.isfile(prediction_models) else make_absolute_path("genome", prediction_models, start_file=__file__)
         prediction_models = pd.read_csv(path, header=None).values.ravel().tolist()
