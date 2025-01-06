@@ -151,7 +151,7 @@ def append_sequence_prediction(tpms: Optional[pd.DataFrame], extracted_seqs: Dic
             gene_ids = extracted_tuple[2]               #type:ignore
         x.append(sequence_to_append)
         if tpms is None:
-            y.append("NA")
+            y.append("NA")                              #type:ignore
         else:
             y.append(tpms.loc[gene_id, 'target'])       #type:ignore
         gene_ids.append(gene_id)
@@ -735,3 +735,5 @@ if __name__ == "__main__":
     #TODO: talk about 80/20 split in general; and MSR in general
     #TODO: consistenly use ModelCase enum
     #TODO: convert old scripts to json files
+    # for MSR models: for predict / interpret / models, make sure that new combninations of species (other than in training process) are possible
+        # currently need to give path to combined input files, which dont exist for new species combinations
