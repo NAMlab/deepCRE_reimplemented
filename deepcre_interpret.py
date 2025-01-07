@@ -210,7 +210,7 @@ def check_run_info(run_info: RunInfo):
             if specie_data["subject_species"] == "":
                 raise ValueError(f"name of species needs to be provided for MSR runs!")
     else:
-        if run_info.general_info["output_name"] == "":
+        if run_info.general_info["training_output_name"] == "":
             raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
 
 
@@ -224,22 +224,17 @@ def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], inpu
         try: 
             check_run_info(run_info)
             model_case = run_info.general_info['model_case']
-
             if model_case == ModelCase.MSR:
                 output_name = run_info.species_info[0]["subject_species"]
-                extract_scores(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"],
-                                tpm_counts_file_name=run_info.general_info["targets"], upstream=run_info.general_info["extragenic"],
-                                downstream=run_info.general_info["intragenic"], chromosome_list=None,
-                                ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
-                                model_case=run_info.general_info["model_case"])
-
+                chromosome_list = None
             if model_case in [ModelCase.SSR, ModelCase.SSC]:
-                output_name = run_info.general_info["output_name"]
-                extract_scores(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"],
-                               tpm_counts_file_name=run_info.general_info["targets"], upstream=run_info.general_info["extragenic"],
-                               downstream=run_info.general_info["intragenic"], chromosome_list=run_info.general_info["chromosomes"],
-                               ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
-                               model_case=run_info.general_info["model_case"])
+                output_name = run_info.general_info["training_output_name"]
+                chromosome_list = run_info.general_info["chromosomes"]
+            extract_scores(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"],
+                            tpm_counts_file_name=run_info.general_info["targets"], upstream=run_info.general_info["extragenic"],
+                            downstream=run_info.general_info["intragenic"], chromosome_list=chromosome_list,
+                            ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
+                            model_case=run_info.general_info["model_case"])
         except Exception as e:
             print(e)
             failed_trainings.append((output_name, i, e))
