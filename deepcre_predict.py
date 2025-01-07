@@ -88,7 +88,7 @@ def check_inputs(run_info: RunInfo):
         for specie_data in spec_info:
             if specie_data["chromosomes"] == "":
                 raise ValueError(f"chromosome information needs to be provided for SSR runs!")
-        if gen_info["output_name"] == "":
+        if gen_info["training_output_name"] == "":
             raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
 
 
@@ -119,7 +119,7 @@ def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: i
                             tpms=tpms, extragenic=extragenic, intragenic=intragenic, species_name=output_name, time_stamp=time_stamp)
 
             else:
-                output_name = general_info["output_name"]
+                output_name = general_info["training_output_name"]
                 run_ssr(folder_name=folder_name, file_name=file_name, general_info=general_info, specie_info=specie_info,
                         genome=genome, annotation=annotation, tpms=tpms, extragenic=extragenic, intragenic=intragenic,
                         output_name=output_name, time_stamp=time_stamp)
