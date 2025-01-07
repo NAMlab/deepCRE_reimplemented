@@ -19,7 +19,7 @@
     "model_case": "ssr",
     "genome": "Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
     "annotation": "Arabidopsis_thaliana.TAIR10.52.gtf",
-    "output_name": "test",
+    "training_output_name": "test",
     "chromosomes": ["1", "2", "3", "4", "5"],
     "ignore_small_genes": true
   }

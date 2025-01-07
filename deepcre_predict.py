@@ -150,7 +150,7 @@ def main():
         "genome": None,
         "annotation": None,
         "targets": "",
-        "output_name": "",
+        "training_output_name": "",
         "chromosomes": "",
         "model_case": None,
         "ignore_small_genes": True,
