@@ -714,7 +714,7 @@ def main():
         "species_name": None,
     }
     args = parse_args()
-    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
+    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters, multiple_species_required_msr=True)
     inputs = inputs.replace_both()
     print(inputs)
 
@@ -737,3 +737,4 @@ if __name__ == "__main__":
     #TODO: convert old scripts to json files
     # for MSR models: for predict / interpret / models, make sure that new combninations of species (other than in training process) are possible
         # currently need to give path to combined input files, which dont exist for new species combinations
+    # TODO: distinguish between output_name for finding trained models and output_name for saving results

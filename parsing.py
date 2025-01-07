@@ -120,12 +120,12 @@ class RunInfo:
         self.load_prediction_models()
 
     @staticmethod
-    def parse(run_dict: Dict[str, Any], possible_general_parameters: Dict, possible_species_parameters: Dict):
+    def parse(run_dict: Dict[str, Any], possible_general_parameters: Dict, possible_species_parameters: Dict, multiple_species_required_msr: bool = False) -> RunInfo:
         run_info_object = RunInfo(possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
         run_info_object.parse_general_inputs(run_dict=run_dict)
         # load general info first, and use it as defaults for specific species
         run_info_object.parse_species(run_dict)
-        if "model_case" in run_info_object.general_info.keys() and run_info_object.general_info["model_case"] == ModelCase.MSR and len(run_info_object.species_info) < 2:
+        if multiple_species_required_msr and "model_case" in run_info_object.general_info.keys() and run_info_object.general_info["model_case"] == ModelCase.MSR and len(run_info_object.species_info) < 2:
             raise ValueError(f"Need at least 2 species for MSR training! Only found {len(run_info_object.species_info)}.")
         for species_key in possible_species_parameters.keys():
             if species_key in run_info_object.general_info.keys():
@@ -170,7 +170,7 @@ class ParsedInputs:
         self.possible_species_parameters = possible_species_parameters
 
     @staticmethod
-    def parse(json_file_name: str, possible_general_parameters: Dict, possible_species_parameters: Dict, allow_multiple_species: bool = True) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
+    def parse(json_file_name: str, possible_general_parameters: Dict, possible_species_parameters: Dict, allow_multiple_species: bool = True, multiple_species_required_msr: bool = False) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
         json_file_name = json_file_name if os.path.isfile(json_file_name) else make_absolute_path(json_file_name, __file__)
         failed_parsings = []
         parsed_object = ParsedInputs(possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
@@ -178,11 +178,12 @@ class ParsedInputs:
             input_list = json.load(f)
         for i, run_dict in enumerate(input_list):
             try:
-                curr_run_info = RunInfo.parse(run_dict, possible_general_parameters=parsed_object.possible_general_parameters, possible_species_parameters=parsed_object.possible_species_parameters)
+                curr_run_info = RunInfo.parse(run_dict, possible_general_parameters=parsed_object.possible_general_parameters, possible_species_parameters=parsed_object.possible_species_parameters, multiple_species_required_msr=multiple_species_required_msr)
                 if len(curr_run_info.species_info) > 1 and not allow_multiple_species:
                     raise ValueError(f"Only one species per run allowed for running this script! Found {len(curr_run_info.species_info)}!")
                 parsed_object.run_infos.append(curr_run_info)
             except Exception as e:
+                raise e
                 print(f"error reading input run number {i + 1}.")
                 print(f"error message is: \"{e}\"")
                 print(f"the dictionary that was loaded for the run is the following:")
