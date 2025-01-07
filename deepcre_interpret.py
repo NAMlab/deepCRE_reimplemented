@@ -207,7 +207,7 @@ def parse_args():
 def check_run_info(run_info: RunInfo):
     if run_info.is_msr():
         for specie_data in run_info.species_info:
-            if specie_data["species_name"] == "":
+            if specie_data["subject_species"] == "":
                 raise ValueError(f"name of species needs to be provided for MSR runs!")
     else:
         if run_info.general_info["output_name"] == "":
@@ -220,6 +220,7 @@ def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], inpu
     tf.config.set_visible_devices([], 'GPU')
 
     for i, run_info in enumerate(inputs):     #type:ignore
+        output_name = ""
         try: 
             check_run_info(run_info)
             model_case = run_info.general_info['model_case']
@@ -230,27 +231,29 @@ def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], inpu
                                 tpm_counts_file_name=run_info.general_info["targets"], upstream=run_info.general_info["extragenic"],
                                 downstream=run_info.general_info["intragenic"], chromosome_list=None,
                                 ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
-                                model_case=run_info.general_info["args.model_case"])
+                                model_case=run_info.general_info["model_case"])
 
             if model_case in [ModelCase.SSR, ModelCase.SSC]:
+                output_name = run_info.general_info["output_name"]
                 extract_scores(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"],
                                tpm_counts_file_name=run_info.general_info["targets"], upstream=run_info.general_info["extragenic"],
                                downstream=run_info.general_info["intragenic"], chromosome_list=run_info.general_info["chromosomes"],
-                               ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=run_info.general_info["output_name"],
-                               model_case=run_info.general_info["args.model_case"])
+                               ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
+                               model_case=run_info.general_info["model_case"])
         except Exception as e:
             print(e)
             failed_trainings.append((output_name, i, e))
                 
-        result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
+    result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
 
 
 def main():
     possible_general_parameters = {
+        "model_case": None,
         "genome": None,
         "annotation": None,
         "targets": None,
-        "output_name": "",
+        "training_output_name": "",
         "chromosomes": "",
         "ignore_small_genes": True,
         "subject_species": "",

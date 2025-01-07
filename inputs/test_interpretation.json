@@ -1,0 +1,21 @@
+[
+    {
+      "species_data": [
+        {
+          "subject_species": "arabidopsis_thaliana"
+        }
+      ],
+      "genome": "genome_ara_sol.fa",
+      "annotation": "gtf_ara_sol.csv",
+      "targets": "tpm_ara_sol.csv",
+      "model_case": "msr"
+    },
+    {
+      "model_case": "ssr",
+      "genome": "Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
+      "annotation": "Arabidopsis_thaliana.TAIR10.52.gtf",
+      "training_output_name": "test.csv",
+      "chromosomes": ["1", "2"],
+      "targets": "arabidopsis_targets.csv"
+    }
+  ]
