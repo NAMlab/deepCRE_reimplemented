@@ -183,7 +183,6 @@ class ParsedInputs:
                     raise ValueError(f"Only one species per run allowed for running this script! Found {len(curr_run_info.species_info)}!")
                 parsed_object.run_infos.append(curr_run_info)
             except Exception as e:
-                raise e
                 print(f"error reading input run number {i + 1}.")
                 print(f"error message is: \"{e}\"")
                 print(f"the dictionary that was loaded for the run is the following:")
