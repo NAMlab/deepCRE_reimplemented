@@ -1,7 +1,9 @@
+import pickle
 from typing import List
 from tensorflow.keras.models import load_model #type:ignore
 import unittest
 import numpy as np
+import matplotlib.pyplot as plt
 
 import evolution as evo
 
@@ -150,7 +152,84 @@ class TestEvolution(unittest.TestCase):
                 print(expected)
                 print(result)
                 self.assertTrue(False)
+            
+def visualize_results():
+    with open("test_folder/logs/250109_112525/logbook", "rb") as f:
+        logbook = pickle.load(f)
+    gen = logbook.select("gen")
+    fit_min = logbook.chapters["fitness"].select("min")
+    # remove unnecessary dimensions of length 1 from nested list by converting to numpy
+    fit_min = np.array(fit_min).flatten()
+    fit_avg = logbook.chapters["fitness"].select("avg")
+    fit_avg = np.array(fit_avg).flatten()
+    fit_max = logbook.chapters["fitness"].select("max")
+    fit_max = np.array(fit_max).flatten()
+
+
+
+    fig, ax1 = plt.subplots()
+    line1 = ax1.plot(gen, fit_min, "b-", label="Minimum Fitness")
+    ax1.set_xlabel("Generation")
+    ax1.set_ylabel("Fitness")
+    # plt.yticks = [0, 0.2, 0.4, 0.6, 0.8, 1]
+
+    line2 = ax1.plot(gen, fit_avg, "r-", label="Average Fitness")
+    line3 = ax1.plot(gen, fit_max, "g-", label="Maximum Fitness")
+
+    lns = line3 + line2 + line1
+    labs = [l.get_label() for l in lns]
+    ax1.legend(lns, labs, loc="lower right")
+    ax1.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
+
+    plt.savefig("test_folder/logs/250109_112525/plot.png", bbox_inches="tight")
+
+
+def is_pareto(costs):
+    """
+    Find the pareto-efficient points
+    :param costs: An (n_points, n_costs) array
+    :return: A (n_points, ) boolean array, indicating whether each point is Pareto efficient
+    """
+    is_efficient = np.ones(costs.shape[0], dtype = bool)
+    for i, c in enumerate(costs):
+        is_efficient[i] = np.all(np.any(costs[:i]>c, axis=1)) and np.all(np.any(costs[i+1:]>c, axis=1))
+    return is_efficient
+
+
+
+def vis_pareto():
+    # create random normal distributed data
+    point_list = []
+    for i in range(100):
+        point_list.append([np.random.normal(0,1), np.random.normal(0,1)])
+    max_x = max(point_list, key=lambda x: x[0])[0]
+    max_y = max(point_list, key=lambda x: x[1])[1]
+    min_x = min(point_list, key=lambda x: x[0])[0]
+    min_y = min(point_list, key=lambda x: x[1])[1]
+    # normalize data
+    for i in range(len(point_list)):
+        point_list[i][0] = round((point_list[i][0] - min_x) / (max_x - min_x) * 50) 
+        point_list[i][1] = - (point_list[i][1] - min_y) / (max_y - min_y)
+    # mark pareto efficient points
+    pareto = np.array(point_list)
+    pareto = pareto[is_pareto(pareto)]
+    # create plot
+    x = [point[0] for point in point_list]
+    y = [point[1] for point in point_list]
+    x_pareto = [point[0] for point in pareto]
+    y_pareto = [point[1] for point in pareto]
+    fig, ax = plt.subplots(figsize=(5, 3))
+    ax.scatter(x, y)
+    ax.scatter(x_pareto, y_pareto, color="red")
+    # add axis labels
+    ax.set_xlabel("Number of Mutations")
+    ax.set_ylabel("Negative Fitness")
+
+    plt.savefig("test_folder/logs/250109_112525/pareto.png", bbox_inches="tight")
+
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
+    # visualize_results()
+    vis_pareto()
