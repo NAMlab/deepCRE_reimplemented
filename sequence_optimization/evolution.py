@@ -4,19 +4,41 @@ import math
 import os
 import pickle
 import pstats
-from typing import Callable, List, Tuple, Type
+from typing import Any, Callable, List, Tuple, Type
 import numpy as np
 import deap
 import itertools
 import cProfile
 import sys
 from os import path
+from pyfaidx import Fasta
 sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
 import utils
 
 import random
 from deap import base, creator, tools, algorithms
 from tensorflow.keras.models import load_model #type:ignore
+
+
+def one_hot_encode(sequence: str,
+                   alphabet: str = 'ACGT',
+                   neutral_alphabet: str = 'N',
+                   neutral_value: Any = 0,
+                   dtype=np.float32) -> np.ndarray:
+    """
+    One-hot encode sequence. This function expects a nucleic acid sequences with 4 bases: ACGT.
+    It also assumes that unknown nucleotides within the sequence are N's.
+    :param sequence: nucleotide sequence
+
+    :return: 4 x L one-hot encoded matrix
+    """
+    def to_uint8(string):
+        return np.frombuffer(string.encode('ascii'), dtype=np.uint8)
+    hash_table = np.zeros((np.iinfo(np.uint8).max, len(alphabet)), dtype=dtype)
+    hash_table[to_uint8(alphabet)] = np.eye(len(alphabet), dtype=dtype)
+    hash_table[to_uint8(neutral_alphabet)] = neutral_value
+    hash_table = hash_table.astype(dtype)
+    return hash_table[to_uint8(sequence)]
 
 
 class FakeModel():
@@ -297,14 +319,16 @@ def parse_args():
 def main():
     args = parse_args()
     number_of_nucleotides = 3020
-    reference_sequence_inds = np.random.choice(np.arange(4), number_of_nucleotides)
-    nucleotides = np.array([
-        [1, 0, 0, 0],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1],
-    ])
-    reference_sequence = np.array([nucleotides[i] for i in reference_sequence_inds])
+    # reference_sequence_inds = np.random.choice(np.arange(4), number_of_nucleotides)
+    # nucleotides = np.array([
+    #     [1, 0, 0, 0],
+    #     [0, 1, 0, 0],
+    #     [0, 0, 1, 0],
+    #     [0, 0, 0, 1],
+    # ])
+    # reference_sequence = np.array([nucleotides[i] for i in reference_sequence_inds])
+    reference_sequence = Fasta("extracted.fa")["1_AT1G06990_gene:2148341-2150152"][:]
+    reference_sequence = one_hot_encode(str(reference_sequence))
     mutation_probability = 0.5
     crossover_probability = 0.5
     models = [load_model("saved_models/arabidopsis_1_SSR_train_ssr_models_240816_183905.h5")]
