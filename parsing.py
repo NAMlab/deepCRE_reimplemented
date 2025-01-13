@@ -11,41 +11,22 @@ import pandas as pd
 from utils import make_absolute_path, read_feature_from_input_dict
 
 
-possible_general_parameters = {
-    "genome": None,
-    "annotation": None,
-    "targets": None,
-    "output_name": None,
-    "chromosomes": None,
-    "pickle_key": None,
-    "pickle_file": "validation_genes.pickle",
-    "model_case": None,
-    "ignore_small_genes": True,
-    "train_val_split": False,
-    "extragenic": 1000,
-    "intragenic": 500
-}
-
-possible_species_parameters = {
-    "genome": None,
-    "annotation": None,
-    "targets": None,
-    "chromosomes": None,
-    "pickle_key": None,
-    "pickle_file": "validation_genes.pickle",
-    "species_name": None,
-}
-
 
 class RunInfo:
     general_info: Dict[str, Any]
     species_info: List[Dict[str, Any]]
+    possible_general_parameters: Dict
+    possible_species_parameters: Dict
+
+    def __init__(self, possible_general_parameters: Dict, possible_species_parameters: Dict) -> None:
+         self.possible_general_parameters = possible_general_parameters
+         self.possible_species_parameters = possible_species_parameters
 
     def set_up_defaults(self):
         #get general defaults
-        defaults = possible_species_parameters.copy()
+        defaults = self.possible_species_parameters.copy()
         #get values from general columns that can be used for species infos
-        applicable_general_inputs = list(set(possible_general_parameters.keys()).intersection(set(possible_species_parameters.keys())))
+        applicable_general_inputs = list(set(self.possible_general_parameters.keys()).intersection(set(self.possible_species_parameters.keys())))
         applicable_general_inputs = {key: self.general_info[key] for key in applicable_general_inputs if key in self.general_info.keys()}
         #overwrite the defaults with info from general_info, where applicable
         defaults.update(applicable_general_inputs)
@@ -56,16 +37,14 @@ class RunInfo:
             del applicable_general_inputs[key]
         return applicable_general_inputs
 
-    @staticmethod
-    def check_general_keys(general_dict: Dict[str, Any]):
-        necessary_parameters = list(set(possible_general_parameters).difference(set(possible_species_parameters)))
+    def check_general_keys(self, general_dict: Dict[str, Any]):
+        necessary_parameters = list(set(self.possible_general_parameters).difference(set(self.possible_species_parameters)))
         missing = [parameter for parameter in necessary_parameters if parameter not in general_dict.keys()]
         if missing:
             raise ValueError(f"Error parsing general info dict! Input parameters {missing} missing!")
 
-    @staticmethod
-    def check_species_keys(specie_dict: Dict[str, Any], missing_species_name_ok: bool = False):
-        missing = [parameter for parameter in possible_species_parameters.keys() if parameter not in specie_dict.keys()]
+    def check_species_keys(self, specie_dict: Dict[str, Any], missing_species_name_ok: bool = False):
+        missing = [parameter for parameter in self.possible_species_parameters.keys() if parameter not in specie_dict.keys()]
         if missing_species_name_ok and missing == ["species_name"]:
             return
         if missing:
@@ -73,12 +52,18 @@ class RunInfo:
     
     def load_chromosomes(self) -> None:
         for specie_info in self.species_info:
+            if not "chromosomes" in specie_info.keys():
+                continue
+            if specie_info["chromosomes"] == "":
+                specie_info["chromosomes"] = []
+                continue
             chromosomes = specie_info["chromosomes"]
-            if isinstance(chromosomes, str):
-                if os.path.isfile(chromosomes):
-                    chromosomes = pd.read_csv(chromosomes).values.ravel().tolist()
-                else:
-                    chromosomes = pd.read_csv(make_absolute_path("genome", chromosomes, start_file=__file__), header=None).values.ravel().tolist()
+            if isinstance(chromosomes, list):
+                continue
+            elif not isinstance(chromosomes, str):
+                raise ValueError(f"input for chomosomes needs to be a path to a csv containing the chromosomes in a single column (type: str), or a list containing the names of the chromosomes (tpye: list of strings). Found type: {type(chromosomes)}.")
+            path = chromosomes if os.path.isfile(chromosomes) else make_absolute_path("genome", chromosomes, start_file=__file__)
+            chromosomes = pd.read_csv(path, header=None).values.ravel().tolist()
             chromosomes = [str(chrom) for chrom in chromosomes]
             specie_info["chromosomes"] = chromosomes
 
@@ -88,24 +73,38 @@ class RunInfo:
         applicable_general_inputs = self.set_up_defaults()
         species_info = []
         for species_dict in run_dict.get("species_data", []):
-            curr_specie_dict = {key: read_feature_from_input_dict(species_dict, key) for key in possible_species_parameters.keys() if key in species_dict.keys()}
+            curr_specie_dict = {key: read_feature_from_input_dict(species_dict, key) for key in self.possible_species_parameters.keys() if key in species_dict.keys()}
             #get defaults, then overwrite them with the data that was read in for all keys where data was read in
             curr_general_info = applicable_general_inputs.copy()
             curr_general_info.update(curr_specie_dict)
             #make sure all necessary parameters are filled
-            RunInfo.check_species_keys(curr_general_info)
+            self.check_species_keys(curr_general_info)
             species_info.append(curr_general_info)
         if not species_info:
             curr_general_info = applicable_general_inputs.copy()
-            RunInfo.check_species_keys(curr_general_info, missing_species_name_ok=True)
+            self.check_species_keys(curr_general_info, missing_species_name_ok=True)
             species_info.append(curr_general_info)
         self.species_info = species_info
         self.load_chromosomes()
+    
+    def load_prediction_models(self) -> None:
+        if not "prediction_models" in self.general_info.keys():
+            return
+        prediction_models = self.general_info["prediction_models"]
+        if isinstance(prediction_models, list):
+            return
+        elif not isinstance(prediction_models, str):
+            raise ValueError(f"input for prediction models needs to be a path to a csv containing the models in a single column (type: str), or a list containing the names of the chromosomes (type: list of strings). Found type: {type(prediction_models)}.")
+
+        path = prediction_models if os.path.isfile(prediction_models) else make_absolute_path("genome", prediction_models, start_file=__file__)
+        prediction_models = pd.read_csv(path, header=None).values.ravel().tolist()
+        prediction_models = [str(chrom) for chrom in prediction_models]
+        self.general_info["prediction_models"] = prediction_models
 
     def parse_general_inputs(self, run_dict: Dict[str, str]):
         #load defaults
-        defaults = possible_general_parameters.copy()
-        read_data = {key: read_feature_from_input_dict(run_dict, key) for key in possible_general_parameters.keys() if key in run_dict.keys()}
+        defaults = self.possible_general_parameters.copy()
+        read_data = {key: read_feature_from_input_dict(run_dict, key) for key in self.possible_general_parameters.keys() if key in run_dict.keys()}
         #overwrite defaults with read data
         defaults.update(read_data)
         general_info = defaults
@@ -113,18 +112,20 @@ class RunInfo:
         to_delete = [key for key, value in general_info.items() if value is None]
         for key in to_delete:
             del general_info[key]
-        general_info["model_case"] = ModelCase.parse(general_info["model_case"])
+        if "model_case" in general_info.keys():
+            general_info["model_case"] = ModelCase.parse(general_info["model_case"])
         #make check
-        RunInfo.check_general_keys(general_dict=general_info)
+        self.check_general_keys(general_dict=general_info)
         self.general_info = general_info
+        self.load_prediction_models()
 
     @staticmethod
-    def parse(run_dict: Dict[str, Any]):
-        run_info_object = RunInfo()
+    def parse(run_dict: Dict[str, Any], possible_general_parameters: Dict, possible_species_parameters: Dict, multiple_species_required_msr: bool = False) -> RunInfo:
+        run_info_object = RunInfo(possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
         run_info_object.parse_general_inputs(run_dict=run_dict)
         # load general info first, and use it as defaults for specific species
         run_info_object.parse_species(run_dict)
-        if run_info_object.general_info["model_case"] == ModelCase.MSR and len(run_info_object.species_info) < 2:
+        if multiple_species_required_msr and "model_case" in run_info_object.general_info.keys() and run_info_object.general_info["model_case"] == ModelCase.MSR and len(run_info_object.species_info) < 2:
             raise ValueError(f"Need at least 2 species for MSR training! Only found {len(run_info_object.species_info)}.")
         for species_key in possible_species_parameters.keys():
             if species_key in run_info_object.general_info.keys():
@@ -132,13 +133,18 @@ class RunInfo:
         return run_info_object
     
     def is_msr(self) -> bool:
-        return self.general_info["model_case"] == ModelCase.MSR
+        if "model_case" in self.general_info.keys():
+            return self.general_info["model_case"] == ModelCase.MSR
+        else:
+            return False
     
     def __str__(self) -> str:
-        self.general_info["model_case"] = str(self.general_info["model_case"])
+        if "model_case" in self.general_info.keys():
+            self.general_info["model_case"] = str(self.general_info["model_case"])
         specie_info_json = json.dumps(self.species_info, indent=2)
         gen_info_json = json.dumps(self.general_info, indent=2)
-        self.general_info["model_case"] = ModelCase.parse(self.general_info["model_case"])
+        if "model_case" in self.general_info.keys():
+            self.general_info["model_case"] = ModelCase.parse(self.general_info["model_case"])
         result = "RunInfo(\n  General Info{"
         for gen_info in gen_info_json.split("\n"):
             if gen_info in ["{", "}"]:
@@ -153,22 +159,28 @@ class RunInfo:
         return result
 
 
-class ParsedTrainingInputs:
+class ParsedInputs:
     run_infos: List[RunInfo]
+    possible_general_parameters: Dict
+    possible_species_parameters: Dict
 
-    def __init__(self):
+    def __init__(self, possible_general_parameters: Dict, possible_species_parameters: Dict):
         self.run_infos = []
+        self.possible_general_parameters = possible_general_parameters
+        self.possible_species_parameters = possible_species_parameters
 
     @staticmethod
-    def parse(json_file_name: str) -> Tuple[ParsedTrainingInputs, List[Tuple[str, int, Exception]], int]:
+    def parse(json_file_name: str, possible_general_parameters: Dict, possible_species_parameters: Dict, allow_multiple_species: bool = True, multiple_species_required_msr: bool = False) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
         json_file_name = json_file_name if os.path.isfile(json_file_name) else make_absolute_path(json_file_name, __file__)
         failed_parsings = []
-        parsed_object = ParsedTrainingInputs()
+        parsed_object = ParsedInputs(possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
         with open(json_file_name, "r") as f:
             input_list = json.load(f)
         for i, run_dict in enumerate(input_list):
             try:
-                curr_run_info = RunInfo.parse(run_dict)
+                curr_run_info = RunInfo.parse(run_dict, possible_general_parameters=parsed_object.possible_general_parameters, possible_species_parameters=parsed_object.possible_species_parameters, multiple_species_required_msr=multiple_species_required_msr)
+                if len(curr_run_info.species_info) > 1 and not allow_multiple_species:
+                    raise ValueError(f"Only one species per run allowed for running this script! Found {len(curr_run_info.species_info)}!")
                 parsed_object.run_infos.append(curr_run_info)
             except Exception as e:
                 print(f"error reading input run number {i + 1}.")
@@ -178,10 +190,10 @@ class ParsedTrainingInputs:
                 failed_parsings.append(("error during parsing!", i, e))
         return parsed_object, failed_parsings, len(input_list)
     
-    def replace_both(self) -> ParsedTrainingInputs:
-        new_object = ParsedTrainingInputs()
+    def replace_both(self) -> ParsedInputs:
+        new_object = ParsedInputs(possible_species_parameters=self.possible_species_parameters, possible_general_parameters=self.possible_general_parameters)
         for info in self.run_infos:
-            if info.general_info["model_case"] == ModelCase.BOTH:
+            if "model_case" in info.general_info.keys() and info.general_info["model_case"] == ModelCase.BOTH:
                 info.general_info["model_case"] = ModelCase.SSR
                 ssc_version = deepcopy(info)
                 ssc_version.general_info["model_case"] = ModelCase.SSC

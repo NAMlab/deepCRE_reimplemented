@@ -7,18 +7,19 @@ import argparse
 
 from train_models import extract_genes_prediction
 from utils import make_absolute_path, load_input_files, get_filename_from_path, get_time_stamp, result_summary
+from parsing import ModelCase, ParsedInputs, RunInfo
 
 
-def predict_other(extragenic: int, intragenic: int, val_chromosome: str, model_names: List[str], extracted_genes: Dict[str, Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+def predict_other(extragenic: int, intragenic: int, curr_chromosome: str, model_names: List[str], extracted_genes: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     no_genes = False
     try:
-        x, y, gene_ids = extracted_genes[val_chromosome]
+        x, y, gene_ids = extracted_genes[curr_chromosome]
         # Masking
         x[:, extragenic:extragenic + 3, :] = 0                                                                                                  #type:ignore
         x[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0                                                      #type:ignore
     except KeyError:
         no_genes = True
-        print(f"no genes found for Chromosome \"{val_chromosome}\"")
+        print(f"no genes found for Chromosome \"{curr_chromosome}\"")
 
 
     path_to_models = make_absolute_path("saved_models", start_file=__file__)
@@ -67,92 +68,7 @@ def parse_args():
     return args
 
 
-def check_input(data: pd.DataFrame) -> bool:
-    """validates whether the essential columns are present in the input data frame
-
-    Args:
-        data (pd.DataFrame): the input data frame
-
-    Raises:
-        ValueError: raised if essential columns are missing
-    """
-    present_cols = data.columns
-    necessary_columns = ["genome", "gene_model", "model_names", "subject_species_name"]
-    missing_columns = []
-    for necessary_column in necessary_columns:
-        if necessary_column not in present_cols:
-            missing_columns.append(necessary_column)
-    
-    if missing_columns:
-        raise ValueError(f"column/s {missing_columns} not found. The following columns are absolutely necessary: {necessary_columns}")
-    return True
-
-    
-def get_optional_values(row: pd.Series) -> Tuple[str, str, str, str, str]:
-    """gets the values for all optional columns out of a row.
-
-    Args:
-        row (pd.Series): current row of the input data frame
-
-    Returns:
-        Tuple[str, str, bool]: Tuple with path to file with target_classes, path to file with selected chromosomes, flag whether small genes should be ignored, sequence length of the extragenic part to be extracted,
-            sequence length of the intragenic part to be extracted
-    """
-    results = {}
-    for column in ["target_classes", "chromosome_selection", "ignore_small_genes", "intragenic_extraction_length", "extragenic_extraction_length"]:
-        if column in row.index:
-            results[column] = row[column]
-        else:
-            results[column] = ""
-    return results["target_classes"], results["chromosome_selection"], results["ignore_small_genes"], results["intragenic_extraction_length"], results["extragenic_extraction_length"]
-
-
-def set_defaults(ignore_small_genes: str, intragenic: str, extragenic: str) -> Tuple[bool, int, int]:
-    """parses strings from optional inputs and sets defaults where applicable
-
-    Args:
-        ignore_small_genes (str): input for ignore_small_genes
-        intragenic (str): input for length of sequence to extract inside of the gene
-        extragenic (str): input for length of sequence to extract outside of the gene
-
-    Raises:
-        ValueError: raises error if the inputs can not be parsed correctly
-
-    Returns:
-        Tuple[bool, int, int]: returns the values for ignore_small_genes, intragenic and extragenic.
-    """
-    if ignore_small_genes.lower() == "yes":
-        ignore_small_genes_res = True
-    elif ignore_small_genes.lower() in ["no", ""]:
-        ignore_small_genes_res = False
-    else:
-        raise ValueError(f"Value \"{ignore_small_genes}\" for ignore small genes could not be parsed. Allowed values are \"yes\" or \"no\". Leaving the column empty or omitting the column entirely will default to using all genes, so ignore_small_genes = False")
-    
-    extragenic_res = 1000 if extragenic == "" else int(extragenic)
-    intragenic_res = 500 if intragenic == "" else int(intragenic)
-
-    assert extragenic_res >= 0
-    assert intragenic_res >= 0
-    
-    return ignore_small_genes_res, intragenic_res, extragenic_res
-
-
-def parse_model_names(model_names: str) -> List[str]:
-    """splits model names from the input file
-
-    Args:
-        model_names (str): model names separated by \";\"
-
-    Returns:
-        List[str]: List of model names, stripped of white spaces
-    """
-    results = [model.strip() for model in model_names.split(";")]
-    if results:
-        return results
-    else:
-        raise ValueError(f"no model names were found in column columns \"model_names\". At least one model in necessary to run predictions. Additional models can be ginve in the same columns, separated with semicolons \";\".")
-
-def get_chromosomes(chromosomes_file: str, annotation: pd.DataFrame) -> Tuple[List, Tuple]:
+def get_chromosomes(chromosomes: List[str], annotation: pd.DataFrame) -> Tuple[List, Tuple]:
     """loads the chromosomes to be used for predictions.
 
     Depending on the inputs, the chromosomes will be extracted from the file provided in the chomosome_selction column. If no file is provided there, all chromosomes from the annotation file will be used.
@@ -164,90 +80,93 @@ def get_chromosomes(chromosomes_file: str, annotation: pd.DataFrame) -> Tuple[Li
     Returns:
         Tuple[List, Tuple]: List and tuple containing the names of the chromosomes to be used. If the chromosomes file is empty, the tuple will be empty.
     """
-    if chromosomes_file:
-        chromosomes = pd.read_csv(chromosomes_file, header=None, dtype={0: str})
-        chromosomes_tuple = tuple(chromosomes[0].values)
-        chromosomes = list(chromosomes[0].values)
+    if chromosomes:
+        chromosomes_tuple = tuple(chromosomes)
+        chromosomes_list = chromosomes
     else:
         chromosomes_tuple = ()
-        chromosomes = list(annotation["Chromosome"].unique())
-    return chromosomes,chromosomes_tuple
-
-
-def get_required_values(row: pd.Series, failed_trainings: List, i):
-    """reads the values off the required columns
-
-    Args:
-        row (pd.Series): current row of the input file
-        failed_trainings (List): List of Tuples containing information on failed rows of the input file.
-        i: line of the input data frame.
-
-    Returns:
-        Tuple[str, str, str, List[str], bool]: the extracted values as well as a flag comunicating whether extracted values are empty.
-    """
-    genome_file_name, annotation_file_name, subject_species_name  = row["genome"], row["gene_model"], row["subject_species_name"]
-    error = False
-    for col in [genome_file_name, annotation_file_name, subject_species_name]:
-        if col == "":
-            failed_trainings.append((f"", i, ValueError(f"input line is missing an entry in column \"{col}\"")))
-            error = True
-    models = parse_model_names(row["model_names"])
-    return genome_file_name,annotation_file_name,subject_species_name,models, error
+        chromosomes_list = list(annotation["Chromosome"].unique())
+    return chromosomes_list,chromosomes_tuple
 
 
 def read_df(path: str) -> pd.DataFrame:
     return pd.read_csv(path, sep=',', na_values={"target_classes": [], "chromosome_selection": [], "ignore_small_genes": [], "intragenic_extraction_length": [], "extragenic_extraction_length":[]}, keep_default_na=False)
+
+
+def get_output_location(run_info: RunInfo, folder_name: str, model_file_name: str, file_name: str, time_stamp: str) -> str:
+    if not run_info.general_info["output_path"] and not run_info.species_info[0]["subject_species"]:
+        raise ValueError("Neither output_path nor subject_species are given! Giving a value for subject species will auto generate a save location within the results/predictions folder." +
+                         "output_path should be the path to the desired save location and will override the auto generated file location.")
+    output_location = run_info.general_info["output_path"] if run_info.general_info["output_path"] else os.path.join(folder_name, f'{model_file_name}_{file_name}_{run_info.species_info[0]["subject_species"]}_{time_stamp}.csv')
+    while os.path.exists(output_location):
+        print(f"Warning: output path {output_location} already exists!")
+        base, ext = os.path.splitext(output_location)
+        output_location = base + "_1" + ext
+    return output_location
         
 
-def run_cross_predictions(data: Union[pd.DataFrame, None] = None):
+def run_cross_predictions(run_infos: ParsedInputs, failed_trainings: List[Tuple], input_length: int):
     """runs cross predictions as specified by the input file.
 
     Args:
         data (Union[pd.DataFrame, None]): input data frame. Usually will be loaded from input file. Can be provided directly for testing purposes.
     """
-    if data is None:
-        args = parse_args()
-        data = read_df(args.input)
-    check_input(data)
-    print(data.head())
+    time_stamp = get_time_stamp()
     folder_name = make_absolute_path('results', 'predictions', start_file=__file__)
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
     file_name = get_filename_from_path(__file__)
-
-    failed_trainings, passed_trainings = [],[]
-    for i, row in data.iterrows():
+    run_info: RunInfo
+    for i, run_info in enumerate(run_infos):           #type:ignore
         try:
-            values = get_required_values(row=row, failed_trainings=failed_trainings, i=i)
-            genome_file_name, annotation_file_name, subject_species_name, models, failed_extraction = values
-            if failed_extraction:
-                #TODO: properly catch this case, with output at the end (result_summary)
-                continue
-        
-            target_class_file, chromosomes_file, ignore_small_genes, intragenic, extragenic = get_optional_values(row)
-
+            models = run_info.general_info["prediction_models"]
             model_file_name = get_filename_from_path(models[0])
-            ignore_small_genes, intragenic, extragenic = set_defaults(ignore_small_genes=ignore_small_genes, intragenic=intragenic, extragenic=extragenic)
-            loaded_input_files = load_input_files(genome_file_name=genome_file_name, annotation_file_name=annotation_file_name, tpm_counts_file_name=target_class_file)
-            chromosomes, chromosomes_tuple = get_chromosomes(chromosomes_file, loaded_input_files["annotation"])
-            extracted_genes = extract_genes_prediction(genome=loaded_input_files["genome"], annotation=loaded_input_files["annotation"], extragenic=extragenic, intragenic=intragenic,
-                                            ignore_small_genes=ignore_small_genes, tpms=loaded_input_files.get("tpms", None), target_chromosomes=chromosomes_tuple, for_prediction=True, model_case="ssr")
+            output_location = get_output_location(run_info=run_info, folder_name=folder_name, model_file_name=model_file_name, file_name=file_name, time_stamp=time_stamp)
+            model_case = "msr" if run_info.general_info["annotation"].endswith(".csv") else "ssr"
+            loaded_input_files = load_input_files(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"], tpm_counts_file_name=run_info.general_info["targets"], model_case=model_case)
+            chromosomes, chromosomes_tuple = get_chromosomes(run_info.species_info[0]["chromosomes"], loaded_input_files["annotation"])
+            extracted_genes = extract_genes_prediction(genome=loaded_input_files["genome"], annotation=loaded_input_files["annotation"], extragenic=run_info.general_info["extragenic"],
+                                                       intragenic=run_info.general_info["intragenic"], ignore_small_genes=run_info.general_info["ignore_small_genes"],
+                                                       tpms=loaded_input_files.get("tpms", None), target_chromosomes=chromosomes_tuple)
             results_dfs = []
             for chrom in chromosomes:
-                results, _ = predict_other(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom),
+                results, _ = predict_other(extragenic=run_info.general_info["extragenic"], intragenic=run_info.general_info["intragenic"], curr_chromosome=chrom,
                                            model_names=models, extracted_genes=extracted_genes)
                 results_dfs.append(results)
             result = pd.concat(results_dfs)
             print(result.head())
-            output_location = os.path.join(folder_name, f'{model_file_name}_{file_name}_{subject_species_name}_{get_time_stamp()}.csv')
             result.to_csv(output_location, index=False)
-            passed_trainings.append((f"{model_file_name} -> {subject_species_name}", i))
         except Exception as e:
             print(e)
-            failed_trainings.append((f"{model_file_name} -> {subject_species_name}", i, e))
+            failed_trainings.append((f"{model_file_name} -> {run_info.species_info[0]['subject_species']}", i, e))
 
-    result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))
+    result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
+
+
+def main():
+    possible_general_parameters = {
+        "genome": None,
+        "annotation": None,
+        "targets": "",
+        "subject_species": "",
+        "output_path": "",
+        "chromosomes": "",
+        "prediction_models": None,
+        "ignore_small_genes": True,
+        "extragenic": 1000,
+        "intragenic": 500
+    }
+
+    possible_species_parameters = {
+        "chromosomes": "",
+        "subject_species": ""
+    }
+    args = parse_args()
+    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters, allow_multiple_species=False)
+    inputs = inputs.replace_both()
+    print(inputs)
+    run_cross_predictions(inputs, failed_trainings=failed_trainings, input_length=input_length)
 
 
 if __name__ == "__main__":
-    run_cross_predictions()
+    main()

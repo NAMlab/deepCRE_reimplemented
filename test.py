@@ -101,7 +101,7 @@ def test_predict_other():
         extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
         results_dfs = []
         for chrom in range(1, num_chromosomes + 1):
-            results, _ = cp.predict_other(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), model_names=output_name,
+            results, _ = cp.predict_other(extragenic=extragenic, intragenic=intragenic, curr_chromosome=str(chrom), model_names=output_name,
                                             extracted_genes=extracted_genes)
             results_dfs.append(results)
         result = pd.concat(results_dfs)
