@@ -285,8 +285,8 @@ def calculate_conditions(val_chromosome, model_case, train_val_split: bool, test
         include_in_validation_set = specie == test_specie                      #type:ignore
         include_in_training_set = not include_in_validation_set
     elif not train_val_split:
-        include_in_validation_set = chrom == val_chromosome
-        include_in_training_set = not include_in_validation_set
+        include_in_validation_set = chrom == val_chromosome and gene_id in validation_genes
+        include_in_training_set = chrom != val_chromosome
     else:
         include_in_validation_set = current_val_size < target_val_size and gene_id in validation_genes
         include_in_training_set = current_train_size < target_train_size
@@ -738,3 +738,4 @@ if __name__ == "__main__":
     # for MSR models: for predict / interpret / models, make sure that new combninations of species (other than in training process) are possible
         # currently need to give path to combined input files, which dont exist for new species combinations
     # TODO: distinguish between output_name for finding trained models and output_name for saving results
+    # TODO: add script for creating pickle files
