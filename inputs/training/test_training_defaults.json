@@ -1,0 +1,39 @@
+[
+  {
+    "model_case": "ssr",
+    "genome": "spec1.fa",
+    "annotation": "spec1.gff3",
+    "targets": "spec1_targets.csv",
+    "output_name": "spec1",
+    "pickle_key": "spec1",
+    "pickle_file": "pickle_file.pkl"
+  },
+  {
+    "species_data": [
+      {
+        "species_name": "spec1"
+      },
+      {
+        "species_name": "spec2",
+        "genome": "spec2.fa",
+        "annotation": "spec2.gff3",
+        "targets": "spec2_targets.csv",
+        "pickle_key": "spec2"
+      },
+      {
+        "species_name": "spec3",
+        "genome": "spec3.fa",
+        "annotation": "spec3.gff3",
+        "targets": "spec3_targets.csv",
+        "pickle_key": "spec3"
+      }
+    ],
+    "model_case": "msr",
+    "genome": "spec1.fa",
+    "annotation": "spec1.gff3",
+    "targets": "spec1_targets.csv",
+    "pickle_key": "spec1",
+    "output_name": "spec_1_2_3",
+    "pickle_file": "pickle_file.pkl"
+  }
+]

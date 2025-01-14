@@ -1,0 +1,22 @@
+[
+    {
+      "species_data": [
+        {
+          "subject_species": "spec1"
+        }
+      ],
+      "genome": "genome_spec1_spec2.fa",
+      "annotation": "gtf_spec1_spec2.csv",
+      "targets": "tpm_spec1_spec2.csv",
+      "model_case": "msr",
+      "chromosomes": "arabidopsis_chroms.csv"
+    },
+    {
+      "model_case": "ssr",
+      "genome": "spec1.fa",
+      "annotation": "spec1.gff3",
+      "training_output_name": "spec1",
+      "targets": "arabidopsis_targets.csv",
+      "chromosomes": ["1", "2"]
+    }
+  ]

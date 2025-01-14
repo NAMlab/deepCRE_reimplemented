@@ -1,0 +1,21 @@
+[
+  {
+    "species_data": [
+      {
+        "species_name": "spec1"
+      },
+      {
+        "species_name": "spec2"
+      }
+    ],
+    "model_case": "msr",
+    "genome": "genome_spec1_spec2.fa",
+    "annotation": "gtf_spec1_spec2.csv"
+  },
+  {
+    "model_case": "ssr",
+    "genome": "spec1.fa",
+    "annotation": "spec1.gff3",
+    "training_output_name": "spec1"
+  }
+]

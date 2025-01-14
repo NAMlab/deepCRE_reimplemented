@@ -1,0 +1,16 @@
+[
+  {
+    "output_base": "spec1_spec2",
+    "genome": "genome_spec1_spec2.fa",
+    "annotation": "gtf_spec1_spec2.csv",
+    "prediction_models": "saved_models/models_spec1_spec2.csv",
+    "chromosomes": ["spec1_1", "spec2_2", "spec2_3"]
+  },
+  {
+    "genome": "spec1.fa",
+    "annotation": "spec1.gff3",
+    "output_path": "saved_models/spec1_self_cross.csv",
+    "prediction_models": ["arabidopsis_1_SSR_train_ssr_models_240822_103323.h5", "arabidopsis_2_SSR_train_ssr_models_240816_184026.h5"],
+    "chromosomes": "arabidopsis_chroms.csv"
+  }
+]

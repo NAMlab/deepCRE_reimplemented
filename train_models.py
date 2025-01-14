@@ -739,3 +739,5 @@ if __name__ == "__main__":
         # currently need to give path to combined input files, which dont exist for new species combinations
     # TODO: distinguish between output_name for finding trained models and output_name for saving results
     # TODO: add script for creating pickle files
+    # TODO: should interpret run with crosspredictions? so models can be selected specifically, and all data is used for each model.
+    # TODO: why differentiate between model cases, if only the name of the "output_name" changes in input file?
