@@ -107,7 +107,8 @@ def run_motif_extraction(inputs: ParsedInputs, failed_trainings: List[Tuple], in
 
                 # output_name = "_".join([sp[:3].lower() for sp in train_specie['specie'].unique()])
                 # chromosomes=""
-                output_name = run_info.species_info[0]["subject_species"]
+                # output_name = run_info.species_info[0]["subject_species"]
+                output_name = run_info.general_info["training_output_name"]
 
             elif run_info.general_info["model_case"] in [ModelCase.SSR, ModelCase.SSC]:
                 output_name = run_info.general_info["training_output_name"]
@@ -128,20 +129,16 @@ def main():
         "genome": None,
         "annotation": None,
         "targets": None,
-        "training_output_name": "",
+        "training_output_name": None,
         "chromosomes": "",
         "ignore_small_genes": True,
-        "subject_species": "",
         "extragenic": 1000,
         "intragenic": 500,
         "force_interpretations": False
     }
 
-    possible_species_parameters = {
-        "subject_species": "",
-    }
     args = parse_args()
-    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
+    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters={})
     inputs = inputs.replace_both()
     print(inputs)
 
