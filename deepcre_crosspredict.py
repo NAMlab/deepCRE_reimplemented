@@ -94,10 +94,10 @@ def read_df(path: str) -> pd.DataFrame:
 
 
 def get_output_location(run_info: RunInfo, folder_name: str, model_file_name: str, file_name: str, time_stamp: str) -> str:
-    if not run_info.general_info["output_path"] and not run_info.species_info[0]["subject_species"]:
-        raise ValueError("Neither output_path nor subject_species are given! Giving a value for subject species will auto generate a save location within the results/predictions folder." +
+    if not run_info.general_info["output_path"] and not run_info.general_info["output_base"]:
+        raise ValueError("Neither output_path nor output_base are given! Giving a value for output_base will auto generate a save location within the results/predictions folder." +
                          "output_path should be the path to the desired save location and will override the auto generated file location.")
-    output_location = run_info.general_info["output_path"] if run_info.general_info["output_path"] else os.path.join(folder_name, f'{model_file_name}_{file_name}_{run_info.species_info[0]["subject_species"]}_{time_stamp}.csv')
+    output_location = run_info.general_info["output_path"] if run_info.general_info["output_path"] else os.path.join(folder_name, f'{model_file_name}_{file_name}_{run_info.general_info["output_base"]}_{time_stamp}.csv')
     while os.path.exists(output_location):
         print(f"Warning: output path {output_location} already exists!")
         base, ext = os.path.splitext(output_location)
@@ -138,7 +138,7 @@ def run_cross_predictions(run_infos: ParsedInputs, failed_trainings: List[Tuple]
             result.to_csv(output_location, index=False)
         except Exception as e:
             print(e)
-            failed_trainings.append((f"{model_file_name} -> {run_info.species_info[0]['subject_species']}", i, e))
+            failed_trainings.append((f"{model_file_name} -> {run_info.general_info['output_base']}", i, e))
 
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
 
