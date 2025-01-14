@@ -148,7 +148,7 @@ def main():
         "genome": None,
         "annotation": None,
         "targets": "",
-        "subject_species": "",
+        "output_base": "",
         "output_path": "",
         "chromosomes": "",
         "prediction_models": None,
@@ -159,7 +159,6 @@ def main():
 
     possible_species_parameters = {
         "chromosomes": "",
-        "subject_species": ""
     }
     args = parse_args()
     inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters, allow_multiple_species=False)
