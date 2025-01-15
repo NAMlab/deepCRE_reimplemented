@@ -101,16 +101,17 @@ def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: i
     file_name = get_filename_from_path(__file__)
     run_info: RunInfo
     for i, run_info in enumerate(inputs):       #type:ignore
-        species_info = run_info.species_info
-        general_info = run_info.general_info
-        loaded_files = load_input_files(genome_file_name=general_info["genome"], annotation_file_name=general_info["annotation"], tpm_counts_file_name=general_info["targets"], model_case=str(general_info["model_case"]))
-        genome = loaded_files["genome"]
-        annotation = loaded_files["annotation"]
-        tpms = loaded_files["tpms"] if "tpms" in loaded_files.keys() else None
-        extragenic = general_info["extragenic"]
-        intragenic = general_info["intragenic"]
-
+        output_name = ""
         try:
+            species_info = run_info.species_info
+            general_info = run_info.general_info
+            loaded_files = load_input_files(genome_file_name=general_info["genome"], annotation_file_name=general_info["annotation"], tpm_counts_file_name=general_info["targets"], model_case=str(general_info["model_case"]))
+            genome = loaded_files["genome"]
+            annotation = loaded_files["annotation"]
+            tpms = loaded_files["tpms"] if "tpms" in loaded_files.keys() else None
+            extragenic = general_info["extragenic"]
+            intragenic = general_info["intragenic"]
+
             check_inputs(run_info)
             if run_info.is_msr(): 
                 #for specie, genome_file_name, annotation_file_name, tpm_counts_file_name, output_name, chromosome_file,_  in data.values:
