@@ -174,7 +174,7 @@ def input_integration_tests():
     test_folders = {
         "src/deepCRE/inputs/prediction": (dp.parse_input_file, dp.predict),
         "src/deepCRE/inputs/cross_prediction": (cp.parse_input_file, cp.run_cross_predictions),
-        "src/deepCRE/inputs/motif_extraction": (dm.parse_input_file, dm.run_motif_extraction),
+        "src/deepCRE/inputs/motives": (dm.parse_input_file, dm.run_motif_extraction),
         "src/deepCRE/inputs/interpretation": (di.parse_input_file, di.run_interpretation),
         "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
     }
