@@ -105,7 +105,7 @@ def get_output_location(run_info: RunInfo, folder_name: str, model_file_name: st
     return output_location
         
 
-def run_cross_predictions(run_infos: ParsedInputs, failed_trainings: List[Tuple], input_length: int):
+def run_cross_predictions(run_infos: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
     """runs cross predictions as specified by the input file.
 
     Args:

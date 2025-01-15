@@ -214,7 +214,7 @@ def check_run_info(run_info: RunInfo):
             raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
 
 
-def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int):
+def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
     tf.compat.v1.disable_eager_execution()
     tf.compat.v1.disable_v2_behavior()
     tf.config.set_visible_devices([], 'GPU')

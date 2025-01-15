@@ -93,7 +93,7 @@ def check_inputs(run_info: RunInfo):
             raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
 
 
-def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int):
+def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
     folder_name = make_absolute_path('results', 'predictions', start_file=__file__)
     time_stamp = get_time_stamp()
     if not os.path.exists(folder_name):
