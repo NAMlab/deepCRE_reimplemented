@@ -141,6 +141,7 @@ def run_cross_predictions(run_infos: ParsedInputs, failed_trainings: List[Tuple]
             failed_trainings.append((f"{model_file_name} -> {run_info.general_info['output_base']}", i, e))
 
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
+    return failed_trainings
 
 
 def parse_input_file(file: str):

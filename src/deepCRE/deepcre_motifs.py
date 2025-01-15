@@ -121,6 +121,7 @@ def run_motif_extraction(inputs: ParsedInputs, failed_trainings: List[Tuple], in
             failed_trainings.append((output_name, i, e))
 
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
+    return failed_trainings
 
 
 def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:

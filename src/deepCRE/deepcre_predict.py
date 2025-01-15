@@ -128,6 +128,7 @@ def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: i
             print(e)
             failed_trainings.append((output_name, i, e))
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
+    return failed_trainings
 
 
 def parse_args():
