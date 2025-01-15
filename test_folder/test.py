@@ -172,19 +172,27 @@ def test_motif_extraction():
 def input_integration_tests():
     # dict with folder and corresponding functions
     test_folders = {
-        "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
         "src/deepCRE/inputs/prediction": (dp.parse_input_file, dp.predict),
         "src/deepCRE/inputs/cross_prediction": (cp.parse_input_file, cp.run_cross_predictions),
         "src/deepCRE/inputs/motif_extraction": (dm.parse_input_file, dm.run_motif_extraction),
-        "src/deepCRE/inputs/interpretation": (di.parse_input_file, di.run_interpretation)
+        "src/deepCRE/inputs/interpretation": (di.parse_input_file, di.run_interpretation),
+        "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
     }
-    for folder, functions in test_folders.items():
-        input_files = os.listdir(folder)
-        for file in input_files:
+    failed_tests = []
+    for i in range(10):
+        for folder, functions in test_folders.items():
+            input_files = sorted(os.listdir(folder))
+            if len(input_files) < i + 1:
+                continue
+            file = input_files[i]
             print(file)
             file_path = os.path.join(folder, file)
             inputs, failed_trainings, input_length = functions[0](file_path)
-            functions[1](inputs, failed_trainings, input_length, test=True)
+            fails = functions[1](inputs, failed_trainings, input_length, test=True)
+            if fails:
+                failed_tests.append(file_path)
+    print(failed_tests)
+    json.dump(failed_tests, open(make_absolute_path("failed_tests.json", start_file=__file__), "w"))
 
 
 class TestDeepCRE(unittest.TestCase):
