@@ -124,9 +124,8 @@ def get_fasta_data(fasta_path: str, species_abbr: str) -> List[str]:
                 # Otherwise, mark the sequence for inclusion
                 include_sequence = True  
 
-                # Modify the header if the chromosome name is numeric
-                if chrom_name.isdigit():
-                    line = f">{chrom_name}{species_abbr}\n"
+                # Modify the header
+                line = f">{chrom_name}_{species_abbr}\n"
                 
                 # Append the modified header to `fasta_data`
                 fasta_data.append(line.strip())
@@ -138,9 +137,10 @@ def get_fasta_data(fasta_path: str, species_abbr: str) -> List[str]:
 
 
 def combine_annotations(species_data: List[Dict[str, Any]], naming: str) -> str:
-    output_dir = 'gene_models'
-    save_path = os.path.abspath(f"{output_dir}/gtf_{naming}.csv")
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir_name = 'gene_models'
+    output_dir_path = make_absolute_path(output_dir_name, start_file=__file__)
+    os.makedirs(output_dir_path, exist_ok=True)
+    save_path = make_absolute_path(output_dir_name, f"gtf_{naming}.csv", start_file=__file__)
     
     # return if file already exists
     if os.path.exists(save_path):
@@ -151,10 +151,15 @@ def combine_annotations(species_data: List[Dict[str, Any]], naming: str) -> str:
     combined_data = []
     for specie_data in species_data:
         species_name = specie_data['species_name']
-        input_file_path = get_input_file_path(specie_data["annotation"], output_dir=output_dir, species_name=species_name)
+        input_file_path = get_input_file_path(specie_data["annotation"], output_dir=output_dir_name, species_name=species_name)
         file_data = load_annotation(input_file_path)
         # Add species name as a new column
         file_data.insert(0, 'species', species_name)
+        #append the species name to each entry of the chromosome column and gene_id column
+        chrom_col = file_data.columns[1]
+        file_data[chrom_col] = file_data[chrom_col].apply(lambda x: f"{x}_{species_name}")
+        gene_id_col = file_data.columns[-1]
+        file_data[gene_id_col] = file_data[gene_id_col].apply(lambda x: f"{x}_{species_name}")
         combined_data.append(file_data)
 
     combined_data_df = pd.concat(combined_data, ignore_index=True)
@@ -192,9 +197,10 @@ def combine_annotations_old(data: pd.DataFrame) -> str:
 
 
 def combine_tpms(species_data: List[Dict[str, Any]], naming: str) -> str:
-    output_dir = "tpm_counts"
-    os.makedirs(output_dir, exist_ok=True)
-    save_path = os.path.abspath(f"{output_dir}/tpm_{naming}.csv")
+    output_dir_name = "tpm_counts"
+    output_dir_path = make_absolute_path("tpm_counts", start_file=__file__)
+    os.makedirs(output_dir_path, exist_ok=True)
+    save_path = os.path.join(output_dir_path, f"tpm_{naming}.csv")
     if os.path.exists(save_path):
         print(f"Combined file {save_path} already exists.")
         return save_path
@@ -203,10 +209,12 @@ def combine_tpms(species_data: List[Dict[str, Any]], naming: str) -> str:
     combined_data = []
 
     for specie_data in species_data:
-        input_file_path = get_input_file_path(file_name=specie_data["targets"], output_dir=output_dir, species_name=specie_data["species_name"])
+        input_file_path = get_input_file_path(file_name=specie_data["targets"], output_dir=output_dir_name, species_name=specie_data["species_name"])
         file_data = pd.read_csv(input_file_path)
         # Select only the "gene_id" and "target" columns
         file_data = file_data.loc[:, ["gene_id", "target"]]
+        # append the species name to each entry of the gene_id column
+        file_data['gene_id'] = file_data['gene_id'].apply(lambda x: f"{x}_{specie_data['species_name']}")
         combined_data.append(file_data)
     
     combined_data_df = pd.concat(combined_data, ignore_index=True)
@@ -242,9 +250,10 @@ def combine_tpms_old(data: pd.DataFrame, naming: str) -> str:
 
 def combine_fasta(species_data: List[Dict[str, Any]], naming: str) -> str:
     file_type = 'genome'
-    output_dir = 'genome'
-    os.makedirs(output_dir, exist_ok=True)
-    save_path = os.path.abspath(f"{output_dir}/{file_type}_{naming}.fa")
+    output_dir_name = "genome"
+    output_dir_path = make_absolute_path(output_dir_name, start_file=__file__)
+    os.makedirs(output_dir_path, exist_ok=True)
+    save_path = os.path.join(output_dir_path, f"{file_type}_{naming}.fa")
     if os.path.exists(save_path):
         print(f"Combined file {save_path} already exists.")
         return save_path
@@ -253,9 +262,8 @@ def combine_fasta(species_data: List[Dict[str, Any]], naming: str) -> str:
     combined_data = []
     for specie_data in species_data:
         species_name = specie_data['species_name']
-        species_abbr = species_name[:3]
-        input_file_path = get_input_file_path(file_name=specie_data[file_type], output_dir=output_dir, species_name=specie_data["species_name"])
-        fasta_data = get_fasta_data(fasta_path=input_file_path, species_abbr=species_abbr)
+        input_file_path = get_input_file_path(file_name=specie_data[file_type], output_dir=output_dir_name, species_name=specie_data["species_name"])
+        fasta_data = get_fasta_data(fasta_path=input_file_path, species_abbr=species_name)
         combined_data.append("\n".join(fasta_data))
 
     with open(save_path, 'w') as f_out:
