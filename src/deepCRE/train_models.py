@@ -327,8 +327,9 @@ def set_up_train_val_split_variables(annotation: pd.DataFrame):
 
 def save_skipped_genes(skipped_genes, time_stamp: str):
     if skipped_genes:  # This checks if the set/list is not empty
-        filename = f'skipped_genes_{time_stamp}.txt'
-        with open(filename, 'w') as skipped_genes_file:
+        file_name = f'skipped_genes_{time_stamp}.txt'
+        file_name = make_absolute_path("results", file_name, start_file=__file__)
+        with open(file_name, 'w') as skipped_genes_file:
             for gene in skipped_genes:
                 skipped_genes_file.write(f"{gene}\n")
         
@@ -336,7 +337,7 @@ def save_skipped_genes(skipped_genes, time_stamp: str):
             print(f"Warning: {len(skipped_genes)} gene IDs were skipped. Please check that the gene name formats are identical in both the GTF and TPM files.")
                 
         else:
-            print(f"Some gene IDs in the gtf file were not found in TPM counts. Skipped gene IDs have been written to {filename}.")
+            print(f"Some gene IDs in the gtf file were not found in TPM counts. Skipped gene IDs have been written to {file_name}.")
 
 
 def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_picked, pickled_key, val_chromosome,
@@ -600,7 +601,7 @@ def train_ssr_ssc(data: pd.DataFrame, args, failed_trainings: List[Tuple], file_
 def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str, test: bool = False) -> List[Dict[str, Any]]:
     #msr stuff
     species: List[str] = [specie["species_name"] for specie in species_info]
-    naming = "_".join([specie[:3] for specie in species])
+    naming = "_".join([specie.replace(" ", "").replace(".", "") for specie in species])
 
     # generate concat files
     tpm_path = combine_tpms(species_data=species_info, naming=naming)
@@ -697,10 +698,10 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
         except TerminationError as e:
             raise e
         except Exception as e:
-            raise e
             print(e)
             failed_trainings.append((run_info.general_info["output_name"], i, e))
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
+    return failed_trainings
 
 
 def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
