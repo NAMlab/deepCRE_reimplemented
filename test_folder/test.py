@@ -7,12 +7,13 @@ import h5py
 from BCBio import GFF
 import json
 
-from deepcre_motifs import generate_motifs
-from train_ssr_models import extract_genes
-from utils import load_input_files, make_absolute_path, get_time_stamp
-from deepcre_predict import find_newest_model_path, predict_self
-import deepcre_crosspredict as cp
-import deepcre_interpret as di
+from deepCRE.parsing import ModelCase
+from deepCRE.utils import load_input_files, make_absolute_path, get_time_stamp
+from deepCRE.train_models import extract_genes_prediction
+import deepCRE.deepcre_predict as dp
+import deepCRE.deepcre_crosspredict as cp
+import deepCRE.deepcre_interpret as di
+import deepCRE.deepcre_motifs as dm
 
 
 def print_chroms():
@@ -98,7 +99,7 @@ def test_predict_other():
         extragenic = 1000
         intragenic = 500
         ignore_small_genes = True
-        extracted_genes = extract_genes(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
+        extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
         results_dfs = []
         for chrom in range(1, num_chromosomes + 1):
             results, _ = cp.predict_other(extragenic=extragenic, intragenic=intragenic, curr_chromosome=str(chrom), model_names=output_name,
@@ -156,7 +157,7 @@ def read_hdf5_datasets():
 
 def test_motif_extraction():
     chromosomes = pd.read_csv(filepath_or_buffer=f'genome/arabidopsis_chroms.csv', header=None).values.ravel().tolist()
-    generate_motifs(genome="Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
+    dm.generate_motifs(genome="Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
                     annot="Arabidopsis_thaliana.TAIR10.52.gtf",
                     tpm_targets="arabidopsis_counts.csv",
                     upstream=1000,
@@ -168,10 +169,40 @@ def test_motif_extraction():
                     force_interpretation=False)
 
 
+def input_integration_tests():
+    
+
+def test_cross_pred_integration(self):
+    necessary_columns = {
+        "genome": ["Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"],
+        "gene_model": ["Arabidopsis_thaliana.TAIR10.52.gtf"],
+        "model_names": [model_names],
+        "subject_species_name": ["arabidopsis"]
+    }
+    input_path = self.create_test_input(necessary_columns, "base_case.csv")
+    input_df = pd.read_csv(input_path)
+    cp.run_cross_predictions(input_df)
+    self.assertTrue(True)
+
+def test_input_cases(self):
+    folder_path = os.path.join("test_folder", "test_cross", "test_optional_cols")
+    for file in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, file)
+        if not os.path.isfile(file_path):
+            continue
+        input_df = cp.read_df(file_path)
+        print(f"!!! TESTING {file} !!!\n")
+        if "_fail" in file_path:
+            self.assertRaises(ValueError, cp.run_cross_predictions, input_df)
+        else:
+            cp.run_cross_predictions(input_df)
+    self.assertTrue(True)
+
+
 class TestDeepCRE(unittest.TestCase):
 
     def test_model_finding(self):
-        results = find_newest_model_path(output_name="arabidopsis", model_case="SSR", model_path="test_folder/model_names")
+        results = dp.find_newest_model_path(output_name="arabidopsis", model_case=ModelCase.SSR, model_path="test_folder/model_names")
         for key in results:
             self.assertTrue(key in ["1", "2"])
         path_to_models = make_absolute_path("test_folder", "model_names", start_file=__file__)

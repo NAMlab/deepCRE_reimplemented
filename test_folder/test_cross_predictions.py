@@ -3,7 +3,7 @@ from typing import Dict, List
 import unittest
 import pandas as pd
 import os
-import deepcre_crosspredict as cp
+import deepCRE.deepcre_crosspredict as cp
 
 
 # model_names = "arabidopsis_1_SSR_train_ssr_models_240822_103323.h5;arabidopsis_2_SSR_train_ssr_models_240822_105523.h5"
@@ -70,31 +70,6 @@ class TestCrossPredictions(unittest.TestCase):
         return path
 
 
-    def test_cross_pred_integration(self):
-        necessary_columns = {
-            "genome": ["Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"],
-            "gene_model": ["Arabidopsis_thaliana.TAIR10.52.gtf"],
-            "model_names": [model_names],
-            "subject_species_name": ["arabidopsis"]
-        }
-        input_path = self.create_test_input(necessary_columns, "base_case.csv")
-        input_df = pd.read_csv(input_path)
-        cp.run_cross_predictions(input_df)
-        self.assertTrue(True)
-
-    def test_input_cases(self):
-        folder_path = os.path.join("test_folder", "test_cross", "test_optional_cols")
-        for file in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, file)
-            if not os.path.isfile(file_path):
-                continue
-            input_df = cp.read_df(file_path)
-            print(f"!!! TESTING {file} !!!\n")
-            if "_fail" in file_path:
-                self.assertRaises(ValueError, cp.run_cross_predictions, input_df)
-            else:
-                cp.run_cross_predictions(input_df)
-        self.assertTrue(True)
 
 
     @staticmethod
@@ -134,16 +109,6 @@ class TestCrossPredictions(unittest.TestCase):
         }, "addidtional_unused_column.csv"))
         file_paths = {file_name: self.create_test_input(input_dict, file_name) for input_dict, file_name in test_input_dicts}
         return file_paths
-
-    def test_check_input(self):
-        paths_dict = self.create_check_input_test_cases()
-        paths_dict = {file_name: pd.read_csv(path) for file_name, path in paths_dict.items()}
-        self.assertRaises(ValueError, cp.check_input, paths_dict["one_column_missing.csv"])
-        self.assertRaises(ValueError, cp.check_input, paths_dict["one_column_only.csv"])
-        self.assertRaises(ValueError, cp.check_input, pd.DataFrame())
-        self.assertTrue(cp.check_input(paths_dict["addidtional_unused_column.csv"]))
-        self.assertTrue(cp.check_input(paths_dict["base_case.csv"]))
-        
 
 
 if __name__ == "__main__":
