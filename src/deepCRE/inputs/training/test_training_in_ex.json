@@ -6,6 +6,7 @@
     "targets": "spec1_targets.csv",
     "output_name": "spec1",
     "pickle_key": "spec1",
+    "chromosomes": "spec1_chroms.csv",
     "extragenic": 800,
     "intragenic": 700,
     "pickle_file": "pickle_file.pkl"

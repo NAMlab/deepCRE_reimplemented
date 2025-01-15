@@ -4,6 +4,7 @@
     "genome": "spec1.fa",
     "annotation": "spec1.gff3",
     "targets": "spec1_targets.csv",
+    "chromosomes": "spec1_chroms.csv",
     "output_name": "spec1",
     "pickle_key": "spec1",
     "ignore_small_genes": false,
