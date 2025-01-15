@@ -635,6 +635,13 @@ def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
     return combined_results
 
 
+def get_chromosomes(species_info: List[Dict[str, Any]]) -> List[str]:
+    chromosomes = species_info[0]["chromosomes"]
+    if not chromosomes:
+        raise ValueError("For SSR/SSC training, a list of chromosomes must be provided, if train_val_split isnt True!")
+    return chromosomes
+
+
 def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str) -> List [Dict[str, Any]]:
     specie_info = species_info[0]
     print(f'Single species Training on genome: ---------------------\n')
@@ -644,7 +651,7 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
         print(f"Using random 80/20 gene-based split for validation")
         chromosomes=[1,2,3]
     else:
-        chromosomes = species_info[0]["chromosomes"]
+        chromosomes = get_chromosomes(species_info)
     combined_results = []
     for val_chrom in chromosomes:
         print(f"Using chromosome {val_chrom} as validation chromosome")
@@ -665,6 +672,12 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
 
 
 def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Exception]], input_length: int):
+    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+    training_results_path = make_absolute_path('results', "training", start_file=__file__)
+    models_path = make_absolute_path("saved_models", start_file=__file__)
+    os.makedirs(training_results_path, exist_ok=True)
+    os.makedirs(models_path, exist_ok=True)
+
     file_name = get_filename_from_path(__file__)
     time_stamp = get_time_stamp()
     run_info: RunInfo
@@ -690,8 +703,7 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
 
 
-
-def main():
+def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
     possible_general_parameters = {
         "genome": None,
         "annotation": None,
@@ -716,17 +728,15 @@ def main():
         "pickle_file": "validation_genes.pickle",
         "species_name": None,
     }
-    args = parse_args()
-    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters, multiple_species_required_msr=True)
+    inputs, failed_trainings, input_length = ParsedInputs.parse(input_file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters, multiple_species_required_msr=True)
     inputs = inputs.replace_both()
     print(inputs)
+    return inputs, failed_trainings, input_length
 
-    os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-    training_results_path = make_absolute_path('results', "training", start_file=__file__)
-    models_path = make_absolute_path("saved_models", start_file=__file__)
-    os.makedirs(training_results_path, exist_ok=True)
-    os.makedirs(models_path, exist_ok=True)
 
+def main():
+    args = parse_args()
+    inputs, failed_trainings, input_length = parse_input_file(args.input)
     train_models(inputs, failed_trainings,  input_length)
 
 if __name__ == "__main__":

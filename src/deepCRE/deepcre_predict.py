@@ -146,7 +146,7 @@ def parse_args():
     return args
 
 
-def main():
+def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
     possible_general_parameters = {
         "genome": None,
         "annotation": None,
@@ -163,10 +163,15 @@ def main():
         "chromosomes": "",
         "species_name": ""
     }
-    args = parse_args()
-    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
+    inputs, failed_trainings, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()
     print(inputs)
+    return inputs, failed_trainings, input_length
+
+
+def main():
+    args = parse_args()
+    inputs, failed_trainings, input_length = parse_input_file(args.input)
     predict(inputs, failed_trainings=failed_trainings, input_length=input_length)
 
 

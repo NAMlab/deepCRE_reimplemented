@@ -242,7 +242,7 @@ def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], inpu
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
 
 
-def main():
+def parse_input_file(file: str):
     possible_general_parameters = {
         "model_case": None,
         "genome": None,
@@ -259,11 +259,16 @@ def main():
     possible_species_parameters = {
         "subject_species": "",
     }
-    args = parse_args()
-    inputs, failed_trainings, input_length = ParsedInputs.parse(args.input, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
+    inputs, failed_trainings, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()
     print(inputs)
+    return inputs, failed_trainings, input_length
 
+
+
+def main():
+    args = parse_args()
+    inputs, failed_trainings, input_length = parse_input_file(args.input)
     run_interpretation(inputs=inputs, failed_trainings=failed_trainings, input_length=input_length)
 
 if __name__ == "__main__":
