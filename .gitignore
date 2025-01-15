@@ -1,8 +1,8 @@
-results/*
-genome/*
-saved_models/*
-tpm_counts/*
-gene_models/*
+src/deepCRE/results/*
+src/deepCRE/genome/*
+src/deepCRE/saved_models/*
+src/deepCRE/tpm_counts/*
+src/deepCRE/gene_models/*
 test_folder/arabidopsis_deepcre_predict_240827_144836_same_old.csv
 test_folder/arabidopsis_deepcre_predict_240916_165930_meins.csv
 test_folder/arabidopsis_deepcre_predict_240916_170201_fritz_merge.csv
@@ -10,13 +10,14 @@ test_folder/compare.py
 test_folder/*/*.csv
 test_folder/*/*/*.csv
 test_folder/*/*/*/*.csv
-figures/*
-run_config/*
+src/deepCRE/figures/*
+src/deepCRE/run_config/*
 .vscode/*
 test_folder/*.csv
 test_folder/logbooks/*
 test_folder/logs/*
 run_config/*
+*.fai
 
 #### GITHUB PYTHON TEMPLATE
 

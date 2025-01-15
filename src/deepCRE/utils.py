@@ -58,18 +58,16 @@ def get_filename_from_path(path: str) -> str:
 
 
 def load_annotation(annotation_path) -> pd.DataFrame:
-    if annotation_path.endswith('.gtf'):
-        gene_model = pr.read_gtf(f=annotation_path, as_df=True)
-        #gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
-        if 'gene_biotype' in gene_model.columns:
-            gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
-        gene_model = gene_model[gene_model['Feature'] == 'gene']
-        gene_model = gene_model[['Chromosome', 'Start', 'End', 'Strand', 'gene_id']]
+    gene_model = pr.read_gtf(f=annotation_path, as_df=True) if annotation_path.endswith(".gtf") else pr.read_gff3(f=annotation_path, as_df=True)
+    gene_model = gene_model[gene_model['Feature'] == 'gene']
+    columns = ['Chromosome', 'Start', 'End', 'Strand']
+    if 'gene_id' in gene_model.columns:
+        columns.append('gene_id')
     else:
-        gene_model = pr.read_gff3(annotation_path, as_df=True)
-        gene_model = gene_model[gene_model['Feature'] == 'gene']
-        gene_model = gene_model[['Chromosome', 'Start', 'End', 'Strand', 'ID']]
-
+        columns.append('ID')
+    if 'gene_biotype' in gene_model.columns:
+        gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
+    gene_model = gene_model[columns]
     return gene_model           #type:ignore
 
 
@@ -98,7 +96,7 @@ def load_annotation_msr(annotation_path) -> pd.DataFrame:
 
 
 def get_input_file_path(file_name: str, output_dir: str, species_name: str) -> str:
-    combined_path = os.path.join(output_dir, file_name)
+    combined_path = make_absolute_path(output_dir, file_name, start_file=__file__)
     absolute_path = file_name
     if os.path.exists(combined_path):
         file_path = combined_path

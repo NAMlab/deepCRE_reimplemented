@@ -4,7 +4,6 @@ import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
-from utils import get_filename_from_path, get_time_stamp, one_hot_encode, make_absolute_path, result_summary, combine_annotations, combine_fasta, combine_tpms, load_input_files
 from tensorflow.keras.layers import Dropout, Dense, Input, Conv1D, Activation, MaxPool1D, Flatten               #type:ignore
 from tensorflow.keras.optimizers import Adam                                                                    #type:ignore
 from tensorflow.keras import Model                                                                              #type:ignore
@@ -17,7 +16,9 @@ from pyfaidx import Fasta
 from sklearn.utils import shuffle
 import re
 import sys
-from parsing import ParsedInputs, RunInfo, ModelCase
+
+from deepCRE.parsing import ParsedInputs, RunInfo, ModelCase
+from deepCRE.utils import get_filename_from_path, get_time_stamp, one_hot_encode, make_absolute_path, result_summary, combine_annotations, combine_fasta, combine_tpms, load_input_files
 
 
 class TerminationError(Exception):
@@ -294,6 +295,7 @@ def calculate_conditions(val_chromosome, model_case, train_val_split: bool, test
 
 
 def set_up_validation_genes(genes_picked, pickled_key, model_case):
+    genes_picked = genes_picked if os.path.isfile(genes_picked) else make_absolute_path(genes_picked, start_file=__file__)
     if model_case in [ModelCase.SSR, ModelCase.SSC]:
         with open(genes_picked, 'rb') as handle:
             validation_genes = pickle.load(handle)
@@ -682,6 +684,7 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
         except TerminationError as e:
             raise e
         except Exception as e:
+            raise e
             print(e)
             failed_trainings.append((run_info.general_info["output_name"], i, e))
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
@@ -728,16 +731,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # TODO: test everything
-        # especially gene extraction for all cases, ESPECIALL train_val_split
-    #TODO: inputs.json should work
-    #TODO: make sure all models / inputs / outputs are found correctly
-    #TODO: talk about 80/20 split in general; and MSR in general
-    #TODO: consistenly use ModelCase enum
-    #TODO: convert old scripts to json files
-    # for MSR models: for predict / interpret / models, make sure that new combninations of species (other than in training process) are possible
-        # currently need to give path to combined input files, which dont exist for new species combinations
-    # TODO: distinguish between output_name for finding trained models and output_name for saving results
-    # TODO: add script for creating pickle files
-    # TODO: should interpret run with crosspredictions? so models can be selected specifically, and all data is used for each model.
-    # TODO: why differentiate between model cases, if only the name of the "output_name" changes in input file?

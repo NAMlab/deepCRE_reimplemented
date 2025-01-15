@@ -5,10 +5,9 @@ import json
 import os
 from typing import Any, Dict, Iterable, List, Tuple
 from copy import deepcopy
-
 import pandas as pd
 
-from utils import make_absolute_path, read_feature_from_input_dict
+from deepCRE.utils import make_absolute_path, read_feature_from_input_dict
 
 
 
@@ -183,6 +182,7 @@ class ParsedInputs:
                     raise ValueError(f"Only one species per run allowed for running this script! Found {len(curr_run_info.species_info)}!")
                 parsed_object.run_infos.append(curr_run_info)
             except Exception as e:
+                raise e
                 print(f"error reading input run number {i + 1}.")
                 print(f"error message is: \"{e}\"")
                 print(f"the dictionary that was loaded for the run is the following:")

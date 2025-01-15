@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import os
 
+from deepCRE.utils import make_absolute_path
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert RNA seq data into targets for training.")

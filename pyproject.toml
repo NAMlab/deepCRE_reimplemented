@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/deepCRE"]
+
+
+[project]
+name = "deepCRE"
+version = "0.0.1"
+authors = [
+  { name="Gernot Schmitz", email="g.schmitz@fz-juelich.de" },
+  { name="Fritz Peleke", email="peleke@ipk-gatersleben.de"}
+]
+description = "Automated training of deep learning models for prediction and analysis of gene activity"
+readme = "readme.md"
+requires-python = ">=3.8, <3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/NAMlab/deepCRE_reimplemented"
+Issues = "https://github.com/NAMlab/deepCRE_reimplemented/issues"

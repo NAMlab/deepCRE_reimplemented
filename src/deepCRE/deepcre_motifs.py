@@ -6,9 +6,9 @@ import os
 import modisco
 from importlib import reload
 import h5py
-from utils import get_filename_from_path, get_time_stamp, make_absolute_path, load_annotation_msr, result_summary
-from deepcre_interpret import extract_scores, find_newest_interpretation_results
-from parsing import ModelCase, ParsedInputs, RunInfo
+from deepCRE.utils import get_filename_from_path, get_time_stamp, make_absolute_path, load_annotation_msr, result_summary
+from deepCRE.deepcre_interpret import extract_scores, find_newest_interpretation_results
+from deepCRE.parsing import ModelCase, ParsedInputs, RunInfo
 
 
 def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name):

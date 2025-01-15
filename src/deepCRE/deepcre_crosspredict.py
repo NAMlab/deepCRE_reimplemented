@@ -5,9 +5,9 @@ from tensorflow.keras.models import load_model #type:ignore
 from typing import List, Tuple, Dict, Any, Union
 import argparse
 
-from train_models import extract_genes_prediction
-from utils import make_absolute_path, load_input_files, get_filename_from_path, get_time_stamp, result_summary
-from parsing import ModelCase, ParsedInputs, RunInfo
+from deepCRE.train_models import extract_genes_prediction
+from deepCRE.utils import make_absolute_path, load_input_files, get_filename_from_path, get_time_stamp, result_summary
+from deepCRE.parsing import ModelCase, ParsedInputs, RunInfo
 
 
 def predict_other(extragenic: int, intragenic: int, curr_chromosome: str, model_names: List[str], extracted_genes: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]) -> Tuple[pd.DataFrame, Dict[str, Any]]:

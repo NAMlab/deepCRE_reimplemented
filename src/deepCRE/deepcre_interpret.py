@@ -10,10 +10,10 @@ import shap
 from pyfaidx import Fasta 
 import re
 
-from utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, load_annotation_msr, result_summary
-from deepcre_predict import predict_self
-from train_models import extract_genes_prediction
-from parsing import ModelCase, ParsedInputs, RunInfo
+from deepCRE.utils import get_time_stamp, get_filename_from_path, load_input_files, make_absolute_path, load_annotation_msr, result_summary
+from deepCRE.deepcre_predict import predict_self
+from deepCRE.train_models import extract_genes_prediction
+from deepCRE.parsing import ModelCase, ParsedInputs, RunInfo
 
 
 def find_newest_interpretation_results(output_name: str, results_path: str = "") -> str:

@@ -3,11 +3,12 @@ import os
 from typing import Any, Dict, List, Optional, Tuple
 from tensorflow.keras.models import load_model #type:ignore
 import pandas as pd
-from utils import get_filename_from_path, get_time_stamp, load_annotation_msr, load_input_files, one_hot_encode, make_absolute_path, result_summary
-from train_models import extract_genes_prediction, find_newest_model_path
 import numpy as np
 from pyfaidx import Fasta
-from parsing import ModelCase, ParsedInputs, RunInfo
+
+from deepCRE.parsing import ModelCase, ParsedInputs, RunInfo
+from deepCRE.utils import get_filename_from_path, get_time_stamp, load_annotation_msr, load_input_files, one_hot_encode, make_absolute_path, result_summary
+from deepCRE.train_models import extract_genes_prediction, find_newest_model_path
 
 
 def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case: ModelCase, extracted_genes):
