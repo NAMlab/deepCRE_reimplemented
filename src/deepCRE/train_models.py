@@ -185,7 +185,7 @@ def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic
     return extracted_seqs
 
 
-def deep_cre(x_train, y_train, x_val, y_val, output_name, model_case, chrom, time_stamp: str):
+def deep_cre(x_train, y_train, x_val, y_val, output_name, model_case, chrom, time_stamp: str, test: bool = False):
     """
 
     :param x_train: onehot encoded train matrix
@@ -238,8 +238,8 @@ def deep_cre(x_train, y_train, x_val, y_val, output_name, model_case, chrom, tim
     model_chkpt = ModelCheckpoint(filepath=checkpoint_path,
                                   save_best_only=True,
                                   verbose=1)
-    early_stop = EarlyStopping(patience=10)
-    reduce_lr = ReduceLROnPlateau(patience=5, factor=0.1)
+    early_stop = EarlyStopping(patience=3) if test else EarlyStopping(patience=10)
+    reduce_lr = ReduceLROnPlateau(patience=3, factor=0.1) if test else ReduceLROnPlateau(patience=5, factor=0.1)
     model.compile(loss='binary_crossentropy', optimizer=Adam(0.0001),
                   metrics=['accuracy', AUC(curve="ROC", name='auROC'), AUC(curve="PR", name='auPR')])
     model.fit(x_train, y_train, batch_size=64, epochs=100, validation_data=(x_val, y_val),
@@ -440,14 +440,14 @@ def balance_dataset(x, y):
 
 
 def train_deep_cre(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_picked, val_chromosome, output_name,
-                   model_case: str, ignore_small_genes: bool, train_val_split: bool, time_stamp: str,  test_specie: Optional[pd.DataFrame] = None, pickled_key: Optional[str] = None):
+                   model_case: str, ignore_small_genes: bool, train_val_split: bool, time_stamp: str,  test_specie: Optional[pd.DataFrame] = None, pickled_key: Optional[str] = None, test: bool = False):
     train_seqs, train_targets, val_seqs, val_targets = extract_genes_training(genome_path, annotation_path, tpm_path, extragenic, intragenic,
                                                                    genes_picked, pickled_key, val_chromosome, model_case, ignore_small_genes,
                                                                    train_val_split=train_val_split, test_specie=test_specie, time_stamp=time_stamp)
     x_train, y_train = balance_dataset(train_seqs, train_targets)
     x_val, y_val = balance_dataset(val_seqs, val_targets)
     output = deep_cre(x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, output_name=output_name,
-                      model_case=model_case, chrom=val_chromosome, time_stamp=time_stamp)
+                      model_case=model_case, chrom=val_chromosome, time_stamp=time_stamp, test=test)
     return output
 
 
@@ -597,7 +597,7 @@ def train_ssr_ssc(data: pd.DataFrame, args, failed_trainings: List[Tuple], file_
     result_summary(failed_trainings=failed_trainings, input_length=len(data), script=get_filename_from_path(__file__))"""
 
 
-def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str) -> List[Dict[str, Any]]:
+def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str, test: bool = False) -> List[Dict[str, Any]]:
     #msr stuff
     species: List[str] = [specie["species_name"] for specie in species_info]
     naming = "_".join([specie[:3] for specie in species])
@@ -620,7 +620,7 @@ def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
             genome_path=genome_path, annotation_path=annotation_path, tpm_path=tpm_path, extragenic=general_info["extragenic"],
             intragenic=general_info["intragenic"], genes_picked=test_specie_info["pickle_file"], val_chromosome=test_specie_info["species_name"],
             output_name=general_info["output_name"], model_case=general_info["model_case"], ignore_small_genes=general_info["ignore_small_genes"],
-            train_val_split=general_info["train_val_split"], test_specie=test_specie_info["species_name"], time_stamp=time_stamp
+            train_val_split=general_info["train_val_split"], test_specie=test_specie_info["species_name"], time_stamp=time_stamp, test=test
         ) 
         results_with_info = {
             'loss': results[0],
@@ -642,7 +642,7 @@ def get_chromosomes(species_info: List[Dict[str, Any]]) -> List[str]:
     return chromosomes
 
 
-def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str) -> List [Dict[str, Any]]:
+def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str, test: bool = False) -> List [Dict[str, Any]]:
     specie_info = species_info[0]
     print(f'Single species Training on genome: ---------------------\n')
     print(specie_info["genome"])
@@ -658,7 +658,7 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
         results = train_deep_cre(genome_path=specie_info["genome"], annotation_path=specie_info["annotation"], tpm_path=specie_info["targets"], extragenic=general_info["extragenic"],
                                         intragenic=general_info["intragenic"], genes_picked=specie_info["pickle_file"], val_chromosome=val_chrom,
                                         output_name=general_info["output_name"], model_case=general_info["model_case"], pickled_key=specie_info["pickle_key"],
-                                        ignore_small_genes=general_info["ignore_small_genes"], train_val_split=general_info["train_val_split"], time_stamp=time_stamp)
+                                        ignore_small_genes=general_info["ignore_small_genes"], train_val_split=general_info["train_val_split"], time_stamp=time_stamp, test=test)
         results_with_info = {
             'loss': results[0],
             'accuracy': results[1],
@@ -671,7 +671,7 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
     return combined_results
 
 
-def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Exception]], input_length: int):
+def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Exception]], input_length: int, test: bool = False):
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     training_results_path = make_absolute_path('results', "training", start_file=__file__)
     models_path = make_absolute_path("saved_models", start_file=__file__)
@@ -687,9 +687,9 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
             gen_info = run_info.general_info
             spec_info = run_info.species_info
             if run_info.is_msr():
-                results = run_msr(species_info=spec_info, general_info=gen_info, time_stamp=time_stamp)
+                results = run_msr(species_info=spec_info, general_info=gen_info, time_stamp=time_stamp, test=test)
             else:
-                results = run_ssr(species_info=spec_info, general_info=gen_info, time_stamp=time_stamp)
+                results = run_ssr(species_info=spec_info, general_info=gen_info, time_stamp=time_stamp, test=test)
             results = pd.DataFrame(results, columns=['test', 'loss', 'accuracy', 'auROC', 'auPR'])
             save_file = make_absolute_path('results', f"{gen_info['output_name']}_{file_name}_{gen_info['model_case']}_{time_stamp}.csv", start_file=__file__)
             results.to_csv(path_or_buf=save_file, index=False)
@@ -709,7 +709,7 @@ def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int
         "annotation": None,
         "targets": None,
         "output_name": None,
-        "chromosomes": None,
+        "chromosomes": "",
         "pickle_key": None,
         "pickle_file": "validation_genes.pickle",
         "model_case": None,
@@ -723,7 +723,7 @@ def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int
         "genome": None,
         "annotation": None,
         "targets": None,
-        "chromosomes": None,
+        "chromosomes": "",
         "pickle_key": None,
         "pickle_file": "validation_genes.pickle",
         "species_name": None,
