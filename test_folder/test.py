@@ -9,7 +9,7 @@ import json
 
 from deepCRE.parsing import ModelCase
 from deepCRE.utils import load_input_files, make_absolute_path, get_time_stamp
-from deepCRE.train_models import extract_genes_prediction
+import deepCRE.train_models as train
 import deepCRE.deepcre_predict as dp
 import deepCRE.deepcre_crosspredict as cp
 import deepCRE.deepcre_interpret as di
@@ -99,7 +99,7 @@ def test_predict_other():
         extragenic = 1000
         intragenic = 500
         ignore_small_genes = True
-        extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
+        extracted_genes = train.extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
         results_dfs = []
         for chrom in range(1, num_chromosomes + 1):
             results, _ = cp.predict_other(extragenic=extragenic, intragenic=intragenic, curr_chromosome=str(chrom), model_names=output_name,
@@ -170,33 +170,21 @@ def test_motif_extraction():
 
 
 def input_integration_tests():
-    
-
-def test_cross_pred_integration(self):
-    necessary_columns = {
-        "genome": ["Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"],
-        "gene_model": ["Arabidopsis_thaliana.TAIR10.52.gtf"],
-        "model_names": [model_names],
-        "subject_species_name": ["arabidopsis"]
+    # dict with folder and corresponding functions
+    test_folders = {
+        "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
+        "src/deepCRE/inputs/prediction": (dp.parse_input_file, dp.predict),
+        "src/deepCRE/inputs/cross_prediction": (cp.parse_input_file, cp.run_cross_predictions),
+        "src/deepCRE/inputs/motif_extraction": (dm.parse_input_file, dm.run_motif_extraction),
+        "src/deepCRE/inputs/interpretation": (di.parse_input_file, di.run_interpretation)
     }
-    input_path = self.create_test_input(necessary_columns, "base_case.csv")
-    input_df = pd.read_csv(input_path)
-    cp.run_cross_predictions(input_df)
-    self.assertTrue(True)
-
-def test_input_cases(self):
-    folder_path = os.path.join("test_folder", "test_cross", "test_optional_cols")
-    for file in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, file)
-        if not os.path.isfile(file_path):
-            continue
-        input_df = cp.read_df(file_path)
-        print(f"!!! TESTING {file} !!!\n")
-        if "_fail" in file_path:
-            self.assertRaises(ValueError, cp.run_cross_predictions, input_df)
-        else:
-            cp.run_cross_predictions(input_df)
-    self.assertTrue(True)
+    for folder, functions in test_folders.items():
+        input_files = os.listdir(folder)
+        for file in input_files:
+            print(file)
+            file_path = os.path.join(folder, file)
+            inputs, failed_trainings, input_length = functions[0](file_path)
+            functions[1](inputs, failed_trainings, input_length, test=True)
 
 
 class TestDeepCRE(unittest.TestCase):
@@ -225,4 +213,5 @@ if __name__ == "__main__":
     # read_h5_datasets()
     # read_hdf5_datasets()
     # print_chroms()
-    save_json_list()
+    # save_json_list()
+    input_integration_tests()
