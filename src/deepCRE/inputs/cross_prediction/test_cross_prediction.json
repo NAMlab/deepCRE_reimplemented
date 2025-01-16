@@ -1,14 +1,14 @@
 [
   {
-    "output_base": "spec1_spec2",
-    "genome": "genome_spec1_spec2.fa",
-    "annotation": "gtf_spec1_spec2.csv",
-    "prediction_models": "saved_models/models_spec1_spec2.csv"
+    "output_base": "spec_1_2_3",
+    "genome": "genome_spec1_spec2_spec3.fa",
+    "annotation": "gtf_spec1_spec2_spec3.csv",
+    "prediction_models": "spec_1_2_3_spec3_msr_train_models_250115_183815.h5"
   },
   {
     "genome": "spec1.fa",
     "annotation": "spec1.gff3",
-    "output_path": "saved_models/spec1_self_cross.csv",
-    "prediction_models": ["arabidopsis_1_SSR_train_ssr_models_240822_103323.h5", "arabidopsis_2_SSR_train_ssr_models_240816_184026.h5"]
+    "output_base": "spec1",
+    "prediction_models": ["spec1_chr_1_ssr_train_models_250115_182836.h5", "spec1_chr_2_ssr_train_models_250115_182836.h5"]
   }
 ]

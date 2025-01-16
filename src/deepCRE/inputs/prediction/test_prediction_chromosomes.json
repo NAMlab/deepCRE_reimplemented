@@ -9,15 +9,15 @@
       }
     ],
     "model_case": "msr",
-    "genome": "genome_spec1_spec2.fa",
-    "annotation": "gtf_spec1_spec2.csv",
-    "chromosomes": "arabidopsis_chroms.csv"
+    "genome": "genome_spec1_spec2_spec3.fa",
+    "annotation": "gtf_spec1_spec2_spec3.csv",
+    "chromosomes": ["chr1_spec1", "chr2_spec2", "chr3_spec3"]
   },
   {
     "model_case": "ssr",
     "genome": "spec1.fa",
     "annotation": "spec1.gff3",
     "training_output_name": "spec1",
-    "chromosomes": ["1", "2"]
+    "chromosomes": "spec1_chroms.csv"
   }
 ]
