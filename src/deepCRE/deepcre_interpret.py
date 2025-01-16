@@ -224,11 +224,10 @@ def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], inpu
         try: 
             check_run_info(run_info)
             model_case = run_info.general_info['model_case']
+            output_name = run_info.general_info["training_output_name"]
             if model_case == ModelCase.MSR:
-                output_name = run_info.species_info[0]["subject_species"]
                 chromosome_list = None
             if model_case in [ModelCase.SSR, ModelCase.SSC]:
-                output_name = run_info.general_info["training_output_name"]
                 chromosome_list = run_info.general_info["chromosomes"]
             extract_scores(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"],
                             tpm_counts_file_name=run_info.general_info["targets"], upstream=run_info.general_info["extragenic"],
