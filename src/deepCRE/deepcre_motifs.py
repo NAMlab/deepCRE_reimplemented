@@ -94,9 +94,6 @@ def parse_args():
 
 
 def run_motif_extraction(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
-    tf.compat.v1.disable_eager_execution()
-    tf.compat.v1.disable_v2_behavior()
-    tf.config.set_visible_devices([], 'GPU')
 
     run_info: RunInfo
     for i, run_info in enumerate(inputs):       #type:ignore
@@ -145,6 +142,9 @@ def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
 
 
 def main():
+    tf.compat.v1.disable_eager_execution()
+    tf.compat.v1.disable_v2_behavior()
+    tf.config.set_visible_devices([], 'GPU')
     args = parse_args()
     inputs, failed_trainings, input_length = parse_input_file(args.input)
     run_motif_extraction(inputs, failed_trainings, input_length)

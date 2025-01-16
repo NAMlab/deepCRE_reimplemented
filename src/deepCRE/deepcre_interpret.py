@@ -215,9 +215,6 @@ def check_run_info(run_info: RunInfo):
 
 
 def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
-    tf.compat.v1.disable_eager_execution()
-    tf.compat.v1.disable_v2_behavior()
-    tf.config.set_visible_devices([], 'GPU')
 
     for i, run_info in enumerate(inputs):     #type:ignore
         output_name = ""
@@ -267,6 +264,9 @@ def parse_input_file(file: str):
 
 
 def main():
+    tf.compat.v1.disable_eager_execution()
+    tf.compat.v1.disable_v2_behavior()
+    tf.config.set_visible_devices([], 'GPU')
     args = parse_args()
     inputs, failed_trainings, input_length = parse_input_file(args.input)
     run_interpretation(inputs=inputs, failed_trainings=failed_trainings, input_length=input_length)

@@ -6,6 +6,7 @@ import pyranges as pr
 import h5py
 from BCBio import GFF
 import json
+import tensorflow as tf
 
 from deepCRE.parsing import ModelCase
 from deepCRE.utils import load_input_files, make_absolute_path, get_time_stamp
@@ -170,6 +171,11 @@ def test_motif_extraction():
 
 
 def input_integration_tests():
+
+    # set up tf settings exactly once
+    tf.compat.v1.disable_eager_execution()
+    tf.compat.v1.disable_v2_behavior()
+    tf.config.set_visible_devices([], 'GPU')
     # dict with folder and corresponding functions
     test_folders = {
         "src/deepCRE/inputs/prediction": (dp.parse_input_file, dp.predict),
