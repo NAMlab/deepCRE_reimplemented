@@ -34,7 +34,7 @@
       }
     ],
     "model_case": "msr",
-    "chromosomes": "arabidopsis_chroms.csv",
+    "chromosomes": "spec1_chroms.csv",
     "output_name": "spec_1_2_3",
     "pickle_file": "pickle_file.pkl"
   }

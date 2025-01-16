@@ -645,7 +645,7 @@ def get_chromosomes(species_info: List[Dict[str, Any]]) -> List[str]:
 
 def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str, test: bool = False) -> List [Dict[str, Any]]:
     specie_info = species_info[0]
-    print(f'Single species Training on genome: ---------------------\n')
+    print(f'Single species Training on genome:\n------------------------------\n')
     print(specie_info["genome"])
     print('\n------------------------------\n')
     if general_info["train_val_split"]:
