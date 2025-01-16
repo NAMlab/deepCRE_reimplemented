@@ -48,14 +48,10 @@ def find_newest_model_path(output_name: str, model_case: ModelCase, val_chromoso
     # more detailed explanation at https://regex101.com/, put in "^ara_(\d+)_ssr_\d+_\d+\.h5$"
     
     if val_chromosome == "":
-        regex_string = f"^{output_name}_(.+)_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                                    #type:ignore
+        regex_string = f"^{output_name}_(.+)_{model_case}_train_models_\d+_\d+\.h5$"                                                                    #type:ignore
     else:
-        regex_string = f"^{output_name}_{val_chromosome}_{model_case}_train_ssr_models_\d+_\d+\.h5$"                                                        #type:ignore
+        regex_string = f"^{output_name}_{val_chromosome}_{model_case}_train_models_\d+_\d+\.h5$"                                                        #type:ignore
         
-    if model_case == ModelCase.MSR: 
-        regex_string = f"^{output_name}_model_{model_case}_train_ssr_models_\d+_\d+\.h5$"     # specific for now    #type:ignore
-      
-
     regex = re.compile(regex_string)
     #print(regex)
     candidate_models = [model for model in os.listdir(path_to_models)]
