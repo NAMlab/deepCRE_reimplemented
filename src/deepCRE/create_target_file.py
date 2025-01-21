@@ -11,6 +11,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Convert RNA seq data into targets for training.")
     parser.add_argument("--input_path", "-i", help="path to the RNA seq data.", required=True)
     parser.add_argument("--output_path", "-o", help="path to output file.", default="")
+    parser.add_argument("--target_column", "-t", help="column to use for target calculation. Default=\"logMaxTPM\"", default="logMaxTPM")
     args = parser.parse_args()
     return args
 
@@ -23,6 +24,7 @@ def main():
     else:
         base_name = os.path.splitext(os.path.basename(tpm_path))[0]
         output_path = make_absolute_path("tpm_counts", f"{base_name}_targets.csv", start_file=__file__)
+    target_column = args.target_column
 
     # Create the output directory if it doesn't exist
     output_dir = os.path.dirname(output_path)
@@ -33,10 +35,12 @@ def main():
     true_targets = []
 
     # Calculate targets based on logMaxTPM
-    for log_count in tpm_counts['logMaxTPM'].values:
-        if log_count <= np.percentile(tpm_counts['logMaxTPM'], 25):
+    lower_quartile = np.percentile(tpm_counts[target_column], 25)
+    upper_quartile = np.percentile(tpm_counts[target_column], 75)
+    for log_count in tpm_counts[target_column].values:
+        if log_count <= lower_quartile:
             true_targets.append(0)
-        elif log_count >= np.percentile(tpm_counts['logMaxTPM'], 75):
+        elif log_count >= upper_quartile:
             true_targets.append(1)
         else:
             true_targets.append(2)
