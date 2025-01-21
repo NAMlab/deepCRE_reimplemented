@@ -7,7 +7,7 @@ import modisco
 from importlib import reload
 import h5py
 from deepCRE.utils import get_filename_from_path, get_time_stamp, make_absolute_path, load_annotation_msr, result_summary
-from deepCRE.deepcre_interpret import extract_scores, find_newest_interpretation_results
+from deepCRE.deepcre_interpret import extract_scores, find_newest_interpretation_results, get_val_obj_names
 from deepCRE.parsing import ModelCase, ParsedInputs, RunInfo
 
 
@@ -35,7 +35,8 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
             initial_flank_to_add=2,
             final_flank_to_add=0,
             final_min_cluster_size=30,
-            n_cores=5)
+            n_cores=5
+        )
     )(
         task_names=['task0'],
         contrib_scores={'task0': contribution_scores},
@@ -51,7 +52,7 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
 
 
 def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_small_genes,
-                    output_name, model_case, chromosome_list: Optional[List[str]], force_interpretation: bool = False):
+                    output_name, model_case, validation_object_names: List[str], force_interpretation: bool = False):
     #just load existing scores
     if not force_interpretation:
         try: 
@@ -67,7 +68,7 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
         actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
                                                                             tpm_counts_file_name=tpm_targets,
                                                                             upstream=upstream, downstream=downstream,
-                                                                            validation_obj_names=chromosome_list,
+                                                                            validation_obj_names=validation_object_names,
                                                                             ignore_small_genes=ignore_small_genes,
                                                                             output_name=output_name,
                                                                             model_case=model_case)
@@ -109,10 +110,11 @@ def run_motif_extraction(inputs: ParsedInputs, failed_trainings: List[Tuple], in
 
             elif run_info.general_info["model_case"] in [ModelCase.SSR, ModelCase.SSC]:
                 output_name = run_info.general_info["training_output_name"]
+            validation_obj_names = get_val_obj_names(run_info)
             generate_motifs(genome=run_info.general_info["genome"], annot=run_info.general_info["annotation"], tpm_targets=run_info.general_info["targets"],
                             upstream=run_info.general_info["extragenic"], downstream=run_info.general_info["intragenic"],
                             ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
-                            model_case=run_info.general_info["model_case"], chromosome_list=run_info.general_info["chromosomes"], force_interpretation=run_info.general_info["force_interpretations"])
+                            model_case=run_info.general_info["model_case"], validation_object_names=validation_obj_names, force_interpretation=run_info.general_info["force_interpretations"])
         except Exception as e:
             print(e)
             failed_trainings.append((output_name, i, e))
@@ -134,8 +136,11 @@ def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
         "intragenic": 500,
         "force_interpretations": False
     }
-
-    inputs, failed_trainings, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters={})
+    possible_species_parameters = {
+        "species_name": "",
+        "chromosomes": ""
+    }
+    inputs, failed_trainings, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()
     print(inputs)
     return inputs, failed_trainings, input_length

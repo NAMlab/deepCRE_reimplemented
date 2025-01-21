@@ -1,5 +1,16 @@
 [
   {
+    "species_data": [
+      {
+        "species_name": "spec1"
+      },
+      {
+        "species_name": "spec2"
+      },
+      {
+        "species_name": "spec3"
+      }
+    ],
     "training_output_name": "spec_1_2_3",
     "genome": "genome_spec1_spec2_spec3.fa",
     "annotation": "gtf_spec1_spec2_spec3.csv",

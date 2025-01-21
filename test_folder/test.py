@@ -166,7 +166,7 @@ def test_motif_extraction():
                     ignore_small_genes=False,
                     output_name="arabidopsis",
                     model_case="ssr",
-                    chromosome_list=chromosomes,
+                    validation_object_names=chromosomes,
                     force_interpretation=False)
 
 
