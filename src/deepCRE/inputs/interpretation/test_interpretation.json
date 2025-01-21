@@ -10,7 +10,6 @@
       {
         "species_name": "spec3"
       }
-
     ],
     "genome": "genome_spec1_spec2_spec3.fa",
     "annotation": "gtf_spec1_spec2_spec3.csv",

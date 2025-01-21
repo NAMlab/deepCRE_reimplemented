@@ -1,22 +1,28 @@
 [
-    {
-      "species_data": [
-        {
-          "species_name": "spec_1_2_3"
-        }
-      ],
-      "genome": "genome_spec1_spec2_spec3.fa",
-      "annotation": "gtf_spec1_spec2_spec3.csv",
-      "targets": "tpm_spec1_spec2_spec3.csv",
-      "model_case": "msr",
-      "chromosomes": "spec1_chroms.csv"
-    },
-    {
-      "model_case": "ssr",
-      "genome": "spec1.fa",
-      "annotation": "spec1.gff3",
-      "training_output_name": "spec1",
-      "targets": "spec1_targets.csv",
-      "chromosomes": ["chr_1", "chr_2"]
-    }
-  ]
+  {
+    "species_data": [
+      {
+        "species_name": "spec1"
+      },
+      {
+        "species_name": "spec2"
+      },
+      {
+        "species_name": "spec3"
+      }
+    ],
+    "genome": "genome_spec1_spec2_spec3.fa",
+    "annotation": "gtf_spec1_spec2_spec3.csv",
+    "targets": "tpm_spec1_spec2_spec3.csv",
+    "training_output_name": "spec_1_2_3",
+    "model_case": "msr"
+  },
+  {
+    "model_case": "ssr",
+    "genome": "spec1.fa",
+    "annotation": "spec1.gff3",
+    "training_output_name": "spec1",
+    "targets": "spec1_targets.csv",
+    "chromosomes": ["chr_1", "chr_2"]
+  }
+]
