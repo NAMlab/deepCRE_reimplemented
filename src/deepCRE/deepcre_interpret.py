@@ -195,20 +195,23 @@ def parse_args():
 def check_run_info(run_info: RunInfo):
     if run_info.is_msr():
         for specie_data in run_info.species_info:
-            if specie_data["subject_species"] == "":
+            if specie_data["species_name"] == "":
                 raise ValueError(f"name of species needs to be provided for MSR runs!")
     else:
         if run_info.general_info["training_output_name"] == "":
             raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
 
 
-def get_val_obj_names(run_info: RunInfo, model_case: ModelCase) -> List[str]:
+def get_val_obj_names(run_info: RunInfo) -> List[str]:
+    model_case = run_info.general_info["model_case"]
     if model_case in [ModelCase.SSR, ModelCase.SSC]:
-        val_obj_names = run_info.general_info["chromosomes"]
+        if len(run_info.species_info) > 1:
+            raise ValueError("only one species can be provided for SSR/SSC model cases!")
+        val_obj_names = run_info.species_info[0]["chromosomes"]
         if val_obj_names is None or not val_obj_names:
             raise ValueError("chromosome list must be provided for SSR/SSC model cases!")
     elif model_case == ModelCase.MSR:
-        val_obj_names = [specie_info["subject_species"] for specie_info in run_info.species_info]
+        val_obj_names = [specie_info["species_name"] for specie_info in run_info.species_info]
         if not val_obj_names:
             raise ValueError("species names must be provided for MSR model case!")
     return val_obj_names
@@ -219,9 +222,8 @@ def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], inpu
         output_name = ""
         try: 
             check_run_info(run_info)
-            model_case = run_info.general_info['model_case']
             output_name = run_info.general_info["training_output_name"]
-            val_obj_names = get_val_obj_names(run_info, model_case)
+            val_obj_names = get_val_obj_names(run_info)
             extract_scores(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"],
                             tpm_counts_file_name=run_info.general_info["targets"], upstream=run_info.general_info["extragenic"],
                             downstream=run_info.general_info["intragenic"], validation_obj_names=val_obj_names,
@@ -245,13 +247,14 @@ def parse_input_file(file: str):
         "training_output_name": None,
         "chromosomes": "",
         "ignore_small_genes": True,
-        "subject_species": "",
+        "species_name": "",
         "extragenic": 1000,
         "intragenic": 500
     }
 
     possible_species_parameters = {
-        "subject_species": "",
+        "species_name": "",
+        "chromosomes": "",
     }
     inputs, failed_trainings, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()

@@ -2,7 +2,7 @@
   {
     "species_data": [
       {
-        "subject_species": "spec_1_2_3"
+        "species_name": "spec_1_2_3"
       }
     ],
     "genome": "genome_spec1_spec2_spec3.fa",

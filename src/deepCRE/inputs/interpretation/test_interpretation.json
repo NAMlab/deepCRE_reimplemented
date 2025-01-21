@@ -2,13 +2,13 @@
   {
     "species_data": [
       {
-        "subject_species": "spec1"
+        "species_name": "spec1"
       },
       {
-        "subject_species": "spec2"
+        "species_name": "spec2"
       },
       {
-        "subject_species": "spec3"
+        "species_name": "spec3"
       }
 
     ],
