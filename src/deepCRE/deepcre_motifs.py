@@ -67,7 +67,7 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
         actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
                                                                             tpm_counts_file_name=tpm_targets,
                                                                             upstream=upstream, downstream=downstream,
-                                                                            chromosome_list=chromosome_list,
+                                                                            validation_obj_names=chromosome_list,
                                                                             ignore_small_genes=ignore_small_genes,
                                                                             output_name=output_name,
                                                                             model_case=model_case)

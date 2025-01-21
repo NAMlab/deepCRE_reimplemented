@@ -105,10 +105,10 @@ def single_score_calc(upstream: int, downstream: int, output_name: str, model_ca
 
     correct_x = np.array(correct_x)
 
-            # Compute scores
-    print(f"Running shap for chromosome -----------------------------------------\n")
-    print(f"Validation on {validation_text}\n")
-    print(f"Running shap for chromosome -----------------------------------------\n")
+    # Compute scores
+    print(f"\n-----------------------------------------")
+    print(f"running shap with validation on {validation_text}")
+    print(f"-----------------------------------------\n")
 
     actual_scores, hypothetical_scores = compute_actual_hypothetical_scores(x=correct_x, model=model)
     shap_actual_scores.append(actual_scores)
@@ -118,7 +118,7 @@ def single_score_calc(upstream: int, downstream: int, output_name: str, model_ca
     preds_seqs.extend(correct_y)
 
 
-def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name, upstream, downstream, chromosome_list: Optional[List[str]], ignore_small_genes,
+def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name, upstream, downstream, validation_obj_names: List[str], ignore_small_genes,
                    output_name, model_case):
     """
     This function performs predictions, extracts correct predictions and performs shap computations. This will be
@@ -148,24 +148,12 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
     extracted_genes = extract_genes_prediction(genome, annotation, extragenic=upstream, intragenic=downstream,
                                                ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
 
-    if model_case in [ModelCase.SSR, ModelCase.SSC]:
-    
-        if chromosome_list is None:
-            raise ValueError("chromosome list must be provided for SSR/SSC model cases!")
-        for val_chrom in chromosome_list:
-            validation_text = f"chrom {val_chrom} from {output_name}"
-            single_score_calc(upstream=upstream, downstream=downstream, output_name=output_name, model_case=model_case,
-                              shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
-                              one_hots_seqs=one_hots_seqs, gene_ids_seqs=gene_ids_seqs, preds_seqs=preds_seqs,
-                              extracted_genes=extracted_genes, val_chrom=val_chrom, validation_text=validation_text)
-
-    if model_case == ModelCase.MSR:
-        val_chrom=""
-        validation_text = f"{output_name}"
+    for val_obj_name in validation_obj_names:
+        validation_text = f"{val_obj_name} from {output_name}"
         single_score_calc(upstream=upstream, downstream=downstream, output_name=output_name, model_case=model_case,
-                            shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
-                            one_hots_seqs=one_hots_seqs, gene_ids_seqs=gene_ids_seqs, preds_seqs=preds_seqs,
-                            extracted_genes=extracted_genes, val_chrom=val_chrom, validation_text=validation_text)
+                          shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
+                          one_hots_seqs=one_hots_seqs, gene_ids_seqs=gene_ids_seqs, preds_seqs=preds_seqs,
+                          extracted_genes=extracted_genes, val_chrom=val_obj_name, validation_text=validation_text)
 
     shap_actual_scores = np.concatenate(shap_actual_scores, axis=0)
     shap_hypothetical_scores = np.concatenate(shap_hypothetical_scores, axis=0)
@@ -214,21 +202,29 @@ def check_run_info(run_info: RunInfo):
             raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
 
 
-def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
+def get_val_obj_names(run_info: RunInfo, model_case: ModelCase) -> List[str]:
+    if model_case in [ModelCase.SSR, ModelCase.SSC]:
+        val_obj_names = run_info.general_info["chromosomes"]
+        if val_obj_names is None or not val_obj_names:
+            raise ValueError("chromosome list must be provided for SSR/SSC model cases!")
+    elif model_case == ModelCase.MSR:
+        val_obj_names = [specie_info["subject_species"] for specie_info in run_info.species_info]
+        if not val_obj_names:
+            raise ValueError("species names must be provided for MSR model case!")
+    return val_obj_names
 
+
+def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
     for i, run_info in enumerate(inputs):     #type:ignore
         output_name = ""
         try: 
             check_run_info(run_info)
             model_case = run_info.general_info['model_case']
             output_name = run_info.general_info["training_output_name"]
-            if model_case == ModelCase.MSR:
-                chromosome_list = None
-            if model_case in [ModelCase.SSR, ModelCase.SSC]:
-                chromosome_list = run_info.general_info["chromosomes"]
+            val_obj_names = get_val_obj_names(run_info, model_case)
             extract_scores(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"],
                             tpm_counts_file_name=run_info.general_info["targets"], upstream=run_info.general_info["extragenic"],
-                            downstream=run_info.general_info["intragenic"], chromosome_list=chromosome_list,
+                            downstream=run_info.general_info["intragenic"], validation_obj_names=val_obj_names,
                             ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
                             model_case=run_info.general_info["model_case"])
         except Exception as e:
@@ -244,8 +240,9 @@ def parse_input_file(file: str):
         "model_case": None,
         "genome": None,
         "annotation": None,
+        # genes not included in the target file will be ignored
         "targets": None,
-        "training_output_name": "",
+        "training_output_name": None,
         "chromosomes": "",
         "ignore_small_genes": True,
         "subject_species": "",
@@ -262,7 +259,6 @@ def parse_input_file(file: str):
     return inputs, failed_trainings, input_length
 
 
-
 def main():
     tf.compat.v1.disable_eager_execution()
     tf.compat.v1.disable_v2_behavior()
@@ -270,6 +266,7 @@ def main():
     args = parse_args()
     inputs, failed_trainings, input_length = parse_input_file(args.input)
     run_interpretation(inputs=inputs, failed_trainings=failed_trainings, input_length=input_length)
+
 
 if __name__ == "__main__":
     main()

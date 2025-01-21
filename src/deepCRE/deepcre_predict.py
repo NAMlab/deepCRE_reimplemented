@@ -154,6 +154,7 @@ def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
     possible_general_parameters = {
         "genome": None,
         "annotation": None,
+        # if targets are provided, all genes that are not contained in the targets file are ignored
         "targets": "",
         "training_output_name": None,
         "chromosomes": "",
