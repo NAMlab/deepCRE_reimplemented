@@ -144,11 +144,15 @@ def append_sequence_prediction(tpms: Optional[pd.DataFrame], extracted_seqs: Dic
             x = extracted_tuple[0]                      #type:ignore
             y = extracted_tuple[1]                      #type:ignore
             gene_ids = extracted_tuple[2]               #type:ignore
-        x.append(sequence_to_append)
         if tpms is None:
             y.append("NA")                              #type:ignore
         else:
-            y.append(tpms.loc[gene_id, 'target'])       #type:ignore
+            try:
+                y.append(tpms.loc[gene_id, 'target'])       #type:ignore
+            except KeyError:
+                # if the gene is not in the TPM file, it is not used for predictions
+                return
+        x.append(sequence_to_append)
         gene_ids.append(gene_id)
         extracted_seqs[chrom] = (x, y, gene_ids)
 
