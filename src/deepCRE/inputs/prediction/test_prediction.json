@@ -10,7 +10,8 @@
     ],
     "model_case": "msr",
     "genome": "genome_spec1_spec2_spec3.fa",
-    "annotation": "gtf_spec1_spec2_spec3.csv"
+    "annotation": "gtf_spec1_spec2_spec3.csv",
+    "training_output_name": "spec_1_2_3"
   },
   {
     "model_case": "ssr",

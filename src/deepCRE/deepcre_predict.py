@@ -13,28 +13,28 @@ from deepCRE.train_models import extract_genes_prediction, find_newest_model_pat
 
 def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case: ModelCase, extracted_genes):
 
-    if model_case == ModelCase.MSR:
-        # Combine data from all chromosomes
-        x,y,gene_ids = [], [],[]
-        for chrom, tuple_ in extracted_genes.items():
-            if tuple_:  
-                x_chrom, y_chrom, gene_ids_chrom = tuple_
-                x.extend(x_chrom)  
-                y.extend(y_chrom)
-                gene_ids.extend(gene_ids_chrom)
-        # Convert lists to arrays
-        x = np.array(x)
-        y = np.array(y)
-        gene_ids = np.array(gene_ids)
+    # if model_case == ModelCase.MSR:
+    #     # Combine data from all chromosomes
+    #     x,y,gene_ids = [], [],[]
+    #     for chrom, tuple_ in extracted_genes.items():
+    #         if tuple_:  
+    #             x_chrom, y_chrom, gene_ids_chrom = tuple_
+    #             x.extend(x_chrom)  
+    #             y.extend(y_chrom)
+    #             gene_ids.extend(gene_ids_chrom)
+    #     # Convert lists to arrays
+    #     x = np.array(x)
+    #     y = np.array(y)
+    #     gene_ids = np.array(gene_ids)
 
-        newest_model_paths = find_newest_model_path(output_name=output_name, model_case=model_case)
-        model = load_model(newest_model_paths["model"])
+    #     newest_model_paths = find_newest_model_path(output_name=output_name, model_case=model_case)
+    #     model = load_model(newest_model_paths["model"])
 
-    else:
-        # Handle specific chromosome
-        x, y, gene_ids = extracted_genes[str(val_chromosome)]
-        newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=val_chromosome, model_case=model_case)
-        model = load_model(newest_model_paths[val_chromosome])
+    # else:
+    # Handle specific chromosome
+    x, y, gene_ids = extracted_genes[str(val_chromosome)]
+    newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=val_chromosome, model_case=model_case)
+    model = load_model(newest_model_paths[val_chromosome])
 
     # Masking
     x[:, extragenic:extragenic + 3, :] = 0                                                                                                  #type:ignore
@@ -63,12 +63,10 @@ def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: D
     result.to_csv(output_location, index=False)
 
 
-def run_msr(folder_name: str, file_name: str, general_info: Dict, genome: Fasta, annotation: pd.DataFrame, tpms: Optional[pd.DataFrame], extragenic: int, intragenic: int, species_name: str, time_stamp: str):
-    extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic,
-                                               ignore_small_genes=general_info["ignore_small_genes"], tpms=tpms, target_chromosomes=())
+def run_msr(folder_name: str, file_name: str, general_info: Dict, extragenic: int, intragenic: int, species_name: str, time_stamp: str, extracted_genes, output_name: str):
                     # one predcition per model
     print(f"Predicting for: {species_name}")
-    _, true_targets, preds, genes, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome="", output_name=species_name,
+    _, true_targets, preds, genes, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=species_name, output_name=output_name,
                                                             model_case=general_info["model_case"], extracted_genes=extracted_genes)
     result = pd.DataFrame({'true_targets': true_targets, 'pred_probs': preds, 'genes': genes})
     print(result.head())
@@ -111,21 +109,25 @@ def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: i
             tpms = loaded_files["tpms"] if "tpms" in loaded_files.keys() else None
             extragenic = general_info["extragenic"]
             intragenic = general_info["intragenic"]
+            output_name = general_info["training_output_name"]
 
             check_inputs(run_info)
             if run_info.is_msr(): 
+                extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic,
+                                                           ignore_small_genes=general_info["ignore_small_genes"], tpms=tpms, target_chromosomes=())
                 #for specie, genome_file_name, annotation_file_name, tpm_counts_file_name, output_name, chromosome_file,_  in data.values:
                 for specie_info in species_info:                                                                     # use this 
-                    output_name = specie_info["species_name"]
-                    run_msr(folder_name=folder_name, file_name=file_name, general_info=general_info, genome=genome, annotation=annotation,
-                            tpms=tpms, extragenic=extragenic, intragenic=intragenic, species_name=output_name, time_stamp=time_stamp)
+                    species_name = specie_info["species_name"]
+                    run_msr(folder_name=folder_name, file_name=file_name, general_info=general_info, extragenic=extragenic,
+                            intragenic=intragenic, species_name=species_name, time_stamp=time_stamp, extracted_genes=extracted_genes,
+                            output_name=output_name)
 
             else:
-                output_name = general_info["training_output_name"]
                 run_ssr(folder_name=folder_name, file_name=file_name, general_info=general_info, specie_info=specie_info,
                         genome=genome, annotation=annotation, tpms=tpms, extragenic=extragenic, intragenic=intragenic,
                         output_name=output_name, time_stamp=time_stamp)
         except Exception as e:
+            raise e
             print(e)
             failed_trainings.append((output_name, i, e))
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
@@ -153,7 +155,7 @@ def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
         "genome": None,
         "annotation": None,
         "targets": "",
-        "training_output_name": "",
+        "training_output_name": None,
         "chromosomes": "",
         "model_case": None,
         "ignore_small_genes": True,

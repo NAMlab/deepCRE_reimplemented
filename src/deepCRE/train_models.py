@@ -61,9 +61,7 @@ def find_newest_model_path(output_name: str, model_case: ModelCase, val_chromoso
 
         if match:
             # group 1 is the "(.+)" part of the regex, so the name of the validation chromosome for the model
-            if model_case == ModelCase.MSR:
-                chromosome = "model"
-            elif val_chromosome:
+            if val_chromosome:
                 chromosome = val_chromosome
             else:
                 chromosome = match.group(1)
@@ -163,15 +161,19 @@ def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic
     for values in annotation.values:
         if len(annotation.columns) == 6:
             specie, chrom, start, end, strand, gene_id = values
+            # use specie in place of chromosome because for msr case genes need to be ordered by species, not chromosome
         else:
             chrom, start, end, strand, gene_id = values
+            specie = None
 
         # skip all chromosomes that are not in the target chromosomes. Empty tuple () means, that all chromosomes should be extracted
         if target_chromosomes != () and chrom not in target_chromosomes:
             continue
 
         seq = extract_gene(genome, extragenic, intragenic, ignore_small_genes, expected_final_size, chrom, start, end, strand)
-        append_sequence_prediction(tpms, extracted_seqs, expected_final_size, chrom, gene_id, seq)
+        if specie is not None:
+            chrom = specie
+        append_sequence_prediction(tpms=tpms, extracted_seqs=extracted_seqs, expected_final_size=expected_final_size, chrom=chrom, gene_id=gene_id, sequence_to_append=seq)
 
     # convert lists to arrays
     for chrom, tuple_ in extracted_seqs.items():
