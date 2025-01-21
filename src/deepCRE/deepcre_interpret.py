@@ -214,6 +214,12 @@ def get_val_obj_names(run_info: RunInfo) -> List[str]:
         val_obj_names = [specie_info["species_name"] for specie_info in run_info.species_info]
         if not val_obj_names:
             raise ValueError("species names must be provided for MSR model case!")
+    for val_obj_name in val_obj_names:
+        if val_obj_name == "":
+            if model_case == ModelCase.MSR:
+                raise ValueError("species names must be provided for MSR model case! Species names cant be empty strings.")
+            else:
+                raise ValueError("chromosome names must be provided for SSR/SSC model cases! Chromosome names cant be empty strings.")
     return val_obj_names
 
 
