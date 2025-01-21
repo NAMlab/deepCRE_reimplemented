@@ -36,12 +36,12 @@ def find_newest_interpretation_results(output_name: str, results_path: str = "")
     # ^ and $ mark start and end of a string. \d singnifies any digit. \d+ means a sequence of digits with at least length 1
     regex_string = f"^{output_name}_deepcre_interpret_\d+_\d+\.h5$"                                                        #type:ignore
     regex = re.compile(regex_string)
-    candidate_models = [model for model in os.listdir(path_to_interpretations) if regex.match(model)]
-    if not candidate_models:
+    candidate_results = [result for result in os.listdir(path_to_interpretations) if regex.match(result)]
+    if not candidate_results:
         raise ValueError("no interpretation results fitting the given parameters were found! Consider running the interpretation script (deepcre_interpret.py)")
     # models only differ in the time stamp. So if sorted, the last model will be the most recently trained
-    candidate_models.sort()
-    full_path = os.path.join(path_to_interpretations, candidate_models[-1])
+    candidate_results.sort()
+    full_path = os.path.join(path_to_interpretations, candidate_results[-1])
     return full_path
 
 
@@ -181,25 +181,23 @@ def save_results(output_name: str, shap_actual_scores, shap_hypothetical_scores,
 def parse_args():
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
-                        description="This script performs the deepCRE prediction. We assume you have the following three" + 
-                        "directories:tmp_counts (contains your counts files), genome (contains the genome fasta files), gene_models (contains the gtf files)")
+                        description="This script performs calculations of contribution scores for models trained wit the deepCRE framework.")
 
     parser.add_argument('--input', "-i",
-                        help="""json file containing the required input parameters. Possible arguments can be seen in the file parsing.py in the two global dictionaries.
-                        Example file is inputs.json.""", required=True)
+                        help="""json file containing the required input parameters. For information on the possible parameters, refer to the readme.md file.""", required=True)
 
     args = parser.parse_args()
     return args
 
 
-def check_run_info(run_info: RunInfo):
+def check_species_info(run_info: RunInfo):
     if run_info.is_msr():
         for specie_data in run_info.species_info:
             if specie_data["species_name"] == "":
-                raise ValueError(f"name of species needs to be provided for MSR runs!")
+                raise ValueError(f"name of species needs to be provided for MSR runs! Species names cant be empty strings.")
     else:
-        if run_info.general_info["training_output_name"] == "":
-            raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
+        if len(run_info.species_info) > 1:
+            raise ValueError("only one species can be provided for SSR/SSC model cases!")
 
 
 def get_val_obj_names(run_info: RunInfo) -> List[str]:
@@ -227,7 +225,7 @@ def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], inpu
     for i, run_info in enumerate(inputs):     #type:ignore
         output_name = ""
         try: 
-            check_run_info(run_info)
+            check_species_info(run_info)
             output_name = run_info.general_info["training_output_name"]
             val_obj_names = get_val_obj_names(run_info)
             extract_scores(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"],

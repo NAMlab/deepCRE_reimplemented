@@ -137,14 +137,12 @@ def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: i
 def parse_args():
     parser = argparse.ArgumentParser(
         prog='deepCRE',
-        description="This script performs the deepCRE prediction. We assume you have the following three" + 
-        "directories:tmp_counts (contains your counts files), genome (contains the genome fasta files), gene_models (contains the gtf files)"
+        description="This script can be used to run predictions on models trained by the deepCRE framework."
     )
 
     parser.add_argument(
         '--input', "-i", 
-        help="""json file containing the required input parameters. Possible arguments can be seen in the file parsing.py in the two global dictionaries.
-        Example file is inputs.json.""", required=True
+        help="""json file containing the required input parameters. Information on pssible parameters can be found in the readme.md file.""", required=True
     )
     args = parser.parse_args()
     return args

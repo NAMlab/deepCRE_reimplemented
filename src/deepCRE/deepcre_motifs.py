@@ -19,9 +19,9 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
     this_file_name = get_filename_from_path(__file__)
     save_file = os.path.join(folder_path, f"{output_name}_{this_file_name}_{get_time_stamp()}.hdf5")
 
-    print('contributions', contribution_scores.shape)
-    print('hypothetical contributions', hypothetical_scores.shape)
-    print('correct predictions', one_hots.shape)
+    print('contributions shape', contribution_scores.shape)
+    print('hypothetical contributions shape', hypothetical_scores.shape)
+    print('correct predictions shape', one_hots.shape)
     # -----------------------Running modisco----------------------------------------------#
 
     null_per_pos_scores = modisco.coordproducers.LaplaceNullDist(num_to_samp=5000)
@@ -83,12 +83,10 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
 def parse_args():
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
-                        description="This script performs the deepCRE prediction. We assume you have the following three" + 
-                        "directories:tmp_counts (contains your counts files), genome (contains the genome fasta files), gene_models (contains the gtf files)")
+                        description="This script can be used to run motif extraction on models trained by the deepCRE framework.")
 
     parser.add_argument('--input', "-i",
-                        help="""json file containing the required input parameters. Possible arguments can be seen in the file parsing.py in the two global dictionaries.
-                        Example file is inputs.json.""", required=True)
+                        help="""json file containing the required input parameters. Possible arguments can be seen in the readme.md file.""", required=True)
 
     args = parser.parse_args()
     return args

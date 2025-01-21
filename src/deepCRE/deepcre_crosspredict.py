@@ -7,7 +7,7 @@ import argparse
 
 from deepCRE.train_models import extract_genes_prediction
 from deepCRE.utils import make_absolute_path, load_input_files, get_filename_from_path, get_time_stamp, result_summary
-from deepCRE.parsing import ModelCase, ParsedInputs, RunInfo
+from deepCRE.parsing import ParsedInputs, RunInfo
 
 
 def predict_other(extragenic: int, intragenic: int, curr_chromosome: str, model_names: List[str], extracted_genes: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
@@ -57,11 +57,10 @@ def predict_other(extragenic: int, intragenic: int, curr_chromosome: str, model_
 def parse_args():
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
-                        description="This script performs the deepCRE prediction. We assume you have the following three" + 
-                        "directories:tmp_counts (contains your counts files), genome (contains the genome fasta files), gene_models (contains the gtf files)")
-
+                        description="This script can be used to run predictions on models trained by the deepCRE framework." +
+                            "Models dont have to be trained on the species that the predictions are run on. The predictions will be saved in the results/predictions folder.")
     parser.add_argument('--input', "-i", 
-                        help="path to a .csv file with column names. Must contain \"genome\", \"gene_model\", \"model_names\", \"subject_species_name\".",
+                        help="Path to the input file. Details on the input file can be found in the README.md file.",
                         required=True)
 
     args = parser.parse_args()
