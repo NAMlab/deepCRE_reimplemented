@@ -19,6 +19,7 @@ test_folder/logbooks/*
 test_folder/logs/*
 run_config/*
 *.fai
+*.json
 
 #### GITHUB PYTHON TEMPLATE
 
