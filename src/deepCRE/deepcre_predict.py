@@ -127,7 +127,6 @@ def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: i
                         genome=genome, annotation=annotation, tpms=tpms, extragenic=extragenic, intragenic=intragenic,
                         output_name=output_name, time_stamp=time_stamp)
         except Exception as e:
-            raise e
             print(e)
             failed_trainings.append((output_name, i, e))
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
