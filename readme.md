@@ -1,67 +1,126 @@
-# deepCRE-core
+# User Manual: DeepCRE
 
-This repo reimplements deepCRE using shap and modisco. It also upgrades to
-tensorflow 2.10.0.
+## Table of Contents
 
-## Required directory structure
+- [User Manual: DeepCRE](#user-manual-deepcre)
+  - [Table of Contents](#table-of-contents)
+  - [Introduction](#introduction)
+    - [Overview](#overview)
+  - [Installation and Setup](#installation-and-setup)
+    - [Prerequisites](#prerequisites)
+    - [Installation Steps](#installation-steps)
+  - [Framework Overview](#framework-overview)
+    - [Workflow Summary](#workflow-summary)
+  - [Script Descriptions and Usage](#script-descriptions-and-usage)
+    - [General Input File Formats](#general-input-file-formats)
+    - [Model Training](#model-training)
+      - [Training Input Files](#training-input-files)
+      - [Training Usage Example](#training-usage-example)
+      - [Training Output Files](#training-output-files)
+    - [Predictions](#predictions)
+      - [Prediction Input Files](#prediction-input-files)
+      - [Prediction Usage Example](#prediction-usage-example)
+      - [Prediction Output Files](#prediction-output-files)
+    - [Interpretation](#interpretation)
+      - [Interpretation Input Files](#interpretation-input-files)
+      - [Interpretation Usage Example](#interpretation-usage-example)
+      - [Interpretation Output Files](#interpretation-output-files)
+    - [Motif Extraction](#motif-extraction)
+      - [Motif Extraction Input Files](#motif-extraction-input-files)
+      - [Motif Extraction Usage Example](#motif-extraction-usage-example)
+      - [Motif Extraction Output Files](#motif-extraction-output-files)
+  - [Examples and Case Studies](#examples-and-case-studies)
+    - [End-to-End Workflow Example](#end-to-end-workflow-example)
+  - [Troubleshooting and FAQs](#troubleshooting-and-faqs)
+  - [Contributing](#contributing)
+    - [How to Report Issues](#how-to-report-issues)
+    - [How to Contribute](#how-to-contribute)
+  - [References](#references)
+  - [License](#license)
+  - [Glossary](#glossary)
+  - [Acknowledgements](#acknowledgements)
 
-Within the current directory containing all python scripts, you should have
-the following sub directories:
+## Introduction
 
-- genome : Contains the reference genomes you wish to train deepCRE on.
-- gene_models: Contains the reference gtf files matching the genomes.
-- tmp_counts: Contains target files. This file must have at least two columns named exactly: gene_id and target.
+### Overview
 
-  The target column should be the already assigned true labels. This reimplementation allows
-  you the freedom to assign true labels as you see fit.
+This project is the official implementation of the DeepCRE framework, based on the work described
+in **Peleke et al. and Peleke et al.** DeepCRE is designed to predict gene activity in plants using
+convolutional neural networks on the gene flanking regions. The framework provides an automated
+training process with a standardized
+model architecture and input format. To train a model for a new species or tissue, all thats
+necessary are genomic sequences in a FASTA format, gene annotations as GTF or GFF3, and expression
+data from RNA sequencing as CSV. DeepCRE supports
+predictions on different species, generates importance scores to interpret the contributions
+of specific inputs, and enables motif extraction to identify patterns associated with high or low
+gene activity.
 
-## Examples
+## Installation and Setup
 
-I have provided two example input files:
+### Prerequisites
 
-example_input.csv: For training. This is an example of how your input training file
-should look. You can add more rows, where each row will be one species of interest.
-This file contains primarily 6 columns:
+environment setup
 
-genome| gtf | tpm_target | output_name |name of chromosomes file | pickle_key_id |
+### Installation Steps
 
-example_predict_input.csv: For predictions, modisco, shap runs. his file contains
-the following columns:
+asdf
 
-genome| gtf | tpm_target | output_name |name of chromosomes file |
+## Framework Overview
 
-An example of the chromosomes file is uploaded in the genome subdirectory. This file must
-always be in the genome subdirectory. Every new species requires its own chromosome file.
-This file is a single column csv file that has the name of each chromosome on a separate
-line.
+### Workflow Summary
 
-## Usage
+## Script Descriptions and Usage
 
-To train models use the following commands
+### General Input File Formats
 
-```shell
-python train_ssr_models.py --input example_input.csv --pickle validation_genes.pickle --model_case SSR --ignore_small_genes yes
-```
+### Model Training
 
-```shell
-python train_ssr_models.py --input example_input.csv --pickle validation_genes.pickle --model_case SSC --ignore_small_genes yes
-```
+#### Training Input Files
 
-To run predictions use
+#### Training Usage Example
 
-```shell
-python deepcre_predict.py --input example_predict_input.csv --model_case SSR --ignore_small_genes yes
-```
+#### Training Output Files
 
-To compute shap importance scores. You also get a ..shap_meta.csv file for genes and predictions
-This file is a one-to-one match with scores in the ..shap_score.h5 output
+### Predictions
 
-```shell
-python deepcre_interprete.py --input example_predict_input.csv --model_case SSR --ignore_small_genes yes
-```
+#### Prediction Input Files
 
-To run modisco
+#### Prediction Usage Example
 
-```shell
-python deepcre_motifs.py --input example_predict_input.csv --model_case SSR --ignore_small_genes yes
-```
+#### Prediction Output Files
+
+### Interpretation
+
+#### Interpretation Input Files
+
+#### Interpretation Usage Example
+
+#### Interpretation Output Files
+
+### Motif Extraction
+
+#### Motif Extraction Input Files
+
+#### Motif Extraction Usage Example
+
+#### Motif Extraction Output Files
+
+## Examples and Case Studies
+
+### End-to-End Workflow Example
+
+## Troubleshooting and FAQs
+
+## Contributing
+
+### How to Report Issues
+
+### How to Contribute
+
+## References
+
+## License
+
+## Glossary
+
+## Acknowledgements
