@@ -12,7 +12,7 @@ test_folder/*/*/*.csv
 test_folder/*/*/*/*.csv
 src/deepCRE/figures/*
 src/deepCRE/run_config/*
-src/deepCRE/inputs/*/*
+src/deepCRE/inputs/prediction/*
 .vscode/*
 test_folder/*.csv
 test_folder/logbooks/*
