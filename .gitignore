@@ -13,6 +13,7 @@ test_folder/*/*/*/*.csv
 src/deepCRE/figures/*
 src/deepCRE/run_config/*
 src/deepCRE/inputs/prediction/*
+src/deepCRE/inputs/prediction/test_prediction_in_ex.json
 .vscode/*
 test_folder/*.csv
 test_folder/logbooks/*
@@ -189,4 +190,3 @@ cython_debug/
 164 lines yanked                                                                                                                                                                                                                                                           
 
 
-src/deepCRE/inputs/prediction/test_prediction_in_ex.json
