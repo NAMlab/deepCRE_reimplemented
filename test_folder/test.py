@@ -178,19 +178,15 @@ def input_integration_tests():
     tf.config.set_visible_devices([], 'GPU')
     # dict with folder and corresponding functions
     test_folders = {
+        "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
         "src/deepCRE/inputs/prediction": (dp.parse_input_file, dp.predict),
         "src/deepCRE/inputs/cross_prediction": (cp.parse_input_file, cp.run_cross_predictions),
-        "src/deepCRE/inputs/motives": (dm.parse_input_file, dm.run_motif_extraction),
         "src/deepCRE/inputs/interpretation": (di.parse_input_file, di.run_interpretation),
-        "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
+        "src/deepCRE/inputs/motives": (dm.parse_input_file, dm.run_motif_extraction),
     }
     failed_tests = []
-    for i in range(10):
-        for folder, functions in test_folders.items():
-            input_files = sorted(os.listdir(folder))
-            if len(input_files) < i + 1:
-                continue
-            file = input_files[i]
+    for folder, functions in test_folders.items():
+        for file in sorted(os.listdir(folder)):
             print(file)
             file_path = os.path.join(folder, file)
             inputs, failed_trainings, input_length = functions[0](file_path)
