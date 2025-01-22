@@ -12,8 +12,7 @@ test_folder/*/*/*.csv
 test_folder/*/*/*/*.csv
 src/deepCRE/figures/*
 src/deepCRE/run_config/*
-src/deepCRE/inputs/prediction/*
-src/deepCRE/inputs/prediction/test_prediction_in_ex.json
+src/deepCRE/inputs/
 .vscode/*
 test_folder/*.csv
 test_folder/logbooks/*
