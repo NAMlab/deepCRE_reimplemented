@@ -300,7 +300,7 @@ def result_summary(failed_trainings: List[Tuple[str, int, Exception]], input_len
         print("_______________________________________________________________")
         print(f"During your run of the script \"{script}\" the following errors occurred:")
         for name, line, err in failed_trainings:
-            print(f"\"{name}\" (line {line + 1} in the input file) failed with error message:\n{err}")
+            print(f"\"{name}\" (run {line + 1} in the input file) failed with error message:\n{err}")
             print("_______________________________________________________________")
         print(f"{input_length - len(failed_trainings)} / {input_length} passed.")
         print("_______________________________________________________________")
