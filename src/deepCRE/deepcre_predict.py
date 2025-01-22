@@ -123,7 +123,7 @@ def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: i
                             output_name=output_name)
 
             else:
-                run_ssr(folder_name=folder_name, file_name=file_name, general_info=general_info, specie_info=specie_info,
+                run_ssr(folder_name=folder_name, file_name=file_name, general_info=general_info, specie_info=species_info[0],
                         genome=genome, annotation=annotation, tpms=tpms, extragenic=extragenic, intragenic=intragenic,
                         output_name=output_name, time_stamp=time_stamp)
         except Exception as e:
