@@ -258,4 +258,5 @@ if __name__ == "__main__":
     # read_hdf5_datasets()
     # print_chroms()
     # save_json_list()
-    input_integration_tests()
+    # input_integration_tests()
+    failed_runs()
