@@ -1,0 +1,12 @@
+[
+  {
+    "model_case": "ssr",
+    "genome": "Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
+    "annotation": "Arabidopsis_thaliana.TAIR10.52.gtf",
+    "targets": "arabidopsis_leaf_targets.csv",
+    "chromosomes": ["1", "2", "3", "4", "5"],
+    "output_name": "arabidopsis",
+    "pickle_key": "ara",
+    "pickle_file": "validation_genes.pickle"
+  }
+]
