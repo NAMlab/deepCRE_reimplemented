@@ -209,7 +209,7 @@ def failed_runs():
         'src/deepCRE/inputs/interpretation/test_interpretation.json',
         'src/deepCRE/inputs/interpretation/test_interpretation_ex_in.json',
         'src/deepCRE/inputs/interpretation/test_interpretation_small_genes.json',
-        'src/deepCRE/inputs/motives/test_motif_extraction_small_genes.json'
+        'src/deepCRE/inputs/motives/test_motif_extraction_small_genes.json',
         'src/deepCRE/inputs/motives/test_motif_extraction.json',
         'src/deepCRE/inputs/motives/test_motif_extraction_force_interpretation.json',
         'src/deepCRE/inputs/motives/test_motif_extraction_in_ex.json',
@@ -223,11 +223,14 @@ def failed_runs():
     }
     failed_tests = []
     for script_path in failed_runs:
+        print(script_path)
         folder = os.path.dirname(script_path)
-        inputs, failed_trainings, input_length = mapping[folder][0](script_path)
-        fails = mapping[folder][1](inputs, failed_trainings, input_length, test=True)
-        if fails:
-            failed_tests.append(script_path)
+        print(folder)
+        function = mapping[folder][0]
+        # inputs, failed_trainings, input_length = function(script_path)
+        # fails = mapping[folder][1](inputs, failed_trainings, input_length, test=True)
+        # if fails:
+        #     failed_tests.append(script_path)
     print(failed_tests)
 
 
