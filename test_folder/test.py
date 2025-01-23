@@ -200,22 +200,22 @@ def input_integration_tests():
 def failed_runs():
     failed_runs = [
         'src/deepCRE/inputs/cross_prediction/test_cross_prediction.json',
-        'src/deepCRE/inputs/motives/test_motif_extraction.json',
-        'src/deepCRE/inputs/interpretation/test_interpretation.json',
-        'src/deepCRE/inputs/prediction/test_prediction_chromosomes.json',
         'src/deepCRE/inputs/cross_prediction/test_cross_prediction_chromosomes.json',
-        'src/deepCRE/inputs/prediction/test_prediction_in_ex.json',
         'src/deepCRE/inputs/cross_prediction/test_cross_prediction_in_ex.json',
-        'src/deepCRE/inputs/motives/test_motif_extraction_force_interpretation.json',
-        'src/deepCRE/inputs/interpretation/test_interpretation_ex_in.json',
         'src/deepCRE/inputs/cross_prediction/test_cross_prediction_small_genes.json',
-        'src/deepCRE/inputs/motives/test_motif_extraction_in_ex.json',
-        'src/deepCRE/inputs/interpretation/test_interpretation_small_genes.json',
         'src/deepCRE/inputs/cross_prediction/test_cross_prediction_targets.json',
+        'src/deepCRE/inputs/prediction/test_prediction_chromosomes.json',
+        'src/deepCRE/inputs/prediction/test_prediction_in_ex.json',
+        'src/deepCRE/inputs/interpretation/test_interpretation.json',
+        'src/deepCRE/inputs/interpretation/test_interpretation_ex_in.json',
+        'src/deepCRE/inputs/interpretation/test_interpretation_small_genes.json',
         'src/deepCRE/inputs/motives/test_motif_extraction_small_genes.json'
+        'src/deepCRE/inputs/motives/test_motif_extraction.json',
+        'src/deepCRE/inputs/motives/test_motif_extraction_force_interpretation.json',
+        'src/deepCRE/inputs/motives/test_motif_extraction_in_ex.json',
     ]
     mapping = {
-        # "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
+        "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
         "src/deepCRE/inputs/prediction": (dp.parse_input_file, dp.predict),
         "src/deepCRE/inputs/cross_prediction": (cp.parse_input_file, cp.run_cross_predictions),
         "src/deepCRE/inputs/interpretation": (di.parse_input_file, di.run_interpretation),
