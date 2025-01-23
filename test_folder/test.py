@@ -227,10 +227,10 @@ def failed_runs():
         folder = os.path.dirname(script_path)
         print(folder)
         function = mapping[folder][0]
-        # inputs, failed_trainings, input_length = function(script_path)
-        # fails = mapping[folder][1](inputs, failed_trainings, input_length, test=True)
-        # if fails:
-        #     failed_tests.append(script_path)
+        inputs, failed_trainings, input_length = function(script_path)
+        fails = mapping[folder][1](inputs, failed_trainings, input_length, test=True)
+        if fails:
+            failed_tests.append(script_path)
     print(failed_tests)
 
 
