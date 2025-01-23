@@ -127,6 +127,8 @@ def run_cross_predictions(run_infos: ParsedInputs, failed_trainings: List[Tuple]
             extracted_genes = extract_genes_prediction(genome=loaded_input_files["genome"], annotation=loaded_input_files["annotation"], extragenic=run_info.general_info["extragenic"],
                                                        intragenic=run_info.general_info["intragenic"], ignore_small_genes=run_info.general_info["ignore_small_genes"],
                                                        tpms=loaded_input_files.get("tpms", None), target_chromosomes=chromosomes_tuple)
+            if model_case == "msr" and chromosomes_tuple == ():
+                chromosomes = extracted_genes.keys()
             results_dfs = []
             for chrom in chromosomes:
                 results, _ = predict_other(extragenic=run_info.general_info["extragenic"], intragenic=run_info.general_info["intragenic"], curr_chromosome=chrom,
