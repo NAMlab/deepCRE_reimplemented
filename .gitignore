@@ -20,6 +20,7 @@ test_folder/logs/*
 run_config/*
 *.fai
 *.json
+!src/deepCRE/tpm_counts/arabidopsis_leaf_counts.csv
 
 #### GITHUB PYTHON TEMPLATE
 
