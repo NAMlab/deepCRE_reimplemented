@@ -330,7 +330,7 @@ def set_up_train_val_split_variables(annotation: pd.DataFrame):
 def save_skipped_genes(skipped_genes, time_stamp: str):
     if skipped_genes:  # This checks if the set/list is not empty
         file_name = f'skipped_genes_{time_stamp}.txt'
-        file_name = make_absolute_path("results", file_name, start_file=__file__)
+        file_name = make_absolute_path("results", "training", file_name, start_file=__file__)
         with open(file_name, 'w') as skipped_genes_file:
             for gene in skipped_genes:
                 skipped_genes_file.write(f"{gene}\n")
@@ -560,7 +560,7 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
             else:
                 results = run_ssr(species_info=spec_info, general_info=gen_info, time_stamp=time_stamp, test=test)
             results = pd.DataFrame(results, columns=['test', 'loss', 'accuracy', 'auROC', 'auPR'])
-            save_file = make_absolute_path('results', f"{gen_info['output_name']}_{file_name}_{gen_info['model_case']}_{time_stamp}.csv", start_file=__file__)
+            save_file = os.path.join(training_results_path, f"{gen_info['output_name']}_{file_name}_{gen_info['model_case']}_{time_stamp}.csv")
             results.to_csv(path_or_buf=save_file, index=False)
             print(results.head())
         except TerminationError as e:
