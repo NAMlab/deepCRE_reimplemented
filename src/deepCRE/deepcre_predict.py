@@ -79,13 +79,13 @@ def check_inputs(run_info: RunInfo):
     spec_info = run_info.species_info
     if run_info.is_msr():
         for specie_data in spec_info:
-            if specie_data["chromosomes"] != "":
+            if specie_data["chromosomes"] != []:
                 print(f"WARNING: chromosome information for MSR runs is not used!")
             if specie_data["species_name"] == "":
                 raise ValueError(f"name of species needs to be provided!")
     else:
         for specie_data in spec_info:
-            if specie_data["chromosomes"] == "":
+            if specie_data["chromosomes"] == []:
                 raise ValueError(f"chromosome information needs to be provided for SSR runs!")
         if gen_info["training_output_name"] == "":
             raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
