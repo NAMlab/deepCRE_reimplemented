@@ -1,3 +1,4 @@
+import argparse
 import os
 import re
 import pandas as pd
@@ -170,7 +171,7 @@ def test_motif_extraction():
                     force_interpretation=False)
 
 
-def input_integration_tests():
+def input_integration_tests(motives=False):
 
     # set up tf settings exactly once
     tf.compat.v1.disable_eager_execution()
@@ -178,12 +179,13 @@ def input_integration_tests():
     tf.config.set_visible_devices([], 'GPU')
     # dict with folder and corresponding functions
     test_folders = {
-        # "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
+        "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
         "src/deepCRE/inputs/prediction": (dp.parse_input_file, dp.predict),
         "src/deepCRE/inputs/cross_prediction": (cp.parse_input_file, cp.run_cross_predictions),
         "src/deepCRE/inputs/interpretation": (di.parse_input_file, di.run_interpretation),
-        "src/deepCRE/inputs/motives": (dm.parse_input_file, dm.run_motif_extraction),
     }
+    if motives:
+        test_folders["src/deepCRE/inputs/motives"] = (dm.parse_input_file, dm.run_motif_extraction)
     failed_tests = []
     for folder, functions in test_folders.items():
         for file in sorted(os.listdir(folder)):
@@ -198,23 +200,17 @@ def input_integration_tests():
     json.dump(failed_tests, open(make_absolute_path("failed_tests.json", start_file=__file__), "w"))
 
 
-def failed_runs():
-    failed_runs = [
-        'src/deepCRE/inputs/cross_prediction/test_cross_prediction.json',
-        'src/deepCRE/inputs/cross_prediction/test_cross_prediction_chromosomes.json',
-        'src/deepCRE/inputs/cross_prediction/test_cross_prediction_in_ex.json',
-        'src/deepCRE/inputs/cross_prediction/test_cross_prediction_small_genes.json',
-        'src/deepCRE/inputs/cross_prediction/test_cross_prediction_targets.json',
-        'src/deepCRE/inputs/prediction/test_prediction_chromosomes.json',
-        'src/deepCRE/inputs/prediction/test_prediction_in_ex.json',
-        'src/deepCRE/inputs/interpretation/test_interpretation.json',
-        'src/deepCRE/inputs/interpretation/test_interpretation_ex_in.json',
-        'src/deepCRE/inputs/interpretation/test_interpretation_small_genes.json',
-        'src/deepCRE/inputs/motives/test_motif_extraction_small_genes.json',
-        'src/deepCRE/inputs/motives/test_motif_extraction.json',
-        'src/deepCRE/inputs/motives/test_motif_extraction_force_interpretation.json',
-        'src/deepCRE/inputs/motives/test_motif_extraction_in_ex.json',
-    ]
+def failed_runs(modisco=False):
+    if modisco:
+        failed_runs = ['src/deepCRE/inputs/motives/test_motif_extraction_force_interpretation.json']
+    else:
+        failed_runs = [
+            'src/deepCRE/inputs/cross_prediction/test_cross_prediction_small_genes.json',
+            'src/deepCRE/inputs/prediction/test_prediction_in_ex.json',
+            'src/deepCRE/inputs/interpretation/test_interpretation.json',
+            'src/deepCRE/inputs/interpretation/test_interpretation_ex_in.json',
+            'src/deepCRE/inputs/interpretation/test_interpretation_small_genes.json',
+        ]
     mapping = {
         "src/deepCRE/inputs/training": (train.parse_input_file, train.train_models),
         "src/deepCRE/inputs/prediction": (dp.parse_input_file, dp.predict),
@@ -252,6 +248,20 @@ class TestDeepCRE(unittest.TestCase):
         self.assertEqual(result, os.path.join(path_to_models, "arabidopsis_deepcre_interpret_241018_105035.h5"))
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog='tests',
+        description="just tests man, dont question it"
+    )
+
+    # boolean argument to determine whether to test modisco or everything else
+    parser.add_argument(
+        '--modisco', "-m", 
+        help="""determines whether modisco only is tested, or everything else""", required=False, action="store_true"
+    )
+    args = parser.parse_args()
+    return args
+
 
 if __name__ == "__main__":
     # unittest.main()
@@ -263,5 +273,6 @@ if __name__ == "__main__":
     # read_hdf5_datasets()
     # print_chroms()
     # save_json_list()
-    # input_integration_tests()
-    failed_runs()
+    args = parse_args()
+    # input_integration_tests(args.modisco)
+    failed_runs(args.modisco)
