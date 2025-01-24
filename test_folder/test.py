@@ -187,6 +187,7 @@ def input_integration_tests(motives=False):
     if motives:
         test_folders["src/deepCRE/inputs/motives"] = (dm.parse_input_file, dm.run_motif_extraction)
     failed_tests = []
+    fails_list = []
     for folder, functions in test_folders.items():
         for file in sorted(os.listdir(folder)):
             print(file)
@@ -195,12 +196,18 @@ def input_integration_tests(motives=False):
             fails = functions[1](inputs, failed_trainings, input_length, test=True)
             if fails:
                 failed_tests.append(file_path)
+                fails_list.append(fails)
     print("failed tests:")
     print(failed_tests)
+    print(fails_list)
     json.dump(failed_tests, open(make_absolute_path("failed_tests.json", start_file=__file__), "w"))
 
 
 def failed_runs(modisco=False):
+    # set up tf settings exactly once
+    tf.compat.v1.disable_eager_execution()
+    tf.compat.v1.disable_v2_behavior()
+    tf.config.set_visible_devices([], 'GPU')
     if modisco:
         failed_runs = ['src/deepCRE/inputs/motives/test_motif_extraction_force_interpretation.json']
     else:
@@ -219,6 +226,7 @@ def failed_runs(modisco=False):
         "src/deepCRE/inputs/motives": (dm.parse_input_file, dm.run_motif_extraction),
     }
     failed_tests = []
+    fails_list = []
     for script_path in failed_runs:
         print(script_path)
         folder = os.path.dirname(script_path)
@@ -227,9 +235,11 @@ def failed_runs(modisco=False):
         inputs, failed_trainings, input_length = function(script_path)
         fails = mapping[folder][1](inputs, failed_trainings, input_length, test=True)
         if fails:
+            fails_list.append(fails)
             failed_tests.append(script_path)
     print("failed tests:")
     print(failed_tests)
+    print(fails)
 
 
 class TestDeepCRE(unittest.TestCase):
