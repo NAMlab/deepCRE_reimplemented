@@ -193,6 +193,7 @@ def input_integration_tests():
             fails = functions[1](inputs, failed_trainings, input_length, test=True)
             if fails:
                 failed_tests.append(file_path)
+    print("failed tests:")
     print(failed_tests)
     json.dump(failed_tests, open(make_absolute_path("failed_tests.json", start_file=__file__), "w"))
 
@@ -231,6 +232,7 @@ def failed_runs():
         fails = mapping[folder][1](inputs, failed_trainings, input_length, test=True)
         if fails:
             failed_tests.append(script_path)
+    print("failed tests:")
     print(failed_tests)
 
 
