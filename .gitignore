@@ -22,7 +22,7 @@ run_config/*
 *.json
 !src/deepCRE/tpm_counts/arabidopsis_leaf_counts.csv
 !src/deepCRE/inputs/arabidopsis_training_demo.json
-!src/deepCRE/inputs/arabidopsis_predict_interpretat_extract_demo.json
+!src/deepCRE/inputs/arabidopsis_predict_interpret_extract_demo.json
 
 #### GITHUB PYTHON TEMPLATE
 
