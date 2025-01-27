@@ -1,0 +1,10 @@
+[
+  {
+    "model_case": "ssr",
+    "genome": "Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
+    "annotation": "Arabidopsis_thaliana.TAIR10.52.gtf",
+    "targets": "arabidopsis_leaf_targets.csv",
+    "training_output_name": "arabidopsis",
+    "chromosomes": ["1", "2", "3", "4", "5"]
+  }
+]
