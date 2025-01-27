@@ -115,6 +115,7 @@ def run_motif_extraction(inputs: ParsedInputs, failed_trainings: List[Tuple], in
                             model_case=run_info.general_info["model_case"], validation_object_names=validation_obj_names, force_interpretation=run_info.general_info["force_interpretations"])
         except Exception as e:
             print(e)
+            print(run_info)
             failed_trainings.append((output_name, i, e))
 
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
@@ -140,7 +141,6 @@ def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
     }
     inputs, failed_trainings, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()
-    print(inputs)
     return inputs, failed_trainings, input_length
 
 

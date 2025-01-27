@@ -564,9 +564,11 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
             results.to_csv(path_or_buf=save_file, index=False)
             print(results.head())
         except TerminationError as e:
+            print(run_info)
             raise e
         except Exception as e:
             print(e)
+            print(run_info)
             failed_trainings.append((run_info.general_info["output_name"], i, e))
     result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
     return failed_trainings
@@ -599,7 +601,6 @@ def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int
     }
     inputs, failed_trainings, input_length = ParsedInputs.parse(input_file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters, multiple_species_required_msr=True)
     inputs = inputs.replace_both()
-    print(inputs)
     return inputs, failed_trainings, input_length
 
 
