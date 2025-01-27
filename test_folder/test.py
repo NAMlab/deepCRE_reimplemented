@@ -284,5 +284,5 @@ if __name__ == "__main__":
     # print_chroms()
     # save_json_list()
     args = parse_args()
-    # input_integration_tests(args.modisco)
-    failed_runs(args.modisco)
+    input_integration_tests(args.modisco)
+    # failed_runs(args.modisco)
