@@ -552,7 +552,6 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
     run_info: RunInfo
     for i, run_info in enumerate(inputs):             #type:ignore
         try:
-            print(i, run_info)
             gen_info = run_info.general_info
             spec_info = run_info.species_info
             if run_info.is_msr():
