@@ -56,6 +56,9 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
     #just load existing scores
     if not force_interpretation:
         try: 
+            # print current workind directory
+            print(os.getcwd())
+            print(os.path.join("results", "shap"))
             saved_interpretation_results_path = find_newest_interpretation_results(output_name=output_name, results_path=os.path.join("results", "shap"))
             with h5py.File(saved_interpretation_results_path, "r") as f:
                 actual_scores = f["contrib_scores"][:] #type:ignore
