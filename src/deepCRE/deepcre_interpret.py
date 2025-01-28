@@ -30,7 +30,7 @@ def find_newest_interpretation_results(output_name: str, results_path: str = "")
         str: Path to the newest prediction results for the given output name.
     """
     if results_path == "":
-        path_to_interpretations = make_absolute_path("saved_models", start_file=__file__)
+        path_to_interpretations = make_absolute_path("results", "shap", start_file=__file__)
     else:
         path_to_interpretations = make_absolute_path(results_path, start_file=__file__)
     # ^ and $ mark start and end of a string. \d singnifies any digit. \d+ means a sequence of digits with at least length 1
