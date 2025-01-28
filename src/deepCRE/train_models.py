@@ -292,7 +292,7 @@ def calculate_conditions(val_chromosome, model_case, train_val_split: bool, test
         include_in_training_set = chrom != val_chromosome
     else:
         include_in_validation_set = current_val_size < target_val_size and gene_id in validation_genes
-        include_in_training_set = current_train_size < target_train_size
+        include_in_training_set = not include_in_validation_set and current_train_size < target_train_size
     return include_in_validation_set,include_in_training_set
 
 
@@ -319,10 +319,10 @@ def load_input_files_training(genome_file_name, annotation_file_name, tpm_file_n
     return loaded["genome"], loaded["tpms"], loaded["annotation"]
 
 
-def set_up_train_val_split_variables(annotation: pd.DataFrame):
+def set_up_train_val_split_variables(annotation: pd.DataFrame, validation_fraction: float = 0.2):
     # 80 / 20 train-val splitting 
     total_sequences = len(annotation)
-    target_val_size = int(total_sequences * 0.2)  # Target size for validation set (20%)
+    target_val_size = int(total_sequences * validation_fraction)  # Target size for validation set (20%)
     target_train_size = total_sequences - target_val_size  # Target size for training set (80%)
     return target_val_size, target_train_size
 
@@ -342,7 +342,7 @@ def save_skipped_genes(skipped_genes, time_stamp: str):
 
 
 def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_picked, pickled_key, val_chromosome,
-                model_case, ignore_small_genes, train_val_split, time_stamp: str, test_specie: Optional[pd.DataFrame] = None):
+                model_case, ignore_small_genes, train_val_split, time_stamp: str, validation_fraction: float, test_specie: Optional[pd.DataFrame] = None):
     """
      This function extract sequences from the genome. It implements a gene size aware padding
     :param genome: reference genome from Ensembl Plants database
@@ -374,7 +374,7 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
 
     #only relevant for train_val_split == "yes"
     current_val_size, current_train_size = 0, 0
-    target_val_size, target_train_size = set_up_train_val_split_variables(annotation=annotation)
+    target_val_size, target_train_size = set_up_train_val_split_variables(annotation=annotation, validation_fraction=validation_fraction)
         
     train_seqs, val_seqs, train_targets, val_targets = [], [], [], []
     skipped_genes = [] 
@@ -442,10 +442,10 @@ def balance_dataset(x, y):
 
 
 def train_deep_cre(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_picked, val_chromosome, output_name,
-                   model_case: str, ignore_small_genes: bool, train_val_split: bool, time_stamp: str,  test_specie: Optional[pd.DataFrame] = None, pickled_key: Optional[str] = None, test: bool = False):
+                   model_case: str, ignore_small_genes: bool, train_val_split: bool, time_stamp: str, validation_fraction: float,  test_specie: Optional[pd.DataFrame] = None, pickled_key: Optional[str] = None, test: bool = False):
     train_seqs, train_targets, val_seqs, val_targets = extract_genes_training(genome_path, annotation_path, tpm_path, extragenic, intragenic,
                                                                    genes_picked, pickled_key, val_chromosome, model_case, ignore_small_genes,
-                                                                   train_val_split=train_val_split, test_specie=test_specie, time_stamp=time_stamp)
+                                                                   train_val_split=train_val_split, test_specie=test_specie, time_stamp=time_stamp, validation_fraction=validation_fraction)
     x_train, y_train = balance_dataset(train_seqs, train_targets)
     x_val, y_val = balance_dataset(val_seqs, val_targets)
     output = deep_cre(x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, output_name=output_name,
@@ -489,7 +489,7 @@ def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
             genome_path=genome_path, annotation_path=annotation_path, tpm_path=tpm_path, extragenic=general_info["extragenic"],
             intragenic=general_info["intragenic"], genes_picked=test_specie_info["pickle_file"], val_chromosome=test_specie_info["species_name"],
             output_name=general_info["output_name"], model_case=general_info["model_case"], ignore_small_genes=general_info["ignore_small_genes"],
-            train_val_split=general_info["train_val_split"], test_specie=test_specie_info["species_name"], time_stamp=time_stamp, test=test
+            train_val_split=general_info["train_val_split"], test_specie=test_specie_info["species_name"], time_stamp=time_stamp, test=test, validation_fraction=0.2
         ) 
         results_with_info = {
             'loss': results[0],
@@ -527,7 +527,7 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
         results = train_deep_cre(genome_path=specie_info["genome"], annotation_path=specie_info["annotation"], tpm_path=specie_info["targets"], extragenic=general_info["extragenic"],
                                         intragenic=general_info["intragenic"], genes_picked=specie_info["pickle_file"], val_chromosome=val_chrom,
                                         output_name=general_info["output_name"], model_case=general_info["model_case"], pickled_key=specie_info["pickle_key"],
-                                        ignore_small_genes=general_info["ignore_small_genes"], train_val_split=general_info["train_val_split"], time_stamp=time_stamp, test=test)
+                                        ignore_small_genes=general_info["ignore_small_genes"], train_val_split=general_info["train_val_split"], time_stamp=time_stamp, test=test, validation_fraction=general_info["validation_fraction"])
         results_with_info = {
             'loss': results[0],
             'accuracy': results[1],
@@ -586,7 +586,8 @@ def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int
         "ignore_small_genes": True,
         "train_val_split": False,
         "extragenic": 1000,
-        "intragenic": 500
+        "intragenic": 500,
+        "validation_fraction": 0.2,
     }
 
     possible_species_parameters = {
