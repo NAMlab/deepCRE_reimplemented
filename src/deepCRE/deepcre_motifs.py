@@ -114,6 +114,7 @@ def run_motif_extraction(inputs: ParsedInputs, failed_trainings: List[Tuple], in
                             ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
                             model_case=run_info.general_info["model_case"], validation_object_names=validation_obj_names, force_interpretation=run_info.general_info["force_interpretations"])
         except Exception as e:
+            raise e
             print(e)
             print(run_info)
             failed_trainings.append((output_name, i, e))
