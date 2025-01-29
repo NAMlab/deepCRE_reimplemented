@@ -21,16 +21,16 @@
       - [Single Species Training Input Files](#single-species-training-input-files)
       - [Multiple Species Training Input Files](#multiple-species-training-input-files)
       - [Training Output Files](#training-output-files)
-    - [Self Predictions](#self-predictions)
+    - [Predictions](#predictions)
       - [Self Prediction Input Files](#self-prediction-input-files)
       - [Self Prediction Output Files](#self-prediction-output-files)
+      - [Cross Prediction Input Files](#cross-prediction-input-files)
+      - [Cross Prediction Output Files](#cross-prediction-output-files)
     - [Interpretation](#interpretation)
       - [Interpretation Input Files](#interpretation-input-files)
-      - [Interpretation Usage Example](#interpretation-usage-example)
       - [Interpretation Output Files](#interpretation-output-files)
     - [Motif Extraction](#motif-extraction)
       - [Motif Extraction Input Files](#motif-extraction-input-files)
-      - [Motif Extraction Usage Example](#motif-extraction-usage-example)
       - [Motif Extraction Output Files](#motif-extraction-output-files)
   - [Examples and Case Studies](#examples-and-case-studies)
     - [End-to-End Workflow Example](#end-to-end-workflow-example)
@@ -192,9 +192,10 @@ tpm_counts folder. **Type: string.**
 additionally contain "train_models", the validation chromosome for the particular model, the model
 case and a time stamp. **Type: string.**
 - chromosomes: the names of the chromosomes to be used for validation. Should usually be all
-chromosomes that are not mitochondrial or from chloroplasts. **Type: List of strings.**
-- pickle_key: Key for the species used in the pickle file containing the validation genes.
-**Type: string.**
+chromosomes that are not mitochondrial or from chloroplasts. **Type: string or List of strings.**
+- pickle_key: Key for the species used in the pickle file containing the validation genes. Can be provided directly
+as a list or as a file name of a file in the `genome` folder containing the names of the chromosomes in a single
+unnamed file of a csv. **Type: string.**
 - model_case: can be one of four options. "ssr", "ssc", "msr" or "both" and determines the 
 type of the model that will be trained. **Type: string.**
 
@@ -273,7 +274,7 @@ files are saved in their respective folders (`"genome_<species1>(_<species2> ...
 `"tpm_<species1>(_<species2> ... ).csv"` in the `tpm_counts` folder and `"gtf_<species1>(_<species2> ... ).csv"` in
 the `gene_models` folder).
 
-### Self Predictions
+### Predictions
 
 Having trained a model enables making predictions. The deepCRE framework provides two scripts for this purpose. The
 `deepcre_predict.py` script is used to make predictions on the training data set, while the `deepcre_crosspredict.py`
@@ -306,7 +307,8 @@ depending on the model case:
 
 - chromosomes: the names of the chromosomes to be used for validation. Should usually be all
 chromosomes that are not mitochondrial or from chloroplasts. Required for ssr model case, will be ignored
-for msr models. **Type: List of strings.**
+for msr models. Can be provided directly as a list or as a file name of a file in the `genome` folder containing the
+names of the chromosomes in a single unnamed file of a csv. **Type: string or List of strings.**
 - species_data: a list of dictionaries, where each dictionary represents a species. Required for msr model case.
 **Type: List of dictionaries.**
   - species_name: name of the species. Required for msr model case. **Type: string.**
@@ -326,21 +328,79 @@ site and the transcription end site. Should be the same as during the training p
 
 #### Self Prediction Output Files
 
+The self prediction script creates csv output files containing the predictions for each gene containedin the specified
+genome (minus small genes depending on ignore_small_genes). The columns are the gene id("genes"), the
+model output as a value between 0 and 1 ("pred_probs") and the true target class of the gene ("true_targets"). The
+model output can be converted to a binary prediction by setting a threshold at 0.5. All genes with a model output
+above 0.5 will be predicted as high expression genes, all genes below the threshold will be predicted as
+low expression genes. The files are saved in the `results/predictions` folder. For ssr models, the file is named
+`"<training_output_name>_<model_case>_deepcre_predict_<time_stamp>.csv"`. For msr models, one output file is
+generated for each species with the name
+`"<training_output_name>_<species_name>_<model_case>_deepcre_predict_<time_stamp>.csv"`.
 
+#### Cross Prediction Input Files
+
+The input files for the cross prediction script are similar to the input files for the self prediction script. The json
+configuration file needs to contain the following parameters:
+
+- genome: either the full path to the genome file or the name of the genome file in the genome
+folder. **Type: string.**
+- annotation: either the full path to the annotation file or the name of the annotation file in
+the gene_models folder. **Type: string.**
+- prediction_models: A list of models to be used for the precitions. File name of the models to be used is enough
+if the models are located in the `saved_models` folder. Otherwise use full paths. Can be provided directly as a list or
+as a file name of a file in the `saved_models` folder containing the names of the models in a single unnamed file of a
+csv. **Type: string List of strings.**
+
+For the name of the output file, either a full path to a desired output file needs to be given, or a base name for the
+automatic generation of an output name for the file to be placed in the `results/predictions` folder:
+
+- output_base: The base name for the output file. **Type: string.**
+- output_path: The full path to the output file. **Type: string.**
+
+If both output_base and output_path are given, the output_path will be used. If none of the two is given, the script
+will throw an error. The other optional parameters are similar to the self prediction script:
+
+- targets: either the full path to the targets file or the name of the targets file in the
+tpm_counts folder. If given, the output will contain the correct class in a seperate column. **Type: string.**
+- chromosomes: the names of the chromosomes for which preidctions should be made. Can be provided directly as a list
+or as a file name of a file in the `genome` folder containing the names of the chromosomes in a single unnamed file
+of a csv. **Type: string or List of string**
+- ignore_small_genes: Will ignore genes based on the same logic as in the training process. **Type: boolean**, default
+is true.
+- extragenic: The number of base pairs to be extracted from the extragenic region, so before the transcription start
+site and after the transcription end site. Should be the same as during the training process. **Type: int**,
+default is 1000.
+- intragenic: The number of base pairs to be extracted from the intragenic region, so between the transcription start
+site and the transcription end site. Should be the same as during the training process. **Type: int**, default is 500.
+
+It is possible to use the msr models to predict singluar genomes and also ssr models to make predictions on the
+concatenated genomes. What is important to watch out for here is that the genome, annotation and potentially the
+target files must be properly fitting, so either all files are concatenated or all files are singular. When using the
+chromosomes parameter, the names of the chromosomes must be the same as in the concatenated files, meaning that the
+species name must be appended to the chromosome name.
+
+#### Cross Prediction Output Files
+
+The cross prediction script creates a single csv output file containing the predictions for each gene contained in the
+specified genome (minus small genes depending on ignore_small_genes). The rows of the output file are the different
+genes with their ID in column "genes". For each model in prediction_models a column is created containing the model output
+as a value between 0 and 1.  The columns are named after the model file names. An additional column with the name
+"pred_probs" contains the average of all model outputs for the given gene. The model outputs can be converted to binary
+predictions analogously to the self prediction script. The true targets as potentially denoted in the targets file are
+contained in the "true_targets" column. The file is either saved according to the output_path, or saved in the
+`results/predictions` folder according to the output_base. In this case the file is named after one of the models in the
+prediction_models: `"<model_name>_deepcre_crosspredict_<output_base>_<time_stamp>.csv"`.
 
 ### Interpretation
 
 #### Interpretation Input Files
-
-#### Interpretation Usage Example
 
 #### Interpretation Output Files
 
 ### Motif Extraction
 
 #### Motif Extraction Input Files
-
-#### Motif Extraction Usage Example
 
 #### Motif Extraction Output Files
 
