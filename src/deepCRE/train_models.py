@@ -395,6 +395,8 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
                             val_chromosome=val_chromosome)
         added_val, added_train = append_sequence_training(include_as_validation_gene=include_in_validation_set, include_as_training_gene=include_in_training_set, train_targets=train_targets,
                                                           expected_final_size=expected_final_size, train_seqs=train_seqs, val_seqs=val_seqs, val_targets=val_targets, tpms=tpms, gene_id=gene_id, seq=seq)
+        if added_train == 0 and added_val == 0:
+            skipped_genes.append(gene_id)
         current_val_size += added_val
         current_train_size += added_train
                     
