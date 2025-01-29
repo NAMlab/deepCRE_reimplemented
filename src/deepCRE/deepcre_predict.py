@@ -59,7 +59,7 @@ def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: D
 
     result = pd.DataFrame({'true_targets': true_targets, 'pred_probs': preds, 'genes': genes})
     print(result.head())
-    output_location = os.path.join(folder_name, f'{output_name}_{file_name}_{time_stamp}.csv')
+    output_location = os.path.join(folder_name, f'{output_name}_SSR_{file_name}_{time_stamp}.csv')
     result.to_csv(output_location, index=False)
 
 
@@ -70,7 +70,7 @@ def run_msr(folder_name: str, file_name: str, general_info: Dict, extragenic: in
                                                             model_case=general_info["model_case"], extracted_genes=extracted_genes)
     result = pd.DataFrame({'true_targets': true_targets, 'pred_probs': preds, 'genes': genes})
     print(result.head())
-    output_location = os.path.join(folder_name, f'{species_name}_MSR_{file_name}_{time_stamp}.csv')
+    output_location = os.path.join(folder_name, f'{output_name}_{species_name}_MSR_{file_name}_{time_stamp}.csv')
     result.to_csv(output_location, index=False)
 
 
