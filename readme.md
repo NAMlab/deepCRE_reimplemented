@@ -32,15 +32,6 @@
       - [Motif Extraction Input Files](#motif-extraction-input-files)
       - [Motif Extraction Output Files](#motif-extraction-output-files)
   - [Examples and Case Studies](#examples-and-case-studies)
-    - [End-to-End Workflow Example](#end-to-end-workflow-example)
-  - [Troubleshooting and FAQs](#troubleshooting-and-faqs)
-  - [Contributing](#contributing)
-    - [How to Report Issues](#how-to-report-issues)
-    - [How to Contribute](#how-to-contribute)
-  - [References](#references)
-  - [License](#license)
-  - [Glossary](#glossary)
-  - [Acknowledgements](#acknowledgements)
 
 ## Introduction
 
@@ -208,7 +199,11 @@ and "target".
 
 #### Create Validation Genes
 
-no clue how this works actually.
+A second file to be used for data preprocessing is `create_validation_genes.py`. This script is used to generate a
+pickled dictionary containing for each species a list of genes. Only genes that don't have homologs on other chromosomes
+are included in the list, so that during the chromosome wise cross validation, no genes from the training set will also
+be included in the validation set as a homolog. The sccript needs a fasta file containing all proteins of a species
+and the results of a blast run where all proteins are basted against all proteins of the same species.
 
 ### Model Training
 
@@ -462,7 +457,30 @@ The optional parameters are the same as for the self [prediction script](#self-p
 #### Interpretation Output Files
 
 The interpretation script creates multiple output files, which are located in the `results/shap`
-folder. 
+folder. The first file is called `"<training_output_name>_deepcre_interpret_<time_stamp>.h5"` and contains
+two datasets. The file can be read in using the h5py package in python in the following way:
+
+```python
+import h5py
+
+h5_file = h5py.File("src/deepCRE/results/shap/arabidopsis_deepcre_interpret_241017_170839.h5")
+shap_scores = h5_file["contrib_scores"]
+hypothetical_scores = h5_file["hypothetical_contrib_scores"]
+```
+
+The dataset `contrib_scores` contains the shap scores for each gene in the genome. The dataset
+`hypothetical_contrib_scores` contains the hypothetical shap scores for each gene in the genome. The hypothetical
+scores represent what the shap scores would look like if another base was present at a given position. For a more
+detailed explanation, refer to the [shap repository](https://github.com/kundajelab/shap) and the
+[shap paper](https://proceedings.neurips.cc/paper_files/paper/2017/file/8a20a8621978632d76c43dfd28b67767-Paper.pdf).
+Both datasets have the shape (number of genes, number of base pairs, 4), with the default of the number of base pairs
+being 3020, and 4 representing the four nucleic bases in a one hot encoded fashion. The entry at each position
+represents the contribution of the base at that position to the prediction of the gene.\
+The second file is called `"<training_output_name>_deepcre_interpret_<time_stamp>_shap_meta.csv"`
+and contains two columns, namely "gene_ids" and "preds". The gene_ids contain the IDs of the genes and the preds
+column contains the predictions of the model for the genes (which also are the true targets, since only correctly
+predicted genes are used for the interpretation). The genes in the meta file have the same order as the genes in the
+shap scores file, so that the shap scores can be assigned to the correct genes.
 
 ### Motif Extraction
 
@@ -497,22 +515,12 @@ already present. **Type: boolean**, default is false.
 
 #### Motif Extraction Output Files
 
+The motif extraction script creates a single output file located in the `results/motifs` folder. The file is named
+`"<training_output_name>_deepcre_motifs_<time_stamp>.hdf5"` and contains the motifs extracted from the explanations.
+The file can be read in using the h5py package in python. The general structure of the file is explained in the
+[modisco-lite repository](https://github.com/jmschrei/tfmodisco-lite/) and the computational basis in the
+[technical note](https://arxiv.org/pdf/1811.00416).
+
 ## Examples and Case Studies
 
-### End-to-End Workflow Example
-
-## Troubleshooting and FAQs
-
-## Contributing
-
-### How to Report Issues
-
-### How to Contribute
-
-## References
-
-## License
-
-## Glossary
-
-## Acknowledgements
+asdf
