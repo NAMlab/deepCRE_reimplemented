@@ -9,7 +9,6 @@
   - [Installation and Setup](#installation-and-setup)
     - [Prerequisites](#prerequisites)
     - [Installation Steps](#installation-steps)
-      - [simons notes](#simons-notes)
   - [Framework Overview](#framework-overview)
     - [Workflow Summary](#workflow-summary)
   - [Script Descriptions and Usage](#script-descriptions-and-usage)
@@ -62,33 +61,73 @@ gene activity.
 
 ### Prerequisites
 
-environment setup
+To successfully use the DeepCRE framework, first you need to set up an environment with the necessary
+packages installed. We recommend the use of conda / miniconda to manage the environment. The following
+steps will guide you through the installation process. One caveat to mention is that the installation process was
+validated on a Linux system. Using Linux is therefore recommended and the commands in the installation guide
+are tailored to that system. Installations of [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+and [conda](https://educe-ubc.github.io/conda.html) are required.\
+The DeepCRE framework is built using the TensorFlow library version 2.10. To improve performance, we recommend
+installing the GPU version of TensorFlow. If you do not have a GPU available, the CPU version will
+work as well. Start off by creating and activating a new conda environment with Python 3.8:
+
+```bash
+conda create -n [name] python=3.8
+conda activate [name]
+```
+
+Next, install the TensorFlow library:
+
+```bash
+pip install tensorflow-gpu==2.10.0
+pip install tensorflow==2.10.0
+```
+
+Install the remaining required packages:
+
+```bash
+pip install seaborn pyranges deeplift modisco pyfaidx scikit-learn imbalanced-learn biopython tqdm pyyaml bcbio-gff
+```
+
+Finally, install the TensorFlow base package from the conda-forge channel:
+
+```bash
+conda install tensorflow-base=2.10.0 -c conda-forge
+```
+
+The explanations / interpretation of the output as well as the motif extraction from the models relies on the shap
+library. To install it, clone the repository from GitHub to a directory of your choice and install it using pip:
+
+```bash
+git clone https://github.com/AvantiShri/shap.git
+cd shap
+pip install .
+```
+
+With that the environment is set up and the DeepCRE framework can be installed.
 
 ### Installation Steps
 
-#### simons notes
+To install the DeepCRE framework, clone the repository from GitHub to a directory of your choice:
 
-conda create -p <path> python=3.8
+```bash
+git clone https://github.com/NAMlab/deepCRE_reimplemented.git
+cd deepCRE_reimplemented
+pip install -e .
+```
 
-pip install tensorflow-gpu==2.10.0
+To set up the folder structure for the use of deepCRE as well as download some example data, run the
+`set_up_example.sh` script:
 
-pip install tensorflow==2.10.0
-
-pip install seaborn pyranges deeplift modisco pyfaidx scikit-learn imbalanced-learn biopython tqdm
-
-“install shap” (clone https://github.com/AvantiShri/shap.git, cd shap, pip install .)
-
-"install deepCRE"
-
-pip install pyyaml
-
-conda install tensorflow-base=2.10.0 -c conda-forge
-
-pip install bcbio-gff
-
+```bash
 chmod +x set_up_example.sh
-
 ./set_up_example.sh
+```
+
+You're all set! The DeepCRE framework is now installed and ready to use. In the following chapters, we will
+discuss the use of the different scripts and functionalities of the framework in detail. If you can't wait and
+want to get started right away, example json configuration files are provided in the `src/deepCRE/inputs` folder
+and their use is explained in the [examples chapter](#examples-and-case-studies).
 
 ## Framework Overview
 
@@ -175,7 +214,8 @@ no clue how this works actually.
 
 #### Single Species Training Input Files
 
-Training models is the core functionality of the deepCRE toolkit. Necessary for training are as
+Training models is the core functionality of the deepCRE toolkit and is implemenmted in the
+script `src/deepCRE/train_models.py`. Necessary for training are as
 mentioned previously a genome, corresponding annotation as well as the targets and validations
 genes, that were generated in the preprocessing steps.\
 The exact location of these files as well as other parameters are set in a json configuration
@@ -196,7 +236,7 @@ chromosomes that are not mitochondrial or from chloroplasts. **Type: string or L
 - pickle_key: Key for the species used in the pickle file containing the validation genes. Can be provided directly
 as a list or as a file name of a file in the `genome` folder containing the names of the chromosomes in a single
 unnamed file of a csv. **Type: string.**
-- model_case: can be one of four options. "ssr", "ssc", "msr" or "both" and determines the 
+- model_case: can be one of four options. "ssr", "ssc", "msr" or "both" and determines the
 type of the model that will be trained. **Type: string.**
 
 Regarding the model case parameter, "ssr" will be the standard case, in which a model will be
@@ -396,11 +436,64 @@ prediction_models: `"<model_name>_deepcre_crosspredict_<output_base>_<time_stamp
 
 #### Interpretation Input Files
 
+The inputs for the interpretation script (`src/deepCRE/deepcre_interpret.py`) are almost the same as for the self
+[prediction script](#self-prediction-input-files). The only difference is, that for the interpretation the target
+file needs to be provided, since explanations will only be calculated for correct predictions. This is because we
+want to learnt about biological patterns, and not wrong patterns learned by the neural network. The json
+configuration file therefore needs to contain the following parameters:
+
+- genome
+- annotation
+- targets
+- training_output_name
+- model_case
+
+And depending on the model case:
+
+- chromosomes (for ssr models)
+- species_data with species names (for msr models)
+
+The optional parameters are the same as for the self [prediction script](#self-prediction-input-files):
+
+- ignore_small_genes
+- extragenic
+- intragenic
+
 #### Interpretation Output Files
+
+The interpretation script creates multiple output files, which are located in the `results/shap`
+folder. 
 
 ### Motif Extraction
 
 #### Motif Extraction Input Files
+
+The inputs for the motif extraction script (`src/deepCRE/deepcre_motifs.py`) are once again almost the same as for
+the self [prediction script](#self-prediction-input-files). Just like for the interpretation, the target file needs
+to be provided, since motifs and patterns should only be extracted from correctly calculated examples. The motifs
+can be calculated using saved explanations from the interpretation script. In case that is not wanted, an additional
+parameter can be set to calculate the explanations on the fly. The json configuration file therefore needs to contain
+the following parameters:
+
+- genome
+- annotation
+- targets
+- training_output_name
+- model_case
+
+And depending on the model case:
+
+- chromosomes (for ssr models)
+- species_data with species names (for msr models)
+
+The optional parameters that can be used for this script are:
+
+- ignore_small_genes
+- extragenic
+- intragenic
+- force_interpretations: If set to true, the explanations will be recalculated, even if explanations
+for this model have already been calculated. Otherwise, explanations will only be calculated, if they are not
+already present. **Type: boolean**, default is false.
 
 #### Motif Extraction Output Files
 
