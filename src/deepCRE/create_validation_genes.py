@@ -1,5 +1,6 @@
 import os
 import pickle
+from typing import Tuple
 import pandas as pd
 from Bio import SeqIO
 import re
@@ -30,6 +31,23 @@ def get_save_path(output_path: str, pickle_key: str):
     return pickle_file_path
 
 
+def get_queries(description: str) -> Tuple[str, str]:
+    if "gene:" in description:
+        gene_query = "gene:"
+    elif "gene=" in description:
+        gene_query = "gene="
+    else:
+        gene_query = ""
+    
+    if "chromosome:" in description:
+        chrom_query = "chromosome:"
+    elif "seq_id=" in description:
+        chrom_query = "seq_id="
+    else:
+        chrom_query = ""
+    return gene_query, chrom_query
+
+
 def main():
     args = parse_args()
     proteome_path = args.proteins
@@ -48,11 +66,16 @@ def main():
         info = []
         for rec in SeqIO.parse(proteome_path, 'fasta'):
             description = rec.description
+            gene_query, chrom_query = get_queries(description)
+            if not (gene_query and chrom_query):
+                continue
             protein_id = description.split(' ')[0]  # Extract protein_id
-            gene_match = re.search(r'gene=([^ ]+)', description)
-            chrom_match = re.search(r'seq_id=([^ ]+)', description)
+            gene_match = re.search(f'{gene_query}([^ ]+)', description)
+            chrom_match = re.search(f'{chrom_query}([^ ]+)', description)
             gene_id = gene_match.group(1) if gene_match else None
             chrom = chrom_match.group(1) if chrom_match else None
+            if chrom is not None and chrom.count(":") == 4:
+                chrom = chrom.split(":")[1]
             info.append([gene_id, protein_id, chrom])
 
         info = pd.DataFrame(info, columns=['gene_id', 'protein_id', 'chrom'])
