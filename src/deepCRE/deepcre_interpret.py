@@ -252,9 +252,8 @@ def parse_input_file(file: str):
         "training_output_name": None,
         "chromosomes": "",
         "ignore_small_genes": True,
-        "species_name": "",
         "extragenic": 1000,
-        "intragenic": 500
+        "intragenic": 500,
     }
 
     possible_species_parameters = {

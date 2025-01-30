@@ -151,10 +151,10 @@ def parse_input_file(file: str):
         "genome": None,
         "annotation": None,
         "targets": "",
+        "prediction_models": None,
         "output_base": "",
         "output_path": "",
         "chromosomes": "",
-        "prediction_models": None,
         "ignore_small_genes": True,
         "extragenic": 1000,
         "intragenic": 500

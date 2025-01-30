@@ -139,8 +139,8 @@ def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
         "force_interpretations": False
     }
     possible_species_parameters = {
+        "chromosomes": "",
         "species_name": "",
-        "chromosomes": ""
     }
     inputs, failed_trainings, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()

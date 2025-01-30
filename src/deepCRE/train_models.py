@@ -577,6 +577,7 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
 
 def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
     possible_general_parameters = {
+        "model_case": None,
         "genome": None,
         "annotation": None,
         "targets": None,
@@ -584,7 +585,6 @@ def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int
         "chromosomes": "",
         "pickle_key": None,
         "pickle_file": "validation_genes.pickle",
-        "model_case": None,
         "ignore_small_genes": True,
         "train_val_split": False,
         "extragenic": 1000,
