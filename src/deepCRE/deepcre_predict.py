@@ -163,8 +163,8 @@ def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
     }
 
     possible_species_parameters = {
+        "species_name": "",
         "chromosomes": "",
-        "species_name": ""
     }
     inputs, failed_trainings, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()
