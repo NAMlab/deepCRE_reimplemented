@@ -50,6 +50,7 @@ def main():
     tpm_counts.to_csv(path_or_buf=output_path, index=False)
     print(f"Processed {tpm_path}:")
     print(tpm_counts.head())  # Print the first few rows of the processed DataFrame
+    print(f"results saved to {output_path}")
 
 if __name__ == "__main__":
     main()
