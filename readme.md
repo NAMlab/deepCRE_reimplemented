@@ -5,12 +5,8 @@
 - [User Manual: DeepCRE](#user-manual-deepcre)
   - [Table of Contents](#table-of-contents)
   - [Introduction](#introduction)
-    - [Overview](#overview)
   - [Installation and Setup](#installation-and-setup)
-    - [Prerequisites](#prerequisites)
-    - [Installation Steps](#installation-steps)
   - [Framework Overview](#framework-overview)
-    - [Workflow Summary](#workflow-summary)
   - [Script Descriptions and Usage](#script-descriptions-and-usage)
     - [General Input File Formats](#general-input-file-formats)
     - [Data Preprocessing](#data-preprocessing)
@@ -20,7 +16,7 @@
       - [Single Species Training Input Files](#single-species-training-input-files)
       - [Multiple Species Training Input Files](#multiple-species-training-input-files)
       - [Training Output Files](#training-output-files)
-    - [Predictions](#predictions)
+    - [Prediction](#prediction)
       - [Self Prediction Input Files](#self-prediction-input-files)
       - [Self Prediction Output Files](#self-prediction-output-files)
       - [Cross Prediction Input Files](#cross-prediction-input-files)
@@ -35,8 +31,6 @@
 
 ## Introduction
 
-### Overview
-
 This project is the official implementation of the DeepCRE framework, based on the work described
 in **Peleke et al. and Peleke et al.** DeepCRE is designed to predict gene activity in plants using
 convolutional neural networks on the gene flanking regions. The framework provides an automated
@@ -49,8 +43,6 @@ of specific inputs, and enables motif extraction to identify patterns associated
 gene activity.
 
 ## Installation and Setup
-
-### Prerequisites
 
 To successfully use the DeepCRE framework, first you need to set up an environment with the necessary
 packages installed. We recommend the use of conda / miniconda to manage the environment. The following
@@ -94,10 +86,6 @@ git clone https://github.com/AvantiShri/shap.git
 cd shap
 pip install .
 ```
-
-With that the environment is set up and the DeepCRE framework can be installed.
-
-### Installation Steps
 
 To install the DeepCRE framework, clone the repository from GitHub to a directory of your choice:
 
@@ -146,8 +134,6 @@ straightforward command-line arguments, the training and
 inference scripts require a JSON configuration file to specify the
 necessary settings and parameters. More details on the input format
 is given in the following chapters.
-
-### Workflow Summary
 
 ## Script Descriptions and Usage
 
@@ -323,7 +309,7 @@ files are saved in their respective folders (`"genome_<species1>(_<species2> ...
 `"tpm_<species1>(_<species2> ... ).csv"` in the `tpm_counts` folder and `"gtf_<species1>(_<species2> ... ).csv"` in
 the `gene_models` folder).
 
-### Predictions
+### Prediction
 
 Having trained a model enables making predictions. The deepCRE framework provides two scripts for this purpose. The
 `deepcre_predict.py` script is used to make predictions on the training data set, while the `deepcre_crosspredict.py`
