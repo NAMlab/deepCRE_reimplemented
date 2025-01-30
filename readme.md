@@ -31,7 +31,7 @@
     - [Motif Extraction](#motif-extraction)
       - [Motif Extraction Input Files](#motif-extraction-input-files)
       - [Motif Extraction Output Files](#motif-extraction-output-files)
-  - [Examples and Case Studies](#examples-and-case-studies)
+  - [Demo Case / Quick Start](#demo-case--quick-start)
 
 ## Introduction
 
@@ -118,7 +118,7 @@ chmod +x set_up_example.sh
 You're all set! The DeepCRE framework is now installed and ready to use. In the following chapters, we will
 discuss the use of the different scripts and functionalities of the framework in detail. If you can't wait and
 want to get started right away, example json configuration files are provided in the `src/deepCRE/inputs` folder
-and their use is explained in the [examples chapter](#examples-and-case-studies).
+and their use is explained in the [examples chapter](#demo-case--quick-start).
 
 ## Framework Overview
 
@@ -179,7 +179,8 @@ specified for each run in the json config file. Further parameters depend on the
 
 #### Create targets
 
-Two scripts for data preprocessing are included in the repository. The first one is `create_target_file.py`, which can take RNA-seq data as a csv file with named columns
+Two scripts for data preprocessing are included in the repository. The first one is `create_target_file.py`,
+which can take RNA-seq data as a csv file with named columns
 and create targets based on that. The file is run using up to three command line parameters:
 
 - `--input_path` or `-i` is the path to the csv file containing the RNA-seq data.
@@ -205,6 +206,17 @@ are included in the list, so that during the chromosome wise cross validation, n
 be included in the validation set as a homolog. The sccript needs a fasta file containing all proteins of a species
 and the results of a blast run where all proteins are basted against all proteins of the same species.
 
+The script is run using the following command line parameters:
+
+- `--proteins` or `-p` is the path to the fasta file containing all proteins of the species.
+- `--blast_outputs` or `-b` is the path to the file containing the results of the blast run.
+the results must be formatted in the blast output format 6.
+- `--pickle_key_name` or `-k` is the name of the key under which the list of genes will be saved
+in the dictionary in the pickle file.
+- `--output` or `-o` is an optional parameter specifying the output path of the pickle file.
+By default, the file will be saved in the `src/deepCRE` folder under the name
+"validation_genes_<pickle_key_name>.pickle".
+
 ### Model Training
 
 #### Single Species Training Input Files
@@ -215,7 +227,9 @@ mentioned previously a genome, corresponding annotation as well as the targets a
 genes, that were generated in the preprocessing steps.\
 The exact location of these files as well as other parameters are set in a json configuration
 file, that is necessary for each run of the script.
-An example of such an config file can be found in `src/deepCRE/inputs/arabidopsis_training_demo.json`. An mentioned preciously, the file is a list of dictionaries, where each dictionary contains the parameters for a single run. The necessary parameters for the training script are:
+An example of such an config file can be found in `src/deepCRE/inputs/arabidopsis_training_demo.json`.
+An mentioned preciously, the file is a list of dictionaries, where each dictionary contains the parameters
+for a single run. The necessary parameters for the training script are:
 
 - genome: either the full path to the genome file or the name of the genome file in the genome
 folder. **Type: string.**
@@ -521,6 +535,74 @@ The file can be read in using the h5py package in python. The general structure 
 [modisco-lite repository](https://github.com/jmschrei/tfmodisco-lite/) and the computational basis in the
 [technical note](https://arxiv.org/pdf/1811.00416).
 
-## Examples and Case Studies
+## Demo Case / Quick Start
 
-asdf
+When setting up the folder structure using the `set_up_example.sh` script, example data for the arabidopsis thaliana
+species is downloaded. The data is stored in the `genome`, `gene_models` and `tpm_counts` folders. The data can be
+used to run a simple demo case of the capabilities of the deepCRE framework. The first steps will be preparing the
+data for training.\
+In the `tpm_counts` folder, a file called `arabidopsis_leaf_counts.csv` is stored. This file contains the expression
+levels of the genes in the arabidopsis genome from leaf samples of arabidopsis plants. To create the target file, the
+`create_target_file.py` script can be used. The script is run using the following command:
+
+```bash
+python src/deepCRE/create_target_file.py --input_path src/deepCRE/tpm_counts/arabidopsis_leaf_counts.csv
+```
+
+Since the column we are interested in is called "logMaxTPM", we don't need to specify the target_column parameter. The
+output file will be saved in the `tpm_counts` folder under the name `arabidopsis_leaf_counts_targets.csv`.\
+
+Next we need to create the validation genes file. To run our script for the generation of the validation genes, we need
+the protein sequences of arabidopsis as well as the results of a blast run. The protein sequences are publicly available
+and for a blast run, an examplary run could look like this:
+
+```bash
+wget https://ftp.ebi.ac.uk/ensemblgenomes/pub/release-52/plants/fasta/arabidopsis_thaliana/pep/Arabidopsis_thaliana.TAIR10.pep.all.fa.gz
+gunzip Arabidopsis_thaliana.TAIR10.pep.all.fa.gz
+makeblastdb -in Arabidopsis_thaliana.TAIR10.pep.all.fa -dbtype prot -title arabidopsis -parse_seqids -hash_index -out arabidopsis
+blastp -db arabidopsis -query Arabidopsis_thaliana.TAIR10.pep.all.fa  -out Blast_ara_to_ara -outfmt 6
+```
+
+For more information on using blast, refer to the [blast documentation](https://www.ncbi.nlm.nih.gov/books/NBK279690/).
+Alternative software like diamond can be used as well, as long as the output is in the blast output format 6.
+`create_validation_genes.py` can then be run using the following command:
+
+```bash
+python src/deepCRE/create_validation_genes.py --proteins Arabidopsis_thaliana.TAIR10.pep.all.fa --blast_outputs Blast_ara_to_ara --pickle_key_name ara
+```
+
+The output file will be saved in the `src/deepCRE` folder under the name `validation_genes_ara.pickle`. Alternatively a
+file name can be specified using the `-o` parameter. A file with the name `validation_genes.pickle` is also already
+part of the repository and contains the validation genes for _Arabidopsis thaliana_, _Zea mays_, _Solanum lycopersicum_ and
+_Sorghum bicolor_ under the pickle keys "ara", "zea", "sol" and "sor" respectively.\
+
+With the genome, annotation, targets and validation genes prepared, the training process can be started. An example
+json configuration file for the training process is provided in `src/deepCRE/inputs/arabidopsis_training_demo.json`.
+The file contains the necessary parameters for the training process with no optional parameters. The file can be used
+to train a model on the arabidopsis genome. The training process can be started using the following command:
+
+```bash
+python src/deepCRE/train_models.py --input src/deepCRE/inputs/arabidopsis_training_demo.json
+```
+
+The training process will create a summary file in the `src/deepCRE/results/training` folder and save the models
+in the `src/deepCRE/saved_models` folder under the name `"arabidopsis_<1-5>_ssr_train_models_<time_stamp>.h5"`.
+Based on the trained models predictions, interpretations and motif extractions can be made. A json configuration file
+for all of these processes is provided in `src/deepCRE/inputs/arabidopsis_predict_interpret_extract_demo.json`.
+The file contains again only the necessary parameters for the processes. The other scripts can be run using the
+following commands:
+
+```bash
+python src/deepCRE/deepcre_predict.py --input src/deepCRE/inputs/arabidopsis_predict_interpret_extract_demo.json
+python src/deepCRE/deepcre_interpret.py --input src/deepCRE/inputs/arabidopsis_predict_interpret_extract_demo.json
+python src/deepCRE/deepcre_motifs.py --input src/deepCRE/inputs/arabidopsis_predict_interpret_extract_demo.json
+```
+
+Results will be stored in the `src/deepCRE/results` folder in the respective subfolders `"predictions"`, `"shap"` and
+`"modisco"`.\
+
+The example data can be used to get a first impression of the capabilities of the deepCRE framework. For more detailed
+information on the input parameters and the use of the scripts, refer to the [script descriptions](#script-descriptions-and-usage).
+
+If after reading the full documentation, questions remain, feel free to contact us under the
+[contact information](mailto:g.schmitz@f-juelich.de).
