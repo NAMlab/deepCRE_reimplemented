@@ -57,7 +57,7 @@ def get_filename_from_path(path: str) -> str:
     return file_name
 
 
-def load_annotation(annotation_path) -> pd.DataFrame:
+def load_annotation(annotation_path: str) -> pd.DataFrame:
     gene_model = pr.read_gtf(f=annotation_path, as_df=True) if annotation_path.endswith(".gtf") else pr.read_gff3(f=annotation_path, as_df=True)
     gene_model = gene_model[gene_model['Feature'] == 'gene']
     columns = ['Chromosome', 'Start', 'End', 'Strand']
@@ -72,7 +72,7 @@ def load_annotation(annotation_path) -> pd.DataFrame:
 
 
 # Function for reading and adapting the concatenated gtf file for MSR training
-def load_annotation_msr(annotation_path) -> pd.DataFrame:
+def load_annotation_msr(annotation_path: str) -> pd.DataFrame:
     gene_model = pd.read_csv(annotation_path, header=None, sep="\s+")           #type:ignore
 
     expected_columns = ['species', 'Chromosome', 'Start', 'End', 'Strand', 'gene_id']
