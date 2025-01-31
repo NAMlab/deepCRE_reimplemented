@@ -112,8 +112,4 @@ class TestCrossPredictions(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # unittest.main()
     stupid_obejct = TestCrossPredictions()
-    # stupid_obejct.test_cross_pred_integration()
-    # stupid_obejct.test_check_input()
-    stupid_obejct.test_input_cases()

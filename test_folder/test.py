@@ -166,7 +166,7 @@ def test_motif_extraction():
                     intragenic=500,
                     ignore_small_genes=False,
                     output_name="arabidopsis",
-                    model_case="ssr",
+                    model_case=ModelCase.SSR,
                     validation_object_names=chromosomes,
                     force_interpretation=False)
 
