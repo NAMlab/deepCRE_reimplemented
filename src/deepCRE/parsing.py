@@ -12,16 +12,31 @@ from deepCRE.utils import make_absolute_path, read_feature_from_input_dict
 
 
 class RunInfo:
+    """holds information about a single run of a deepCRE script.
+
+    Information is split over general information that is used for all species, and species specific information.
+    """
     general_info: Dict[str, Any]
     species_info: List[Dict[str, Any]]
     possible_general_parameters: Dict
     possible_species_parameters: Dict
 
     def __init__(self, possible_general_parameters: Dict, possible_species_parameters: Dict) -> None:
-         self.possible_general_parameters = possible_general_parameters
-         self.possible_species_parameters = possible_species_parameters
+        """initialize the RunInfo object.
 
-    def set_up_defaults(self):
+        Args:
+            possible_general_parameters (Dict): defines the possible parameters that can be used in the general info dict and their default values.
+            possible_species_parameters (Dict): defines the possible parameters that can be used in the species info dict and their default values.
+        """
+        self.possible_general_parameters = possible_general_parameters
+        self.possible_species_parameters = possible_species_parameters
+
+    def set_up_defaults(self) -> Dict[str, Any]:
+        """set up the default values for the species info dict based on the general info dict and the possible parameters.
+
+        Returns:
+            Dict[str, Any]: dictionary containing the default values for the species info dict.
+        """
         #get general defaults
         defaults = self.possible_species_parameters.copy()
         #get values from general columns that can be used for species infos
@@ -36,13 +51,30 @@ class RunInfo:
             del applicable_general_inputs[key]
         return applicable_general_inputs
 
-    def check_general_keys(self, general_dict: Dict[str, Any]):
+    def check_general_keys(self, general_dict: Dict[str, Any]) -> None:
+        """check if all necessary parameters are present in the general info dict.
+
+        Args:
+            general_dict (Dict[str, Any]): dictionary containing the general info.
+
+        Raises:
+            ValueError: if any necessary parameter is missing.
+        """
         necessary_parameters = list(set(self.possible_general_parameters).difference(set(self.possible_species_parameters)))
         missing = [parameter for parameter in necessary_parameters if parameter not in general_dict.keys()]
         if missing:
             raise ValueError(f"Error parsing general info dict! Input parameters {missing} missing!")
 
     def check_species_keys(self, specie_dict: Dict[str, Any], missing_species_name_ok: bool = False):
+        """check if all necessary parameters are present in the species info dict.
+
+        Args:
+            specie_dict (Dict[str, Any]): dictionary containing the species info.
+            missing_species_name_ok (bool, optional): if True, the function will not raise an error if only the species_name is missing. Defaults to False.
+
+        Raises:
+            ValueError: if any necessary parameter is missing.
+        """
         missing = [parameter for parameter in self.possible_species_parameters.keys() if parameter not in specie_dict.keys()]
         if missing_species_name_ok and missing == ["species_name"]:
             return
@@ -50,6 +82,11 @@ class RunInfo:
             raise ValueError(f"Error parsing specie dict! Input parameters {missing} missing!")
     
     def load_chromosomes(self) -> None:
+        """load the chromosomes from the csv file if a path is given instead of a list of chromosomes.
+
+        Raises:
+            ValueError: if the input for the chromosomes is not a list or a path to a csv file.
+        """
         for specie_info in self.species_info:
             if not "chromosomes" in specie_info.keys():
                 continue
@@ -67,7 +104,12 @@ class RunInfo:
             specie_info["chromosomes"] = chromosomes
 
 
-    def parse_species(self, run_dict: Dict[str, Any]):
+    def parse_species(self, run_dict: Dict[str, Any]) -> None:
+        """parse the species info from the input dictionary.
+
+        Args:
+            run_dict (Dict[str, Any]): dictionary that was read from the input file
+        """
         #list of parameters in both general and species parameters
         applicable_general_inputs = self.set_up_defaults()
         species_info = []
@@ -87,6 +129,11 @@ class RunInfo:
         self.load_chromosomes()
     
     def load_prediction_models(self) -> None:
+        """load the prediction models from the csv file if a path is given instead of a list of model names.
+
+        Raises:
+            ValueError: if the input for the prediction models is not a list or a path to a csv file.
+        """
         if not "prediction_models" in self.general_info.keys():
             return
         prediction_models = self.general_info["prediction_models"]
@@ -100,7 +147,12 @@ class RunInfo:
         prediction_models = [str(chrom) for chrom in prediction_models]
         self.general_info["prediction_models"] = prediction_models
 
-    def parse_general_inputs(self, run_dict: Dict[str, str]):
+    def parse_general_inputs(self, run_dict: Dict[str, str]) -> None:
+        """parse the general info from the input dictionary.
+
+        Args:
+            run_dict (Dict[str, str]): dictionary that was read from the input file
+        """
         #load defaults
         defaults = self.possible_general_parameters.copy()
         read_data = {key: read_feature_from_input_dict(run_dict, key) for key in self.possible_general_parameters.keys() if key in run_dict.keys()}
@@ -120,6 +172,20 @@ class RunInfo:
 
     @staticmethod
     def parse(run_dict: Dict[str, Any], possible_general_parameters: Dict, possible_species_parameters: Dict, multiple_species_required_msr: bool = False) -> RunInfo:
+        """parse the input dictionary into a RunInfo object.
+
+        Args:
+            run_dict (Dict[str, Any]): dictionary that was read from the input file
+            possible_general_parameters (Dict): Dict containing the possible parameters for the general info dict and their default values.
+            possible_species_parameters (Dict): Dict containing the possible parameters for the species info dict and their default values.
+            multiple_species_required_msr (bool, optional): if True, the function will raise an error if less than 2 species are present in the species info dict for msr runs. Defaults to False.
+
+        Raises:
+            ValueError: if less than 2 species are present in the species info dict for msr runs.
+
+        Returns:
+            RunInfo: RunInfo object containing the parsed information.
+        """
         run_info_object = RunInfo(possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
         run_info_object.parse_general_inputs(run_dict=run_dict)
         # load general info first, and use it as defaults for specific species
@@ -132,12 +198,22 @@ class RunInfo:
         return run_info_object
     
     def is_msr(self) -> bool:
+        """check if the run is a MSR run.
+
+        Returns:
+            bool: True if the run is a MSR run, False otherwise.
+        """
         if "model_case" in self.general_info.keys():
             return self.general_info["model_case"] == ModelCase.MSR
         else:
             return False
     
     def __str__(self) -> str:
+        """return a string representation of the RunInfo object.
+
+        Returns:
+            str: string representation of the RunInfo object based on the json format.
+        """
         if "model_case" in self.general_info.keys():
             self.general_info["model_case"] = str(self.general_info["model_case"])
         specie_info_json = json.dumps(self.species_info, indent=2)
@@ -159,17 +235,39 @@ class RunInfo:
 
 
 class ParsedInputs:
+    """holds information about multiple runs of a deepCRE script.
+
+    Holds possible parameters for general and species info, as well as their defaults, since they are consistent for scripts.
+    """
     run_infos: List[RunInfo]
     possible_general_parameters: Dict
     possible_species_parameters: Dict
 
     def __init__(self, possible_general_parameters: Dict, possible_species_parameters: Dict):
+        """initialize the ParsedInputs object.
+
+        Args:
+            possible_general_parameters (Dict): possible parameters for the general info dict and their default values.
+            possible_species_parameters (Dict): possible parameters for the species info dict and their default values.
+        """
         self.run_infos = []
         self.possible_general_parameters = possible_general_parameters
         self.possible_species_parameters = possible_species_parameters
 
     @staticmethod
     def parse(json_file_name: str, possible_general_parameters: Dict, possible_species_parameters: Dict, allow_multiple_species: bool = True, multiple_species_required_msr: bool = False) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
+        """parse the input json file into a ParsedInputs object.
+
+        Args:
+            json_file_name (str): path to the json file containing the input data.
+            possible_general_parameters (Dict): possible_general_parameters (Dict): _description_
+            possible_species_parameters (Dict): possible_species_parameters (Dict): _description_
+            allow_multiple_species (bool, optional): Determines whether it is allowed to have multiple species in a single run. Defaults to True.
+            multiple_species_required_msr (bool, optional): Will fail msr runs with less than 2 species. Defaults to False.
+
+        Returns:
+            Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]: Tuple containing the ParsedInputs object, a list of failed parsings, and the total number of runs.
+        """
         json_file_name = json_file_name if os.path.isfile(json_file_name) else make_absolute_path(json_file_name, __file__)
         failed_parsings = []
         parsed_object = ParsedInputs(possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
@@ -190,6 +288,11 @@ class ParsedInputs:
         return parsed_object, failed_parsings, len(input_list)
     
     def replace_both(self) -> ParsedInputs:
+        """replace runs with model_case "both" with two runs, one for SSR and one for SSC.
+
+        Returns:
+            ParsedInputs: new ParsedInputs object with the replaced runs.
+        """
         new_object = ParsedInputs(possible_species_parameters=self.possible_species_parameters, possible_general_parameters=self.possible_general_parameters)
         for info in self.run_infos:
             if "model_case" in info.general_info.keys() and info.general_info["model_case"] == ModelCase.BOTH:
@@ -203,9 +306,19 @@ class ParsedInputs:
         return new_object
     
     def __iter__(self) -> Iterable[RunInfo]:
+        """return an iterable over the RunInfo objects.
+
+        Returns:
+            Iterable[RunInfo]: iterable over the RunInfo objects.
+        """
         return (info for info in self.run_infos)
     
     def __str__(self) -> str:
+        """return a string representation of the ParsedInputs object.
+
+        Returns:
+            str: string representation of the ParsedInputs object based on the json format.
+        """
         result = "ParsedTrainingInputs["
         for info in self.run_infos:
             for info_line in str(info).split("\n"):
@@ -214,11 +327,18 @@ class ParsedInputs:
         return result
     
     def __len__(self) -> int:
+        """return the number of runs in the ParsedInputs object.
+
+        Returns:
+            int: number of runs in the ParsedInputs object.
+        """
         return len(self.run_infos)
             
 
 
 class ModelCase(Enum):
+    """Enum to represent the different model cases that can be used in a deepCRE run.
+    """
     MSR = auto()
     SSR = auto()
     SSC = auto()
@@ -226,6 +346,17 @@ class ModelCase(Enum):
 
     @staticmethod
     def parse(input_string: str) -> ModelCase:
+        """parse a string into a ModelCase object.
+
+        Args:
+            input_string (str): string to be parsed.
+
+        Raises:
+            ValueError: if the input string is not recognized.
+
+        Returns:
+            ModelCase: ModelCase object representing the input string.
+        """
         if input_string.lower() == "msr":
             return ModelCase.MSR
         elif input_string.lower() == "ssr":
@@ -238,6 +369,14 @@ class ModelCase(Enum):
             raise ValueError(f"model case \"{input_string}\" not recognized!")
     
     def __str__(self) -> str:
+        """return a string representation of the ModelCase object.
+
+        Raises:
+            NotImplementedError: if the string method was not implemented for this Variant yet!
+
+        Returns:
+            str: string representation of the ModelCase object.
+        """
         if self == ModelCase.MSR:
             return "msr"
         elif self == ModelCase.SSR:
@@ -250,7 +389,13 @@ class ModelCase(Enum):
             raise NotImplementedError("string method was not implemented for this Variant yet!")
 
 
-def convert_training_csv_to_json(csv_path: str, output_json_path: str, **command_line_args):
+def convert_training_csv_to_json(csv_path: str, output_json_path: str, **command_line_args) -> None:
+    """ converts existing csv input files for the older version of the training script to the new json format.
+
+    Args:
+        csv_path (str): path to the csv file to be converted
+        output_json_path (str): path to the save location of the converted json output
+    """
     df = pd.read_csv(csv_path, header=None)
     json_compatible_inputs = []
     if len(df.columns) == 6:
@@ -270,7 +415,14 @@ def convert_training_csv_to_json(csv_path: str, output_json_path: str, **command
         json.dump(json_compatible_inputs, f, indent=2)
 
 
-def parse_args():
+def parse_args() -> Tuple[str, str, Dict[str, str]]:
+    """parse command line arguments.
+
+    will also convert the command line arguments after \"--command_line_args\" into a dictionary, interpreting them as pairs of key and value.
+
+    Returns:
+        Tuple[str, str, Dict[str, str]]: path to the csv file to be converted, path to the save location of the converted json output, dictionary containing the command line arguments.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--csv_path", help="path to the csv file to be converted", required=True, type=str)
     parser.add_argument("--output_path", help="path to the save location of the converted json output", required=True, type=str)

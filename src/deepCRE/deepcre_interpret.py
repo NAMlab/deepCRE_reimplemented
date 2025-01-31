@@ -17,14 +17,14 @@ from deepCRE.parsing import ModelCase, ParsedInputs, RunInfo
 
 
 def find_newest_interpretation_results(output_name: str, results_path: str = "") -> str:
-    """finds path to newest model fitting the given parameters
+    """finds path to newest interpretation results fitting the given parameters
 
     Args:
         output_name (str): output name the was used for creating the predictions in the first place
         results_path (str): path to the directory where prediction results are stored.
 
     Raises:
-        ValueError: raises an error if no fitting model is found
+        ValueError: raises an error if no fitting results are found
 
     Returns:
         str: Path to the newest prediction results for the given output name.
@@ -46,7 +46,16 @@ def find_newest_interpretation_results(output_name: str, results_path: str = "")
 
 
 # 1. Shap
-def dinuc_shuffle_several_times(list_containing_input_modes_for_an_example, seed=1234):
+def dinuc_shuffle_several_times(list_containing_input_modes_for_an_example: List, seed: int=1234):
+    """shuffles a given sequence 50 times using the dinucleotide shuffle method
+
+    Args:
+        list_containing_input_modes_for_an_example (List): List of length 1 containing the one hot encoding of the sequence
+        seed (int, optional): seed for random state for the shuffling. Defaults to 1234.
+
+    Returns:
+        List[np.ndarray]: List of length 50 containing the shuffled sequences
+    """
     assert len(list_containing_input_modes_for_an_example) == 1
     onehot_seq = list_containing_input_modes_for_an_example[0]
     rng = np.random.RandomState(seed)
@@ -56,6 +65,16 @@ def dinuc_shuffle_several_times(list_containing_input_modes_for_an_example, seed
 
 
 def combine_mult_and_diffref(mult, orig_inp, bg_data):
+    """calculates hypothetical contributions
+
+    Args:
+        mult (_type_): multipliers
+        orig_inp (_type_): original input
+        bg_data (_type_): background data
+
+    Returns:
+        List[np.ndarray]: List of hypothetical contributions
+    """
     to_return = []
     for l in range(len(mult)):
         projected_hypothetical_contribs = np.zeros_like(bg_data[l]).astype("float")
@@ -70,12 +89,15 @@ def combine_mult_and_diffref(mult, orig_inp, bg_data):
     return to_return
 
 
-def compute_actual_hypothetical_scores(x, model):
-    """
-    This function computes the actual hypothetical scores given a model.
-
-    :param x: onehot encodings of correctly predicted sequences
-    :param model: loaded keras model used for predictions
+def compute_actual_hypothetical_scores(x, model) -> Tuple[np.ndarray, np.ndarray]:
+    """computes the actual hypothetical scores given a model.
+    
+    Args:
+        x (np.ndarray): onehot encodings of correctly predicted sequences
+        model (_type_): loaded keras model used for predictions
+    
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: actual scores, hypothetical scores
     """
     shap.explainers.deep.deep_tf.op_handlers["AddV2"] = shap.explainers.deep.deep_tf.passthrough #type:ignore
     shap.explainers.deep.deep_tf.op_handlers["FusedBatchNormV3"] = shap.explainers.deep.deep_tf.linearity_1d(0)#type:ignore
@@ -85,14 +107,31 @@ def compute_actual_hypothetical_scores(x, model):
         combine_mult_and_diffref=combine_mult_and_diffref)
     hypothetical_scores = dinuc_shuff_explainer.shap_values(x)
     actual_scores = hypothetical_scores * x
-    return actual_scores, hypothetical_scores
+    return actual_scores, hypothetical_scores #type:ignore
 
 
-def single_score_calc(upstream: int, downstream: int, output_name: str, model_case: ModelCase, shap_actual_scores,
-                      shap_hypothetical_scores, one_hots_seqs: List[np.ndarray], gene_ids_seqs: List[np.ndarray],
+def single_score_calc(extragenic: int, intragenic: int, output_name: str, model_case: ModelCase, shap_actual_scores: List[np.ndarray],
+                      shap_hypothetical_scores: List[np.ndarray], one_hots_seqs: List[np.ndarray], gene_ids_seqs: List[np.ndarray],
                       preds_seqs: List[np.ndarray], extracted_genes: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]],
-                      val_chrom: str, validation_text: str):
-    x, y, preds, gene_ids, model = predict_self(extragenic=upstream, intragenic=downstream, val_chromosome=val_chrom,
+                      val_chrom: str, validation_text: str) -> None:
+    """calculates actual and hypothetical contribution scores for a given validation object (chromosome or species)
+
+    Args:
+        extragenic (int): number of bases to extract in the extragenic region of the gene
+        intragenic (int): number of bases to extract in the intragenic region of the gene
+        output_name (str): basis for the output file name
+        model_case (ModelCase): differenctiates between SSR, SSC and MSR model cases
+        shap_actual_scores (List[np.ndarray]): List holding the results of the actual scores
+        shap_hypothetical_scores (List[np.ndarray]): List holding the results of the hypothetical scores
+        one_hots_seqs (List[np.ndarray]): List of the one hot encodings of the correct predictions
+        gene_ids_seqs (List[np.ndarray]): List of gene ids of the correct predictions
+        preds_seqs (List[np.ndarray]): List of the correct predictions
+        extracted_genes (Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]): Dictionary holding the extracted genes
+        val_chrom (str): name of the validation object
+        validation_text (str): text to be printed during the validation
+    """
+
+    x, y, preds, gene_ids, model = predict_self(extragenic=extragenic, intragenic=intragenic, val_entity=val_chrom,
                                                 output_name=output_name, model_case=model_case, extracted_genes=extracted_genes)
     preds = preds > 0.5
     preds = preds.astype(int)
@@ -118,22 +157,26 @@ def single_score_calc(upstream: int, downstream: int, output_name: str, model_ca
     preds_seqs.extend(correct_y)
 
 
-def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name, upstream, downstream, validation_obj_names: List[str], ignore_small_genes,
-                   output_name, model_case):
-    """
-    This function performs predictions, extracts correct predictions and performs shap computations. This will be
-    done iteratively per chromosome.
+def extract_scores(genome_file_name: str, annotation_file_name: str, tpm_counts_file_name: str, extragenic: int,
+                   intragenic: int, validation_obj_names: List[str], ignore_small_genes: bool, output_name: str,
+                   model_case: ModelCase) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List, List]:
+    """performs predictions, extracts correct predictions and performs shap computations. This will be
+            done iteratively per chromosome.
 
-    :param genome: genome fasta file
-    :param annot: gtf annotation file
-    :param tpm_targets: targets file; must have a target column
-    :param upstream: 1000
-    :param downstream: 500
-    :param n_chromosome: total number of chromosomes in the species
-    :param ignore_small_genes: whether to ignore small genes
-    :param output_name: prefix name used to create output files
-    :param model_case: SSR, SSC or MSR
-    :return: actual scores, hypothetical scores and one hot encodings of correct predictions across the entire genome
+    Args:
+        genome_file_name (str): name of the genome fasta file saved in the genome folder or the path to the genome fasta file
+        annotation_file_name (str): name of the annotation file saved in the gene_models folder or the path to the annotation file
+        tpm_counts_file_name (str): name of the targets file saved in the tpm_counts folder or the path to the targets file
+        extragenic (int): number of bases to extract in the extragenic region of the gene
+        intragenic (int): number of bases to extract in the intragenic region of the gene
+        validation_obj_names (List[str]): List of validation objects (chromosomes or species) that were used for the training process
+        ignore_small_genes (bool): whether to ignore small genes
+        output_name (str): prefix name used to create output files
+        model_case (ModelCase): differenctiates between SSR, SSC and MSR model cases
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray, List, List]: actual scores, hypothetical scores, one hot encodings of genes that
+            were predicted correctly, gene ids of correct predictions, correct predictions
     """
     folder_path = make_absolute_path("results", "shap")
     if not os.path.exists(folder_path):
@@ -145,12 +188,12 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
     genome = loaded_input_files["genome"]
     annotation = loaded_input_files["annotation"]
     tpms = loaded_input_files["tpms"]
-    extracted_genes = extract_genes_prediction(genome, annotation, extragenic=upstream, intragenic=downstream,
+    extracted_genes = extract_genes_prediction(genome, annotation, extragenic=extragenic, intragenic=intragenic,
                                                ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
 
     for val_obj_name in validation_obj_names:
         validation_text = f"{val_obj_name} from {output_name}"
-        single_score_calc(upstream=upstream, downstream=downstream, output_name=output_name, model_case=model_case,
+        single_score_calc(extragenic=extragenic, intragenic=intragenic, output_name=output_name, model_case=model_case,
                           shap_actual_scores=shap_actual_scores, shap_hypothetical_scores=shap_hypothetical_scores,
                           one_hots_seqs=one_hots_seqs, gene_ids_seqs=gene_ids_seqs, preds_seqs=preds_seqs,
                           extracted_genes=extracted_genes, val_chrom=val_obj_name, validation_text=validation_text)
@@ -164,7 +207,18 @@ def extract_scores(genome_file_name, annotation_file_name, tpm_counts_file_name,
     return shap_actual_scores, shap_hypothetical_scores, one_hots_seqs, gene_ids_seqs, preds_seqs
 
 
-def save_results(output_name: str, shap_actual_scores, shap_hypothetical_scores, gene_ids_seqs: List, preds_seqs: List, one_hot_seqs: np.ndarray):
+def save_results(output_name: str, shap_actual_scores: np.ndarray, shap_hypothetical_scores: np.ndarray,
+                 gene_ids_seqs: List, preds_seqs: List, one_hot_seqs: np.ndarray) -> None:
+    """saves the results of the shap computations to a h5 file and the gene ids and predictions to a csv file
+
+    Args:
+        output_name (str): prefix name used to create output files
+        shap_actual_scores (np.ndarray): contribution scores calculated by shap
+        shap_hypothetical_scores (np.ndarray): hypothetical contribution scores calculated by shap
+        gene_ids_seqs (List): IDs of the genes that were predicted correctly
+        preds_seqs (List): predictions of the genes that were predicted correctly
+        one_hot_seqs (np.ndarray): one hot encodings of the genes that were predicted correctly
+    """
     folder_name = make_absolute_path("results", "shap")
     if not os.path.exists(folder_name):
         os.mkdir(folder_name)
@@ -178,7 +232,9 @@ def save_results(output_name: str, shap_actual_scores, shap_hypothetical_scores,
         pd.DataFrame({'gene_ids': gene_ids_seqs, 'preds': preds_seqs}).to_csv(path_or_buf=save_path, index=False)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command line arguments."""
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
                         description="This script performs calculations of contribution scores for models trained wit the deepCRE framework.")
@@ -190,7 +246,15 @@ def parse_args():
     return args
 
 
-def check_species_info(run_info: RunInfo):
+def check_species_info(run_info: RunInfo) -> None:
+    """checks if the species info is provided correctly
+
+    Args:
+        run_info (RunInfo): information about the current run
+
+    Raises:
+        ValueError: if the parameters are not provided correctly
+    """
     if run_info.is_msr():
         for specie_data in run_info.species_info:
             if specie_data["species_name"] == "":
@@ -201,6 +265,20 @@ def check_species_info(run_info: RunInfo):
 
 
 def get_val_obj_names(run_info: RunInfo) -> List[str]:
+    """extracts the validation object names from the run_info
+
+    Based on whether this is a SSR, SSC or MSR model case, the function will extract the chromosome names or the species names
+
+    Args:
+        run_info (RunInfo): Object containing the information about the current run
+
+    Raises:
+        ValueError: SSR/SSC models lack chromosome names, MSR models lack species names or more than one species is provided
+            for SSR/SSC models
+
+    Returns:
+        List[str]: List of validation object names
+    """
     model_case = run_info.general_info["model_case"]
     if model_case in [ModelCase.SSR, ModelCase.SSC]:
         if len(run_info.species_info) > 1:
@@ -221,7 +299,18 @@ def get_val_obj_names(run_info: RunInfo) -> List[str]:
     return val_obj_names
 
 
-def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
+def run_interpretation(inputs: ParsedInputs, failed_runs: List[Tuple], input_length: int, test: bool = False) -> List[Tuple[str, int, Exception]]:
+    """runs the interpretation process for the given inputs
+
+    Args:
+        inputs (ParsedInputs): Configurations for the interpretation process parsed from the input file
+        failed_runs (List[Tuple]): List containing information on runs that could not be parsed properly
+        input_length (int): number of runs that were present in the input file
+        test (bool, optional): parameter to test the function. Currently not used. Defaults to False.
+
+    Returns:
+        List[Tuple]: List of failed runs, containing the output name, index of the run and the error that occured
+    """
     for i, run_info in enumerate(inputs):     #type:ignore
         output_name = ""
         try: 
@@ -229,20 +318,29 @@ def run_interpretation(inputs: ParsedInputs, failed_trainings: List[Tuple], inpu
             output_name = run_info.general_info["training_output_name"]
             val_obj_names = get_val_obj_names(run_info)
             extract_scores(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"],
-                            tpm_counts_file_name=run_info.general_info["targets"], upstream=run_info.general_info["extragenic"],
-                            downstream=run_info.general_info["intragenic"], validation_obj_names=val_obj_names,
+                            tpm_counts_file_name=run_info.general_info["targets"], extragenic=run_info.general_info["extragenic"],
+                            intragenic=run_info.general_info["intragenic"], validation_obj_names=val_obj_names,
                             ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
                             model_case=run_info.general_info["model_case"])
         except Exception as e:
             print(e)
             print(run_info)
-            failed_trainings.append((output_name, i, e))
+            failed_runs.append((output_name, i, e))
                 
-    result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
-    return failed_trainings
+    result_summary(failed_trainings=failed_runs, input_length=input_length, script=get_filename_from_path(__file__))
+    return failed_runs
 
 
-def parse_input_file(file: str):
+def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
+    """parses the input file and returns the parsed inputs, failed runs and the number of runs
+
+    Args:
+        file (str): path to the input file
+
+    Returns:
+        Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]: Tuple containing the parsed inputs,
+            runs that were not able to be parsed and the number of runs in the input file.
+    """
     possible_general_parameters = {
         "model_case": None,
         "genome": None,
@@ -265,13 +363,15 @@ def parse_input_file(file: str):
     return inputs, failed_trainings, input_length
 
 
-def main():
+def main() -> None:
+    """Main function for the interpretation process
+    """
     tf.compat.v1.disable_eager_execution()
     tf.compat.v1.disable_v2_behavior()
     tf.config.set_visible_devices([], 'GPU')
     args = parse_args()
     inputs, failed_trainings, input_length = parse_input_file(args.input)
-    run_interpretation(inputs=inputs, failed_trainings=failed_trainings, input_length=input_length)
+    run_interpretation(inputs=inputs, failed_runs=failed_trainings, input_length=input_length)
 
 
 if __name__ == "__main__":

@@ -8,7 +8,12 @@ import argparse
 from deepCRE.utils import make_absolute_path
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments.
+
+    Returns:
+        argparse.Namespace: parsed arguments
+    """
     parser = argparse.ArgumentParser(
                         prog='create validation genes',
                         description="This script can be used to create a list of validation genes for a given proteome.")
@@ -21,17 +26,39 @@ def parse_args():
     return args
 
 
-def get_save_path(output_path: str, pickle_key: str):
+def get_save_path(output_path: str, pickle_key: str) -> str:
+    """Get the path to save the pickle file.
+
+    creates path to generated name based on the pickle_key. If output_path is provided, it will be used as the output path.
+
+    Args:
+        output_path (str): optional user provided output path
+        pickle_key (str): key for the pickle dictionary
+
+    Raises:
+        FileExistsError: If the file already exists at the output path
+
+    Returns:
+        str: path to save the pickle file
+    """
     if not output_path:
-        pickle_file_path = make_absolute_path(f"validation_genes_{pickle_key}.pickle", start_file=__file__)
+        output_path = make_absolute_path(f"validation_genes_{pickle_key}.pickle", start_file=__file__)
 
     # Remove any existing pickle file
-    if os.path.exists(pickle_file_path):
-        raise FileExistsError(f"File already exists at {pickle_file_path}. Please remove it or provide a different output path.")
-    return pickle_file_path
+    if os.path.exists(output_path):
+        raise FileExistsError(f"File already exists at {output_path}. Please remove it or provide a different output path.")
+    return output_path
 
 
 def get_queries(description: str) -> Tuple[str, str]:
+    """Get the queries to extract gene and chromosome information from the protein description.
+
+    Args:
+        description (str): Description of the protein
+
+    Returns:
+        Tuple[str, str]: name and separator for gene and chromosome information
+    """
     if "gene:" in description:
         gene_query = "gene:"
     elif "gene=" in description:
@@ -48,7 +75,12 @@ def get_queries(description: str) -> Tuple[str, str]:
     return gene_query, chrom_query
 
 
-def main():
+def main() -> None:
+    """Main function for creating validation genes.
+
+    This function reads the proteome file and BLAST output file to create a list of genes that have no
+    homologs in other chromosomes. The list is saved as an entry in a dictionary under the provided key.
+    """
     args = parse_args()
     proteome_path = args.proteins
     blast_output_path = args.blast_outputs

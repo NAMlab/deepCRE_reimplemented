@@ -22,6 +22,8 @@ from deepCRE.utils import get_filename_from_path, get_time_stamp, one_hot_encode
 
 
 class TerminationError(Exception):
+    """Error thats warrants termination of the whole program
+    """
     pass
 
 
@@ -31,14 +33,14 @@ def find_newest_model_path(output_name: str, model_case: ModelCase, val_chromoso
     Args:
         output_name (str): output name the was used for model training
         val_chromosome (str): validation chromosome of the model. If it is not given, all models regardless of the val_chromosome will be returned
-        model_case (str): SSR or SSC for the model to be loaded
+        model_case (ModelCase): model case of the model.
         model_path (str): path to the directory where models are stored. used for testing, probably not really stable
 
     Raises:
         ValueError: raises an error if no fitting model is found
 
     Returns:
-        List[str]: List of path to the newest model fitting the given parameters for a single chromosome, or all fitting models if chromosome is ommitted.
+        Dict[str, str]: dictionary with the validation chromosome as key and the path to the model as value
     """
     if model_path == "":
         path_to_models = make_absolute_path("saved_models", start_file=__file__)
@@ -76,8 +78,6 @@ def find_newest_model_path(output_name: str, model_case: ModelCase, val_chromoso
         # models per chromosome only differ in the time stamp. So if sorted, the last model will be the most recently trained
         models.sort()
         fitting_models[chromosome] = os.path.join(path_to_models, models[-1])
-
-
     return fitting_models
 
 
@@ -96,6 +96,9 @@ def extract_gene(genome: Fasta, extragenic: int, intragenic: int, ignore_small_g
         start (int): start index of the gene
         end (int): end index of the gene
         strand (str): determines whether the gene is on + or - strand
+        ssc_training (bool): determines whether the gene is used for SSC training. If True, the promoter and terminator
+            regions for the training set will be shuffled. Default is False
+        val_chromosome (Optional[str]): validation chromosome for the current run.
 
     Returns:
         np.ndarray: One hot encoded gene flanking region as numpy array
@@ -136,6 +139,16 @@ def extract_gene(genome: Fasta, extragenic: int, intragenic: int, ignore_small_g
 
 def append_sequence_prediction(tpms: Optional[pd.DataFrame], extracted_seqs: Dict[str, Tuple[List[np.ndarray], List[int], List[str]]],
                                expected_final_size: int, chrom: str, gene_id: str, sequence_to_append: np.ndarray) -> None:
+    """appends a sequence to the extracted sequences dictionary. If the sequence has the expected size, it will be appended
+
+    Args:
+        tpms (Optional[pd.DataFrame]): DataFrame containing the TPM values for the genes. If None, the gene will be appended with a target of "NA"
+        extracted_seqs (Dict[str, Tuple[List[np.ndarray], List[int], List[str]]]): dictionary containing a tuple for each chromosome. The tuple contains the extracted sequences, the targets and the gene ids
+        expected_final_size (int): the length the extracted sequence should have at the end
+        chrom (str): chromosome on which the gene lies
+        gene_id (str): gene id of the gene
+        sequence_to_append (np.ndarray): one hot encoded sequence to append
+    """
     if sequence_to_append.shape[0] == expected_final_size:
         extracted_tuple = extracted_seqs.get(chrom, ())
         if extracted_tuple == ():
@@ -159,6 +172,21 @@ def append_sequence_prediction(tpms: Optional[pd.DataFrame], extracted_seqs: Dic
 
 def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic: int, intragenic: int, ignore_small_genes: bool, tpms: Optional[pd.DataFrame],
                              target_chromosomes: Tuple[str, ...]) -> Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    """ extracts the gene flanking regions for all genes in the annotation file and converts them to one hot encoded numpy arrays
+
+    Args:
+        genome (Fasta): Fasta representation of the genome to extract the gene flanking regions from
+        annotation (pd.DataFrame): DataFrame containing the gene annotations.
+        extragenic (int): number of bases to extract before the start and after the end of the gene
+        intragenic (int): number of bases to extract after the start and before the end of the gene
+        ignore_small_genes (bool): determines how to deal with genes that are smaller than 2x intragenic. If True,
+            these genes will be skipped. If False, central padding will be extended to maintain the expected length.
+        tpms (Optional[pd.DataFrame]): DataFrame containing the target values for the genes. If None, the genes will be appended with a target of "NA"
+        target_chromosomes (Tuple[str, ...]): tuple containing the chromosomes that should be extracted. If empty, all chromosomes will be extracted
+
+    Returns:
+        Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]: dictionary containing the extracted sequences for each chromosome. The tuple contains the extracted sequences, the targets and the gene ids
+    """
     extracted_seqs = {}
     expected_final_size = 2 * (extragenic + intragenic) + 20
     # tpms are absolutely necessary for training, but not for predictions, so can miss if data is for predictions
@@ -187,17 +215,24 @@ def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic
     return extracted_seqs
 
 
-def deep_cre(x_train, y_train, x_val, y_val, output_name, model_case, chrom, time_stamp: str, test: bool = False):
+def deep_cre(x_train: np.ndarray, y_train: np.ndarray, x_val: np.ndarray, y_val: np.ndarray, output_name: str,
+             model_case: ModelCase, chrom: str, time_stamp: str, test: bool = False) -> Tuple[float, float, float, float]:
     """
-
-    :param x_train: onehot encoded train matrix
-    :param y_train: true targets to x_train
-    :param x_val: onehot encoded validation matrix
-    :param y_val: target values to x_val
-    :param output_name: the start of the output file name such as arabidopsis_leaf to create arabidopsis_leaf_output.csv
-    :param model_case: model type which can be SSC, SSR, or MSR
-    :param chrom: chromosome name
-    :return: [accuracy, auROC, auPR]
+    This function trains a deep learning model for the CRE prediction
+    
+    Args:
+        x_train (np.ndarray): onehot encoded train matrix
+        y_train (np.ndarray): true targets to x_train
+        x_val (np.ndarray): onehot encoded validation matrix
+        y_val (np.ndarray): target values to x_val
+        output_name (str): the start of the output file
+        model_case (ModelCase): model type
+        chrom (str): name of the validation entity used for the current run
+        time_stamp (str): time stamp of the current run
+        test (bool): determines whether the function is used for testing. Default is False
+        
+    Returns:
+        Tuple[float, float, float, float]: loss, accuracy, auROC, auPR of the model on the validation data set
     """
     input_seq = Input(shape=(x_train.shape[1], x_train.shape[2]))
 
@@ -268,7 +303,26 @@ def mask_sequences(train_seqs: np.ndarray, val_seqs: np.ndarray, extragenic: int
     val_seqs[:, extragenic + (intragenic * 2) + 17:extragenic + (intragenic * 2) + 20, :] = 0
 
 
-def append_sequence_training(include_as_validation_gene: bool, include_as_training_gene: bool, expected_final_size, train_seqs, val_seqs, train_targets, val_targets, tpms, gene_id, seq) -> Tuple[int, int]:
+def append_sequence_training(include_as_validation_gene: bool, include_as_training_gene: bool, expected_final_size: int,
+                             train_seqs: List, val_seqs: List, train_targets: List, val_targets: List, tpms: pd.DataFrame,
+                             gene_id: str, seq: np.ndarray) -> Tuple[int, int]:
+    """appends a sequence to the training or validation set. If the sequence has the expected size, it will be appended
+
+    Args:
+        include_as_validation_gene (bool): determines whether the gene should be included in the validation set
+        include_as_training_gene (bool): determines whether the gene should be included in the training set
+        expected_final_size (int): length the extracted sequence should have at the end
+        train_seqs (List): List containing the training sequences
+        val_seqs (List): List containing the validation sequences
+        train_targets (List): List containing the training targets
+        val_targets (List): List containing the validation targets
+        tpms (pd.DataFrame): dataframe containing the target values for the genes
+        gene_id (str): gene id of the gene
+        seq (np.ndarray): one hot encoded sequence to append
+
+    Returns:
+        Tuple[int, int]: tuple containing the number of genes added to the validation set and the number of genes added to the training set
+    """
     added_val, added_training = 0, 0
     if seq.shape[0] == expected_final_size:
         if include_as_validation_gene:
@@ -283,9 +337,30 @@ def append_sequence_training(include_as_validation_gene: bool, include_as_traini
     return added_val, added_training
 
 
-def calculate_conditions(val_chromosome, model_case, train_val_split: bool, test_specie, validation_genes, current_val_size, current_train_size, target_val_size, target_train_size, specie, chrom, gene_id):
+def calculate_conditions(val_chromosome: str, model_case: ModelCase, train_val_split: bool, val_specie: str,
+                         validation_genes: List, current_val_size: int, current_train_size: int, target_val_size: int,
+                         target_train_size: int, specie: str, chrom: str, gene_id: str) -> Tuple[bool, bool]:
+    """calculates whether a gene should be included in the validation or training set
+
+    Args:
+        val_chromosome (str): name of the validation chromosome
+        model_case (ModelCase): model case of the model
+        train_val_split (bool): determines whether the split between training and validation set should be done randomly, or by chromosome
+        val_specie (str): name of the specie that should be used for testing
+        validation_genes (List): List containing the genes that can be included in the validation set
+        current_val_size (int): number of genes currently in the validation set
+        current_train_size (int): number of genes currently in the training set
+        target_val_size (int): target size for the validation set
+        target_train_size (int): target size for the training set
+        specie (str): name of the current specie
+        chrom (str): name of the current chromosome
+        gene_id (str): gene id of the current gene
+
+    Returns:
+        Tuple[bool, bool]: tuple containing the flags for whether the gene should be included in the validation set and the training set
+    """
     if model_case == ModelCase.MSR:
-        include_in_validation_set = specie == test_specie                      #type:ignore
+        include_in_validation_set = specie == val_specie                      #type:ignore
         include_in_training_set = not include_in_validation_set
     elif not train_val_split:
         include_in_validation_set = chrom == val_chromosome and gene_id in validation_genes
@@ -296,10 +371,20 @@ def calculate_conditions(val_chromosome, model_case, train_val_split: bool, test
     return include_in_validation_set,include_in_training_set
 
 
-def set_up_validation_genes(genes_picked, pickled_key, model_case):
-    genes_picked = genes_picked if os.path.isfile(genes_picked) else make_absolute_path(genes_picked, start_file=__file__)
+def set_up_validation_genes(pickled_genes_path: str, pickled_key: str, model_case: ModelCase) -> List[str]:
+    """loads the validation genes from a pickled file
+
+    Args:
+        pickled_genes_path (str): path to the pickled file containing the validation genes
+        pickled_key (str): key under which the validation genes are stored for the current species
+        model_case (ModelCase): model case of the model
+
+    Returns:
+        List[str]: list containing the validation genes
+    """
+    pickled_genes_path = pickled_genes_path if os.path.isfile(pickled_genes_path) else make_absolute_path(pickled_genes_path, start_file=__file__)
     if model_case in [ModelCase.SSR, ModelCase.SSC]:
-        with open(genes_picked, 'rb') as handle:
+        with open(pickled_genes_path, 'rb') as handle:
             validation_genes = pickle.load(handle)
             validation_genes = validation_genes[pickled_key]
     else:
@@ -307,19 +392,32 @@ def set_up_validation_genes(genes_picked, pickled_key, model_case):
     return validation_genes
 
 
-def load_input_files_training(genome_file_name, annotation_file_name, tpm_file_name, model_case):
+def load_input_files_training(genome_file_name: str, annotation_file_name: str, tpm_file_name: str, model_case: ModelCase) -> Tuple[Fasta, pd.DataFrame, pd.DataFrame]:
+    """loads the input files for training
+
+    Args:
+        genome_file_name (str): path to the genome file or name of the genome file in the genome folder
+        annotation_file_name (str): path to the annotation file or name of the annotation file in the gene models folder
+        tpm_file_name (str): path to the TPM counts file or name of the TPM counts file in the TPM counts folder
+        model_case (ModelCase): model case of the model
+
+    Returns:
+        Tuple[Fasta, pd.DataFrame, pd.DataFrame]: tuple containing the genome, the TPM counts and the annotation
+    """
     loaded = load_input_files(genome_file_name=genome_file_name, annotation_file_name=annotation_file_name, tpm_counts_file_name=tpm_file_name, model_case=str(model_case))
-    # genome_path = genome_path if os.path.isfile(genome_path) else make_absolute_path("genome", genome_path, start_file=__file__)     
-    # tpm_path = tpm_path if os.path.isfile(tpm_path) else make_absolute_path("tpm_counts", tpm_path, start_file=__file__)  # tpm_targets = f"tpm_{p_keys}.csv"
-    # annotation_path = annotation_path if os.path.isfile(annotation_path) else make_absolute_path("gene_models", annotation_path, start_file=__file__)  
-    # genome = Fasta(filename=genome_path, as_raw=True, read_ahead=10000, sequence_always_upper=True)
-    # tpms = pd.read_csv(filepath_or_buffer=tpm_path, sep=',')
-    # tpms.set_index('gene_id', inplace=True)
-    # annotation = load_annotation_msr(annotation_file_name) if model_case.lower() == "msr" else load_annotation(annotation_file_name)
     return loaded["genome"], loaded["tpms"], loaded["annotation"]
 
 
-def set_up_train_val_split_variables(annotation: pd.DataFrame, validation_fraction: float = 0.2):
+def set_up_train_val_split_variables(annotation: pd.DataFrame, validation_fraction: float = 0.2) -> Tuple[int, int]:
+    """sets up the variables for the train val split
+
+    Args:
+        annotation (pd.DataFrame): DataFrame containing the gene annotations
+        validation_fraction (float, optional): fraction of genes that should be used for the validation data set. Defaults to 0.2.
+
+    Returns:
+        Tuple[int, int]: tuple of target size for the validation set and target size for the training set
+    """
     # 80 / 20 train-val splitting 
     total_sequences = len(annotation)
     target_val_size = int(total_sequences * validation_fraction)  # Target size for validation set (20%)
@@ -327,7 +425,13 @@ def set_up_train_val_split_variables(annotation: pd.DataFrame, validation_fracti
     return target_val_size, target_train_size
 
 
-def save_skipped_genes(skipped_genes, time_stamp: str):
+def save_skipped_genes(skipped_genes: List[str], time_stamp: str) -> None:
+    """saves the skipped genes to a file
+
+    Args:
+        skipped_genes (List[str]): list containing the gene ids that were skipped
+        time_stamp (str): time stamp of the current run
+    """
     if skipped_genes:  # This checks if the set/list is not empty
         file_name = f'skipped_genes_{time_stamp}.txt'
         file_name = make_absolute_path("results", "training", file_name, start_file=__file__)
@@ -341,30 +445,38 @@ def save_skipped_genes(skipped_genes, time_stamp: str):
             print(f"Some gene IDs in the gtf file were not found in TPM counts. Skipped gene IDs have been written to {file_name}.")
 
 
-def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_picked, pickled_key, val_chromosome,
-                model_case, ignore_small_genes, train_val_split, time_stamp: str, validation_fraction: float, test_specie: Optional[pd.DataFrame] = None):
-    """
-     This function extract sequences from the genome. It implements a gene size aware padding
-    :param genome: reference genome from Ensembl Plants database
-    :param annot:  gtf file matching the reference genome
-    :param tpm_targets: count file target true targets.
-    :param extragenic: length of promoter and terminator
-    :param intragenic: length of 5' and 3' UTR
-    :param genes_picked: pickled file containing genes to filter into validation set. For gene family splitting
-    :param val_chromosome: validation chromosome
-    :param model_case: model type which can be SSC, SSR or MSR
-    :param pickled_key: key to pickled file name
-    :param ignore_small_genes: filter genes smaller than 1000 bp
-    :param train_val_split: create a training dataset with 80% of genes across all chromosomes and 20% of genes in the validation dataset
-    :return: [one_hot train set, one_hot val set, train targets, val targets]
-    """
+def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_pickled: str,
+                           pickled_key: str, val_chromosome: str, model_case: ModelCase, ignore_small_genes: bool, train_val_split: bool, time_stamp: str,
+                           validation_fraction: float, test_specie: str = "") -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """ extracts the gene flanking regions for all genes in the annotation file and converts them to one hot encoded numpy arrays
+
+    Args:
+        genome_path (str): path to the genome file or name of the genome file in the genome folder
+        annotation_path (str): path to the annotation file or name of the annotation file in the gene models folder
+        tpm_path (str): path to the TPM counts file or name of the TPM counts file in the TPM counts folder
+        extragenic (int): number of bases to extract before the start and after the end of the gene
+        intragenic (int): number of bases to extract after the start and before the end of the gene
+        genes_pickled (str]): path to the pickled file containing the validation genes
+        pickled_key (str): key under which the validation genes are stored in he genes_pickled dictionary
+        val_chromosome (str): name of the validation chromosome
+        model_case (ModelCase): model case of the model
+        ignore_small_genes (bool): determines how to deal with genes that are smaller than 2x intragenic. If True,
+            these genes will be skipped. If False, central padding will be extended to maintain the expected length.
+        train_val_split (bool): determines whether the split between training and validation set should be done randomly, or by chromosome
+        time_stamp (str): time stamp of the current run
+        validation_fraction (float): fraction of genes that should be used for the validation data set
+        test_specie (str): name of the specie that should be used for validation. Default is empty string
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]: tuple containing the training sequences, the training targets, the validation sequences and the validation targets
+        """
     if model_case == ModelCase.MSR:
         if test_specie is None:
             raise ValueError("test specie parameter necessary for msr training!")
     
     genome, tpms, annotation = load_input_files_training(genome_path, annotation_path, tpm_path, model_case)
     ssc_training = model_case == ModelCase.SSC        
-    validation_genes = set_up_validation_genes(genes_picked, pickled_key, model_case)
+    validation_genes = set_up_validation_genes(genes_pickled, pickled_key, model_case)
     expected_final_size = 2*(extragenic + intragenic) + 20
 
     # random shuffle annot values to generate 3iterations of train val split 
@@ -419,12 +531,16 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
     return train_seqs, train_targets, val_seqs, val_targets
 
 
-def balance_dataset(x, y):
+def balance_dataset(x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
-    This function randomly down samples the majority class to balance the dataset
-    :param x: one-hot encoded set
-    :param y: true targets
-    :return: returns a balance set
+    randomly down samples the majority class to balance the dataset
+    
+    Args:
+        x (np.ndarray): one-hot encoded data set
+        y (np.ndarray): true targets
+        
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: balanced x and y
     """
     # Random down sampling to balance data
     low_train, high_train = np.where(y == 0)[0], np.where(y == 1)[0]
@@ -440,14 +556,39 @@ def balance_dataset(x, y):
         np.take(y, selected_high_train, axis=0)
     ], axis=0)
     x_train, y_train = shuffle(x_train, y_train, random_state=42)#type:ignore
-    return x_train, y_train
+    return x_train, y_train #type:ignore
 
 
-def train_deep_cre(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_picked, val_chromosome, output_name,
-                   model_case: str, ignore_small_genes: bool, train_val_split: bool, time_stamp: str, validation_fraction: float,  test_specie: Optional[pd.DataFrame] = None, pickled_key: Optional[str] = None, test: bool = False):
+def train_deep_cre(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_picked: Dict[str, List[str]],
+                   val_chromosome: str, output_name: str, model_case: ModelCase, ignore_small_genes: bool, train_val_split: bool, time_stamp: str,
+                   validation_fraction: float,  test_specie: Optional[str] = None, pickled_key: Optional[str] = None, test: bool = False) -> Tuple[float, float, float, float]:
+    """trains the deepCRE model
+
+    Args:
+        genome_path (str): path to the genome file or name of the genome file in the genome folder
+        annotation_path (str): path to the annotation file or name of the annotation file in the gene models folder
+        tpm_path (str): path to the TPM counts file or name of the TPM counts file in the TPM counts folder
+        extragenic (int): length of the sequence to be extracted before the start and after the end of the gene
+        intragenic (int): length of the sequence to be extracted after the start and before the end of the gene
+        genes_picked (Dict[str, List[str]]): Dictionary containing the genes that can be included in the validation set
+        val_chromosome (str): name of the validation chromosome
+        output_name (str): the start of the output file
+        model_case (ModelCase): model case of the model
+        ignore_small_genes (bool): determines how to deal with genes that are smaller than 2x intragenic. If True,
+            the genes will be skipped. If False, central padding will be extended to maintain the expected length.
+        train_val_split (bool): determines whether the split between training and validation set should be done randomly, or by chromosome
+        time_stamp (str): time stamp of the current run
+        validation_fraction (float): fraction of genes that should be used for the validation data set in case of random splitting
+        test_specie (Optional[pd.DataFrame], optional): name of the specie that should be used for validation. Defaults to None.
+        pickled_key (Optional[str], optional): key under which the validation genes are stored in he genes_pickled dictionary. Defaults to None.
+        test (bool, optional): determines whether the function is used for testing. Default is False
+
+    Returns:
+        Tuple[float, float, float, float]: accuracy, auROC, auPR of the model on the validation data set
+    """
     train_seqs, train_targets, val_seqs, val_targets = extract_genes_training(genome_path, annotation_path, tpm_path, extragenic, intragenic,
-                                                                   genes_picked, pickled_key, val_chromosome, model_case, ignore_small_genes,
-                                                                   train_val_split=train_val_split, test_specie=test_specie, time_stamp=time_stamp, validation_fraction=validation_fraction)
+                                                                   genes_picked, pickled_key, val_chromosome, model_case, ignore_small_genes,           #type:ignore
+                                                                   train_val_split=train_val_split, test_specie=test_specie, time_stamp=time_stamp, validation_fraction=validation_fraction)        #type:ignore
     x_train, y_train = balance_dataset(train_seqs, train_targets)
     x_val, y_val = balance_dataset(val_seqs, val_targets)
     output = deep_cre(x_train=x_train, y_train=y_train, x_val=x_val, y_val=y_val, output_name=output_name,
@@ -456,7 +597,12 @@ def train_deep_cre(genome_path: str, annotation_path: str, tpm_path: str, extrag
 
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """
+    This function parses the arguments provided by the user.
+    
+    Returns:
+        argparse.Namespace: parsed arguments"""
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
                         description="""
@@ -469,7 +615,17 @@ def parse_args():
 
 
 def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str, test: bool = False) -> List[Dict[str, Any]]:
-    #msr stuff
+    """runs model training for a multi-species training run
+
+    Args:
+        species_info (List[Dict[str, Any]]): List of dictionaries containing the information for each species
+        general_info (Dict[str, Any]): dictionary containing the general information for the training run
+        time_stamp (str): time stamp of the current run
+        test (bool, optional): determines whether the current run is a test run and softens training criteria if so. Defaults to False.
+
+    Returns:
+        List[Dict[str, Any]]: list containing the results of the training run
+    """
     species: List[str] = [specie["species_name"] for specie in species_info]
     naming = "_".join([specie.replace(" ", "").replace(".", "") for specie in species])
 
@@ -507,6 +663,17 @@ def run_msr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
 
 
 def get_chromosomes(species_info: List[Dict[str, Any]]) -> List[str]:
+    """loads the chromosomes from the species info
+
+    Args:
+        species_info (List[Dict[str, Any]]): List of dictionaries containing the information for each species
+
+    Raises:
+        ValueError: if no chromosomes are provided
+
+    Returns:
+        List[str]: list containing the names of the chromosomes
+    """
     chromosomes = species_info[0]["chromosomes"]
     if not chromosomes:
         raise ValueError("For SSR/SSC training, a list of chromosomes must be provided, if train_val_split isnt True!")
@@ -514,13 +681,24 @@ def get_chromosomes(species_info: List[Dict[str, Any]]) -> List[str]:
 
 
 def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], time_stamp: str, test: bool = False) -> List [Dict[str, Any]]:
+    """runs model training for a single species training run
+
+    Args:
+        species_info (List[Dict[str, Any]]): List of dictionaries containing the information for each species
+        general_info (Dict[str, Any]): dictionary containing the general information for the training run
+        time_stamp (str): time stamp of the current run
+        test (bool, optional): determines whether the current run is a test run and softens training criteria if so. Defaults to False.
+
+    Returns:
+        List [Dict[str, Any]]: list containing the results of the training run
+    """
     specie_info = species_info[0]
     print(f'Single species Training on genome:\n------------------------------\n')
     print(specie_info["genome"])
     print('\n------------------------------\n')
     if general_info["train_val_split"]:
         print(f"Using random 80/20 gene-based split for validation")
-        chromosomes=[1,2,3]
+        chromosomes=["1","2","3"]
     else:
         chromosomes = get_chromosomes(species_info)
     combined_results = []
@@ -542,7 +720,21 @@ def run_ssr(species_info: List[Dict[str, Any]], general_info: Dict[str, Any], ti
     return combined_results
 
 
-def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Exception]], input_length: int, test: bool = False):
+def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Exception]], input_length: int, test: bool = False) -> List[Tuple[str, int, Exception]]:
+    """trains the models for the given inputs
+
+    Args:
+        inputs (ParsedInputs): parsed inputs for the training
+        failed_trainings (List[Tuple[str, int, Exception]]): list containing the failed trainings
+        input_length (int): length of the input
+        test (bool, optional): determines whether the current run is a test run and softens training criteria if so. Defaults to False.
+
+    Raises:
+        Exception: if a termination error occurs
+
+    Returns:
+        List[Tuple[str, int, Exception]]: list containing the failed trainings
+    """
     os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
     training_results_path = make_absolute_path('results', "training", start_file=__file__)
     models_path = make_absolute_path("saved_models", start_file=__file__)
@@ -576,6 +768,14 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
 
 
 def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]:
+    """parses the input file
+
+    Args:
+        input_file (str): path to the input file
+
+    Returns:
+        Tuple[ParsedInputs, List[Tuple[str, int, Exception]], int]: tuple containing the parsed inputs, the training runs that could not be parsed and the input length
+    """
     possible_general_parameters = {
         "model_case": None,
         "genome": None,
@@ -606,10 +806,13 @@ def parse_input_file(input_file: str) -> Tuple[ParsedInputs, List[Tuple[str, int
     return inputs, failed_trainings, input_length
 
 
-def main():
+def main() -> None:
+    """main function for training the models
+    """
     args = parse_args()
     inputs, failed_trainings, input_length = parse_input_file(args.input)
     train_models(inputs, failed_trainings,  input_length)
+
 
 if __name__ == "__main__":
     main()

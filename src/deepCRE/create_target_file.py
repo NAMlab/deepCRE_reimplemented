@@ -7,7 +7,12 @@ import os
 from deepCRE.utils import make_absolute_path
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments.
+
+    Returns:
+        argparse.Namespace: parsed arguments
+    """
     parser = argparse.ArgumentParser(description="Convert RNA seq data into targets for training.")
     parser.add_argument("--input_path", "-i", help="path to the RNA seq data.", required=True)
     parser.add_argument("--output_path", "-o", help="path to output file.", default="")
@@ -16,7 +21,12 @@ def parse_args():
     return args
 
 
-def main():
+def main() -> None:
+    """Main function for creating target file.
+
+    This function reads the RNA seq data and calculates the target values based on the given target column.
+    Targets are calculated based on the lower and upper quartiles of the target column.
+    """
     args = parse_args()
     tpm_path = args.input_path
     if args.output_path:

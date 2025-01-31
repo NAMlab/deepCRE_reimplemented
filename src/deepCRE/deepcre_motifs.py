@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 from typing import List, Optional, Tuple
 import pandas as pd
 import tensorflow as tf
@@ -6,12 +7,20 @@ import os
 import modisco
 from importlib import reload
 import h5py
-from deepCRE.utils import get_filename_from_path, get_time_stamp, make_absolute_path, load_annotation_msr, result_summary
+from deepCRE.utils import get_filename_from_path, get_time_stamp, make_absolute_path, result_summary
 from deepCRE.deepcre_interpret import extract_scores, find_newest_interpretation_results, get_val_obj_names
 from deepCRE.parsing import ModelCase, ParsedInputs, RunInfo
 
 
-def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name):
+def modisco_run(contribution_scores: np.ndarray, hypothetical_scores: np.ndarray, one_hots: np.ndarray, output_name: str):
+    """ Runs motif extraction using modisco.
+
+    Args:
+        contribution_scores (np.ndarray): Contribution scores calculated using shap
+        hypothetical_scores (np.ndarray): Hypothetical contribution scores calculated using shap
+        one_hots (np.ndarray): One hot encoded input sequences
+        output_name (str): prefix for the output file
+    """
     folder_path = make_absolute_path('results', 'modisco', start_file=__file__)
     if not os.path.exists(folder_path):
         os.mkdir(folder_path)
@@ -51,8 +60,23 @@ def modisco_run(contribution_scores, hypothetical_scores, one_hots, output_name)
     print(f"Done with {output_name} Modisco run")
 
 
-def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_small_genes,
-                    output_name, model_case, validation_object_names: List[str], force_interpretation: bool = False):
+def generate_motifs(genome_file: str, annotation_file: str, tpm_targets_file: str, extragenic: int, intragenic: int, ignore_small_genes: bool,
+                    output_name: str, model_case: ModelCase, validation_object_names: List[str], force_interpretation: bool = False) -> None:
+    """Generates motifs using modisco.
+
+    Args:
+        genome_file (str): name of the genome file saved in the genome folder or the path to the genome file
+        annotation_file (str): name of the annotation file saved in the gene_models folder or the path to the annotation file
+        tpm_targets_file (str): name of the tpm targets file saved in the tpm_counts folder or the path to the tpm targets file
+        extragenic (int): number of bases to extract from the extragenic region
+        intragenic (int): number of bases to extract from the intragenic region
+        ignore_small_genes (bool): determines if small genes should be ignored
+        output_name (str): prefix for the output file
+        model_case (ModelCase): type of model used for training
+        validation_object_names (List[str]): names of the validation objects
+        force_interpretation (bool, optional): If set to false, saved interpretation results will be used if interpretation results have been
+            saved before. Will run an interpretation run if set to true o no fitting results can be found. Defaults to False.
+    """
     #just load existing scores
     if not force_interpretation:
         try: 
@@ -68,9 +92,9 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
             force_interpretation = True
     # recalculate the scores if the user wants to force the interpretation or if the scores were not found
     if force_interpretation:
-        actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome, annotation_file_name=annot,
-                                                                            tpm_counts_file_name=tpm_targets,
-                                                                            upstream=upstream, downstream=downstream,
+        actual_scores, hypothetical_scores, one_hots, _, _ = extract_scores(genome_file_name=genome_file, annotation_file_name=annotation_file,
+                                                                            tpm_counts_file_name=tpm_targets_file,
+                                                                            extragenic=extragenic, intragenic=intragenic,
                                                                             validation_obj_names=validation_object_names,
                                                                             ignore_small_genes=ignore_small_genes,
                                                                             output_name=output_name,
@@ -79,11 +103,13 @@ def generate_motifs(genome, annot, tpm_targets, upstream, downstream, ignore_sma
 
     print("Now running MoDisco --------------------------------------------------\n")
     print(f"Species: {output_name} \n")
-    modisco_run(contribution_scores=actual_scores, hypothetical_scores=hypothetical_scores,
-                one_hots=one_hots, output_name=output_name)
+    modisco_run(contribution_scores=actual_scores, hypothetical_scores=hypothetical_scores,     #type:ignore
+                one_hots=one_hots, output_name=output_name)                                     #type:ignore
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command line arguments."""
     parser = argparse.ArgumentParser(
                         prog='deepCRE',
                         description="This script can be used to run motif extraction on models trained by the deepCRE framework.")
@@ -95,25 +121,30 @@ def parse_args():
     return args
 
 
-def run_motif_extraction(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
+def run_motif_extraction(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple[str, int, Exception]]:
+    """Runs motif extraction on the given inputs.
+
+    Args:
+        inputs (ParsedInputs): Object containing the parsed inputs from the input file
+        failed_trainings (List[Tuple]): List of runs that could not be parsed
+        input_length (int): Number of runs in the input file
+        test (bool, optional): For testing purposes. Currently not used. Defaults to False.
+
+    Returns:
+        List[Tuple]: List of runs that could not be completed. Each tuple contains the output name, index of the run and the error that occured.
+    """
 
     run_info: RunInfo
     for i, run_info in enumerate(inputs):       #type:ignore
         try:
             if run_info.general_info["model_case"] == ModelCase.MSR:
-                # train_specie = data.copy()
-                # train_specie = train_specie[train_specie['specie'] != specie]
-
-                # output_name = "_".join([sp[:3].lower() for sp in train_specie['specie'].unique()])
-                # chromosomes=""
-                # output_name = run_info.species_info[0]["subject_species"]
                 output_name = run_info.general_info["training_output_name"]
 
             elif run_info.general_info["model_case"] in [ModelCase.SSR, ModelCase.SSC]:
                 output_name = run_info.general_info["training_output_name"]
             validation_obj_names = get_val_obj_names(run_info)
-            generate_motifs(genome=run_info.general_info["genome"], annot=run_info.general_info["annotation"], tpm_targets=run_info.general_info["targets"],
-                            upstream=run_info.general_info["extragenic"], downstream=run_info.general_info["intragenic"],
+            generate_motifs(genome_file=run_info.general_info["genome"], annotation_file=run_info.general_info["annotation"], tpm_targets_file=run_info.general_info["targets"],
+                            extragenic=run_info.general_info["extragenic"], intragenic=run_info.general_info["intragenic"],
                             ignore_small_genes=run_info.general_info["ignore_small_genes"], output_name=output_name,
                             model_case=run_info.general_info["model_case"], validation_object_names=validation_obj_names, force_interpretation=run_info.general_info["force_interpretations"])
         except Exception as e:
@@ -126,6 +157,14 @@ def run_motif_extraction(inputs: ParsedInputs, failed_trainings: List[Tuple], in
 
 
 def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
+    """Parses the input file and returns the parsed inputs.
+
+    Args:
+        file (str): path to the input file
+
+    Returns:
+        Tuple[ParsedInputs, List[Tuple], int]: Parsed inputs, list of runs that could not be parsed and the number of runs in the input file
+    """
     possible_general_parameters = {
         "model_case": None,
         "genome": None,
@@ -142,18 +181,20 @@ def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
         "chromosomes": "",
         "species_name": "",
     }
-    inputs, failed_trainings, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
+    inputs, failed_runs, input_length = ParsedInputs.parse(file, possible_general_parameters=possible_general_parameters, possible_species_parameters=possible_species_parameters)
     inputs = inputs.replace_both()
-    return inputs, failed_trainings, input_length
+    return inputs, failed_runs, input_length
 
 
-def main():
+def main() -> None:
+    """Main function for running motif extraction.
+    """
     tf.compat.v1.disable_eager_execution()
     tf.compat.v1.disable_v2_behavior()
     tf.config.set_visible_devices([], 'GPU')
     args = parse_args()
-    inputs, failed_trainings, input_length = parse_input_file(args.input)
-    run_motif_extraction(inputs, failed_trainings, input_length)
+    inputs, failed_runs, input_length = parse_input_file(args.input)
+    run_motif_extraction(inputs, failed_runs, input_length)
 
 
 if __name__ == "__main__":

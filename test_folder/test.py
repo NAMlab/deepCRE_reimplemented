@@ -159,11 +159,11 @@ def read_hdf5_datasets():
 
 def test_motif_extraction():
     chromosomes = pd.read_csv(filepath_or_buffer=f'genome/arabidopsis_chroms.csv', header=None).values.ravel().tolist()
-    dm.generate_motifs(genome="Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
-                    annot="Arabidopsis_thaliana.TAIR10.52.gtf",
-                    tpm_targets="arabidopsis_counts.csv",
-                    upstream=1000,
-                    downstream=500,
+    dm.generate_motifs(genome_file="Arabidopsis_thaliana.TAIR10.dna.toplevel.fa",
+                    annotation_file="Arabidopsis_thaliana.TAIR10.52.gtf",
+                    tpm_targets_file="arabidopsis_counts.csv",
+                    extragenic=1000,
+                    intragenic=500,
                     ignore_small_genes=False,
                     output_name="arabidopsis",
                     model_case="ssr",

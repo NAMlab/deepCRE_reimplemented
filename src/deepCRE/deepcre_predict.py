@@ -7,34 +7,32 @@ import numpy as np
 from pyfaidx import Fasta
 
 from deepCRE.parsing import ModelCase, ParsedInputs, RunInfo
-from deepCRE.utils import get_filename_from_path, get_time_stamp, load_annotation_msr, load_input_files, one_hot_encode, make_absolute_path, result_summary
+from deepCRE.utils import get_filename_from_path, get_time_stamp, load_input_files, make_absolute_path, result_summary
 from deepCRE.train_models import extract_genes_prediction, find_newest_model_path
 
 
-def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case: ModelCase, extracted_genes):
+def predict_self(extragenic: int, intragenic: int, val_entity: str, output_name: str, model_case: ModelCase,
+                 extracted_genes: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]])\
+                    -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Any]:
+    """Makes a prediction on the given val_entity using the fitting trained model.
 
-    # if model_case == ModelCase.MSR:
-    #     # Combine data from all chromosomes
-    #     x,y,gene_ids = [], [],[]
-    #     for chrom, tuple_ in extracted_genes.items():
-    #         if tuple_:  
-    #             x_chrom, y_chrom, gene_ids_chrom = tuple_
-    #             x.extend(x_chrom)  
-    #             y.extend(y_chrom)
-    #             gene_ids.extend(gene_ids_chrom)
-    #     # Convert lists to arrays
-    #     x = np.array(x)
-    #     y = np.array(y)
-    #     gene_ids = np.array(gene_ids)
+    Args:
+        extragenic (int): Number of bases to be extracted from the extragenic region
+        intragenic (int): Number of bases to be extracted from the intragenic region
+        val_entity (str): The validation entity (chromosome or species) to be predicted
+        output_name (str): Prefix for the output file
+        model_case (ModelCase): The model case to be used
+        extracted_genes (Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]): Extracted genes for the given species
+            or pool of species
 
-    #     newest_model_paths = find_newest_model_path(output_name=output_name, model_case=model_case)
-    #     model = load_model(newest_model_paths["model"])
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, Any]: Returns the input data, true targets, predicted probabilities,
+            gene ids and the model used for prediction
+    """
 
-    # else:
-    # Handle specific chromosome
-    x, y, gene_ids = extracted_genes[str(val_chromosome)]
-    newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=val_chromosome, model_case=model_case)
-    model = load_model(newest_model_paths[val_chromosome])
+    x, y, gene_ids = extracted_genes[str(val_entity)]
+    newest_model_paths = find_newest_model_path(output_name=output_name, val_chromosome=val_entity, model_case=model_case)
+    model = load_model(newest_model_paths[val_entity])
 
     # Masking
     x[:, extragenic:extragenic + 3, :] = 0                                                                                                  #type:ignore
@@ -45,13 +43,29 @@ def predict_self(extragenic, intragenic, val_chromosome, output_name, model_case
     return x, y, pred_probs, gene_ids, model
 
 
-def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: Dict, genome: Fasta, annotation: pd.DataFrame, tpms: Optional[pd.DataFrame], extragenic: int, intragenic: int, output_name: str, time_stamp: str):
+def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: Dict, genome: Fasta, annotation: pd.DataFrame,
+            tpms: Optional[pd.DataFrame], extragenic: int, intragenic: int, output_name: str, time_stamp: str) -> None:
+    """ Does a prediction run for a single species for ssr models.
+
+    Args:
+        folder_name (str): path to the output folder
+        file_name (str): name of the current script file (used for output file naming)
+        general_info (Dict): general info part of the run info for th current run
+        specie_info (Dict): species info part of the run info for the current run
+        genome (Fasta): Fasta object containing the genome
+        annotation (pd.DataFrame): DataFrame containing information on the genes in the genome
+        tpms (Optional[pd.DataFrame]): DataFrame containing the target values for the genes
+        extragenic (int): bases to be extracted from the extragenic region
+        intragenic (int): bases to be extracted from the intragenic region
+        output_name (str): prefix for the output file
+        time_stamp (str): time stamp for the output file
+    """
     true_targets, preds, genes = [], [], []
     extracted_genes = extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic,
                                                            ignore_small_genes=general_info["ignore_small_genes"], tpms=tpms, target_chromosomes=())
 
     for chrom in specie_info["chromosomes"]:
-        _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=str(chrom), output_name=output_name,
+        _, y, pred_probs, gene_ids, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_entity=str(chrom), output_name=output_name,
                                                             model_case=general_info["model_case"], extracted_genes=extracted_genes)
         true_targets.extend(y)
         preds.extend(pred_probs)
@@ -63,10 +77,22 @@ def run_ssr(folder_name: str, file_name: str, general_info: Dict, specie_info: D
     result.to_csv(output_location, index=False)
 
 
-def run_msr(folder_name: str, file_name: str, general_info: Dict, extragenic: int, intragenic: int, species_name: str, time_stamp: str, extracted_genes, output_name: str):
-                    # one predcition per model
+def run_msr(folder_name: str, file_name: str, general_info: Dict, extragenic: int, intragenic: int, species_name: str, time_stamp: str, extracted_genes, output_name: str) -> None:
+    """ Does a prediction run for a single species for msr models.
+
+    Args:
+        folder_name (str): path to the output folder
+        file_name (str): name of the current script file (used for output file naming)
+        general_info (Dict): general info part of the run info for th current run
+        extragenic (int): bases to be extracted from the extragenic region
+        intragenic (int): bases to be extracted from the intragenic region
+        species_name (str): name of the species to be predicted
+        time_stamp (str): time stamp for the output file
+        extracted_genes (_type_): extracted genes from the concatenated genome for the species
+        output_name (str): prefix for the output file
+    """
     print(f"Predicting for: {species_name}")
-    _, true_targets, preds, genes, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_chromosome=species_name, output_name=output_name,
+    _, true_targets, preds, genes, _ = predict_self(extragenic=extragenic, intragenic=intragenic, val_entity=species_name, output_name=output_name,
                                                             model_case=general_info["model_case"], extracted_genes=extracted_genes)
     result = pd.DataFrame({'true_targets': true_targets, 'pred_probs': preds, 'genes': genes})
     print(result.head())
@@ -74,7 +100,15 @@ def run_msr(folder_name: str, file_name: str, general_info: Dict, extragenic: in
     result.to_csv(output_location, index=False)
 
 
-def check_inputs(run_info: RunInfo):
+def check_inputs(run_info: RunInfo) -> None:
+    """Checks if the input parameters are valid for the current run.
+
+    Args:
+        run_info (RunInfo): RunInfo object containing the information on the current run
+
+    Raises:
+        ValueError: raises a ValueError if species information is missing for MSR runs or if chromosome information is missing for SSR runs
+    """
     gen_info = run_info.general_info
     spec_info = run_info.species_info
     if run_info.is_msr():
@@ -91,7 +125,18 @@ def check_inputs(run_info: RunInfo):
             raise ValueError(f"Output name needs to be provided for SSR / SSC runs!")
 
 
-def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: int, test: bool = False) -> List[Tuple]:
+def predict(inputs: ParsedInputs, failed_runs: List[Tuple], input_length: int, test: bool = False) -> List[Tuple[str, int, Exception]]:
+    """Runs the predictions for the given input parameters.
+
+    Args:
+        inputs (ParsedInputs): ParsedInputs object containing the information on the current run
+        failed_runs (List[Tuple]): List of runs that could not be parsed properly
+        input_length (int): number of runs in the input file
+        test (bool, optional): For testing purposes. Currently not used. Defaults to False.
+
+    Returns:
+        List[Tuple]: List of runs that could not be executed properly. Contains the output name, index of the run and the exception for each failed run.
+    """
     folder_name = make_absolute_path('results', 'predictions', start_file=__file__)
     time_stamp = get_time_stamp()
     if not os.path.exists(folder_name):
@@ -129,12 +174,14 @@ def predict(inputs: ParsedInputs, failed_trainings: List[Tuple], input_length: i
         except Exception as e:
             print(e)
             print(run_info)
-            failed_trainings.append((output_name, i, e))
-    result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
-    return failed_trainings
+            failed_runs.append((output_name, i, e))
+    result_summary(failed_trainings=failed_runs, input_length=input_length, script=get_filename_from_path(__file__))
+    return failed_runs
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command line arguments."""
     parser = argparse.ArgumentParser(
         prog='deepCRE',
         description="This script can be used to run predictions on models trained by the deepCRE framework."
@@ -149,6 +196,14 @@ def parse_args():
 
 
 def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
+    """ parse the input file and return the parsed inputs.
+
+    Args:
+        file (str): path to the input file
+
+    Returns:
+        Tuple[ParsedInputs, List[Tuple], int]: ParsedInputs object containing the information on the current run, List of runs that could not be parsed properly, number of runs in the input file
+    """
     possible_general_parameters = {
         "model_case": None,
         "genome": None,
@@ -171,10 +226,12 @@ def parse_input_file(file: str) -> Tuple[ParsedInputs, List[Tuple], int]:
     return inputs, failed_trainings, input_length
 
 
-def main():
+def main() -> None:
+    """Main function for running predictions.
+    """
     args = parse_args()
     inputs, failed_trainings, input_length = parse_input_file(args.input)
-    predict(inputs, failed_trainings=failed_trainings, input_length=input_length)
+    predict(inputs, failed_runs=failed_trainings, input_length=input_length)
 
 
 if __name__ == "__main__":
