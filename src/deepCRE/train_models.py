@@ -763,7 +763,7 @@ def train_models(inputs: ParsedInputs, failed_trainings: List[Tuple[str, int, Ex
             print(e)
             print(run_info)
             failed_trainings.append((run_info.general_info["output_name"], i, e))
-    result_summary(failed_trainings=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
+    result_summary(failed_runs=failed_trainings, input_length=input_length, script=get_filename_from_path(__file__))
     return failed_trainings
 
 

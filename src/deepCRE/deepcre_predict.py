@@ -175,7 +175,7 @@ def predict(inputs: ParsedInputs, failed_runs: List[Tuple], input_length: int, t
             print(e)
             print(run_info)
             failed_runs.append((output_name, i, e))
-    result_summary(failed_trainings=failed_runs, input_length=input_length, script=get_filename_from_path(__file__))
+    result_summary(failed_runs=failed_runs, input_length=input_length, script=get_filename_from_path(__file__))
     return failed_runs
 
 

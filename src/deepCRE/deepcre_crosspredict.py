@@ -211,7 +211,7 @@ def run_cross_predictions(run_infos: ParsedInputs, failed_runs: List[Tuple], inp
             print(run_info)
             failed_runs.append((f"{model_file_name} -> {run_info.general_info['output_base']}", i, e))
 
-    result_summary(failed_trainings=failed_runs, input_length=input_length, script=get_filename_from_path(__file__))
+    result_summary(failed_runs=failed_runs, input_length=input_length, script=get_filename_from_path(__file__))
     return failed_runs
 
 
