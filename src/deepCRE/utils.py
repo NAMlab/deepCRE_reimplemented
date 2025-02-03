@@ -7,7 +7,7 @@ import pyranges as pr
 import pandas as pd
 
 
-def read_feature_from_input_dict(input_dict: Dict[str, str], key: str):
+def read_feature_from_input_dict(input_dict: Dict[str, str], key: str) -> str:
     """reads a feature from the input dictionary and returns it as a string, stripped of leading and trailing whitespaces
 
     Args:
@@ -304,7 +304,7 @@ def combine_fasta(species_data: List[Dict[str, Any]], naming: str) -> str:
     return save_path
 
 
-def make_absolute_path(*steps_on_path, start_file: str = "") -> str:
+def make_absolute_path(*steps_on_path: str, start_file: str = "") -> str:
     """creates an absoulte path from a starting location
 
     Args:
@@ -321,7 +321,8 @@ def make_absolute_path(*steps_on_path, start_file: str = "") -> str:
     return result_path
 
 
-def load_input_files(genome_file_name: str = "", annotation_file_name: str = "", tpm_counts_file_name: str = "", model_case: str = "ssr") -> Dict:
+def load_input_files(genome_file_name: str = "", annotation_file_name: str = "",
+                     tpm_counts_file_name: str = "", model_case: str = "ssr") -> Dict:
     """loads input files and returns them in a Dict
 
     Args:
