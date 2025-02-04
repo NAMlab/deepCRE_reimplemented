@@ -387,20 +387,69 @@ class ModelCase(Enum):
             return "both"
         else:
             raise NotImplementedError("string method was not implemented for this Variant yet!")
+    
+
+def identity(obj: Any) -> Any:
+    """identity function that returns the input object.
+
+    Args:
+        obj (Any): input object.
+
+    Returns:
+        Any: input object.
+    """
+    return obj
 
 
-def convert_training_csv_to_json(csv_path: str, output_json_path: str, **command_line_args) -> None:
-    """ converts existing csv input files for the older version of the training script to the new json format.
+def convert_named_csv(csv_path: str, output_json_path: str, **command_line_args) -> None:
+    """converts a csv file with named columns to a json file.
 
     Args:
         csv_path (str): path to the csv file to be converted
         output_json_path (str): path to the save location of the converted json output
+        command_line_args (_type_): additional command line arguments that were used with the script.
     """
+    df = pd.read_csv(csv_path, header=0)
+    # float and int from pandas are not json serializable, so we need to convert them to python types
+    # step 1: get the types of the columns and save which conversion function to use
+    types = df.dtypes
+    conversions = {}
+    for i, (col, dtype) in enumerate(types.items()):
+        if str(dtype).startswith("int"):
+            conversions[col] = int
+        elif str(dtype).startswith("float"):
+            conversions[col] = float
+        else:
+            conversions[col] = identity
+    json_compatible_inputs = []
+    for i, row in df.iterrows():
+        copied = command_line_args.copy()
+        # step 2: convert the values in the row to python types
+        read_in = {key: conversions[key](row[key]) for key in row.keys()}
+        copied.update(read_in)
+        json_compatible_inputs.append(copied)
+    with open(output_json_path, "w") as f:
+        json.dump(json_compatible_inputs, f, indent=2)
+
+
+def convert_csv_to_json(csv_path: str, output_json_path: str, parsing_mode: str = "training", **command_line_args) -> None:
+    """ converts existing csv input files for the older version of the code to the new json format.
+
+    Args:
+        csv_path (str): path to the csv file to be converted
+        output_json_path (str): path to the save location of the converted json output
+        parsing_mode (str, optional): mode in which the csv file'is supposed to be parsed. "training" for old ssr training files, "prediction" for old ssr
+            predicition, interpretation or motif extraction files and "named" for csv files with named columns. Defaults to "training".
+    """
+    if parsing_mode == "named":
+        convert_named_csv(csv_path, output_json_path, **command_line_args)
+        return
     df = pd.read_csv(csv_path, header=None)
     json_compatible_inputs = []
-    if len(df.columns) == 6:
-        for i, (genome, gtf, tpm, output, chroms, p_key) in df.iterrows():
-            copied = command_line_args.copy()
+    for i, (row) in df.iterrows():
+        copied = command_line_args.copy()
+        if parsing_mode == "training":
+            genome, gtf, tpm, output, chroms, p_key = row
             read_in = {
                 "genome": genome,
                 "annotation": gtf,
@@ -411,11 +460,25 @@ def convert_training_csv_to_json(csv_path: str, output_json_path: str, **command
             }
             copied.update(read_in)
             json_compatible_inputs.append(copied)
+        elif parsing_mode == "prediction":
+            genome, gtf, tpm, output, chroms = row
+            read_in = {
+                "genome": genome,
+                "annotation": gtf,
+                "targets": tpm,
+                "output_name": output,
+                "chromosomes": chroms,
+            }
+            copied.update(read_in)
+            json_compatible_inputs.append(copied)
+        elif parsing_mode != "named":
+            raise ValueError(f"parsing mode \"{parsing_mode}\" not recognized! Must be one of \"training\", \"prediction\" or \"named\".")
+
     with open(output_json_path, "w") as f:
         json.dump(json_compatible_inputs, f, indent=2)
 
 
-def parse_args() -> Tuple[str, str, Dict[str, str]]:
+def parse_args() -> Tuple[str, str, str, Dict[str, str]]:
     """parse command line arguments.
 
     will also convert the command line arguments after \"--command_line_args\" into a dictionary, interpreting them as pairs of key and value.
@@ -426,15 +489,25 @@ def parse_args() -> Tuple[str, str, Dict[str, str]]:
     parser = argparse.ArgumentParser()
     parser.add_argument("--csv_path", help="path to the csv file to be converted", required=True, type=str)
     parser.add_argument("--output_path", help="path to the save location of the converted json output", required=True, type=str)
+    parser.add_argument("--parsing_mode", help="mode in which the csv file'is supposed to be parsed. \"training\" for old ssr training files, \"prediction\" for old ssr predicition," +
+                        " interpretation or motif extraction files and \"named\" for csv files with named columns.", required=True, type=str)
     parser.add_argument("--command_line_args", help="command line arguments that would have been used with this script", required=True, type=str, nargs="+")
     args = parser.parse_args()
     cmd_line_list = args.command_line_args
     cmd_line_args = {}
     for i in range(0, len(cmd_line_list), 2):
         cmd_line_args[cmd_line_list[i]] = cmd_line_list[i+1]
-    return args.csv_path, args.output_path, cmd_line_args
+    for  key, value in cmd_line_args.items():
+        try:
+            cmd_line_args[key] = int(value)
+        except ValueError:
+            try:
+                cmd_line_args[key] = float(value)
+            except ValueError:
+                pass
+    return args.csv_path, args.output_path, args.parsing_mode, cmd_line_args
 
 if __name__ == "__main__":
-    csv, out, args = parse_args()
-    convert_training_csv_to_json(csv_path=csv, output_json_path=out, **args)
+    csv, out, mode, args = parse_args()
+    convert_csv_to_json(csv_path=csv, output_json_path=out, parsing_mode=mode, **args)
 
