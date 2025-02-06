@@ -556,7 +556,7 @@ The file can be read in using the h5py package in python. The general structure 
 
 ## Demo Case / Quick Start
 
-When setting up the folder structure using the `set_up_example.sh` script, example data for the arabidopsis thaliana
+When setting up the folder structure using the `set_up_example.sh` script, example data for the Arabidopsis thaliana
 species is downloaded. The data is stored in the `genome`, `gene_models` and `tpm_counts` folders. The data can be
 used to run a simple demo case of the capabilities of the deepCRE framework. The first steps will be preparing the
 data for training.\
@@ -572,7 +572,7 @@ Since the column we are interested in is called "logMaxTPM", we don't need to sp
 output file will be saved in the `tpm_counts` folder under the name `arabidopsis_leaf_counts_targets.csv`.\
 
 Next we need to create the validation genes file. To run our script for the generation of the validation genes, we need
-the protein sequences of arabidopsis as well as the results of a blast run. The protein sequences are publicly available
+the protein sequences of Arabidopsis thaliana as well as the results of a blast run. The protein sequences are publicly available
 and for a blast run, an examplary run could look like this:
 
 ```bash
@@ -598,7 +598,7 @@ _Sorghum bicolor_ under the pickle keys "ara", "zea", "sol" and "sor" respective
 With the genome, annotation, targets and validation genes prepared, the training process can be started. An example
 json configuration file for the training process is provided in `src/deepCRE/inputs/arabidopsis_training_demo.json`.
 The file contains the necessary parameters for the training process with no optional parameters. The file can be used
-to train a model on the arabidopsis genome. The training process can be started using the following command:
+to train a model on the Arabidopsis thaliana genome. The training process can be started using the following command:
 
 ```bash
 python src/deepCRE/train_models.py --input src/deepCRE/inputs/arabidopsis_training_demo.json
