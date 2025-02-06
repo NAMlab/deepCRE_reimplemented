@@ -31,31 +31,27 @@
 
 ## Introduction
 
-This project is the official implementation of the DeepCRE framework, based on the work described
-in **Peleke et al. and Peleke et al.** DeepCRE is designed to predict gene activity in plants using
-convolutional neural networks on the gene flanking regions. The framework provides an automated
-training process with a standardized
-model architecture and input format. To train a model for a new species or tissue, all thats
-necessary are genomic sequences in a FASTA format, gene annotations as GTF or GFF3, and expression
-data from RNA sequencing as CSV. DeepCRE supports
-predictions on different species, generates importance scores to interpret the contributions
-of specific inputs, and enables motif extraction to identify patterns associated with high or low
-gene activity.
+deepCRE is an explainable deep learning models predicting
+ gene expression profiles from gene flanking regions. This  is the official implementation of the deepCRE framework, based on the work described
+in **Peleke et al. and Peleke et al.**. Here, new deepCRE models can be trained starting with 
+ DNA sequences (FASTA), gene annotations (GTF/GFF3), and transcript counts from transcriptomic/RNAseq 
+ experiments (tabular format). In addition, the standalone version of deepCRE supports cross-predictions 
+generates importance scores using SHaPley, and enables motif extraction using TF-MoDisCO **Lundberg and Lee 2017 and Shrikumar et al. 2018**. 
 
 ## Installation and Setup
 
-To successfully use the DeepCRE framework, first you need to set up an environment with the necessary
-packages installed. We recommend the use of conda / miniconda to manage the environment. The following
-steps will guide you through the installation process. One caveat to mention is that the installation process was
-validated on a Linux system. Using Linux is therefore recommended and the commands in the installation guide
-are tailored to that system. Installations of [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+To use deepCRE, set up an environment with the necessary
+packages installed. The following steps will guide you through the installation process.
+We recommend the use of conda / miniconda to manage the environment (https://docs.anaconda.com/miniconda/). 
+The installation process was validated on a Linux system.
+Installations of [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 and [conda](https://educe-ubc.github.io/conda.html) are required.\
-The DeepCRE framework is built using the TensorFlow library version 2.10. To improve performance, we recommend
+The deepCRE is built using the TensorFlow library version 2.10. To improve performance, we recommend
 installing the GPU version of TensorFlow. If you do not have a GPU available, the CPU version will
 work as well. Start off by creating and activating a new conda environment with Python 3.8:
 
 ```bash
-conda create -n [name] python=3.8
+conda create -n [name] python=3.8 # e.g. dCREp3-8tf2-10
 conda activate [name]
 ```
 
@@ -78,8 +74,8 @@ Finally, install the TensorFlow base package from the conda-forge channel:
 conda install tensorflow-base=2.10.0 -c conda-forge
 ```
 
-The explanations / interpretation of the output as well as the motif extraction from the models relies on the shap
-library. To install it, clone the repository from GitHub to a directory of your choice and install it using pip:
+The explanations of the output and the feature extraction from the models relies on the SHAP
+library **Lundberg and Lee 2017**. To install it, clone the repository from GitHub to a directory of your choice and install it using pip:
 
 ```bash
 git clone https://github.com/AvantiShri/shap.git
@@ -87,7 +83,7 @@ cd shap
 pip install .
 ```
 
-To install the DeepCRE framework, clone the repository from GitHub to a directory of your choice:
+To install the deepCRE, clone the repository from GitHub to a directory of your choice:
 
 ```bash
 git clone https://github.com/NAMlab/deepCRE_reimplemented.git
@@ -103,7 +99,7 @@ chmod +x set_up_example.sh
 ./set_up_example.sh
 ```
 
-You're all set! The DeepCRE framework is now installed and ready to use. In the following chapters, we will
+You're all set! deepCRE is now installed and ready to use. In the following chapters, we will
 discuss the use of the different scripts and functionalities of the framework in detail. If you can't wait and
 want to get started right away, example json configuration files are provided in the `src/deepCRE/inputs` folder
 and their use is explained in the [examples chapter](#demo-case--quick-start).
@@ -112,15 +108,15 @@ and their use is explained in the [examples chapter](#demo-case--quick-start).
 
 The DeepCRE framework is organized into scripts for data
 preprocessing, model training, and subsequent inference or
-analysis.Data preprocessing is the first step, facilitated by
+analysis. Data preprocessing is the first step, facilitated by
 the scripts `create_target_file.py` and `create_validation_genes.py`. These
 scripts handle the preparation of input data and require simple
 command-line arguments to specify parameters. The resulting outputs
 are essential for training the models.  
 
-The core functionalities of DeepCRE are implemented in several
+The core functionalities of deepCRE are implemented in several
 scripts, each serving a distinct purpose. The `train_models.py`
-script is used to train DeepCRE models, which are the basis for downstream analysis. Once the models are trained,
+script is used to train deepCRE models, which are the basis for downstream analysis. Once the models are trained,
 additional scripts can be employed for specific tasks. The
 `deepcre_crosspredict.py` script enables cross species prediction analysis
 across different datasets, while `deepcre_predict.py` facilitates
@@ -146,14 +142,49 @@ source of gene expression information must be provided.
 
 Except for the readme file and the set_up_example.sh script, all relevant files and folders are
 contained in `deepcre_reimplemented/src/deepCRE`. Important folders here are `gene_models`,
-`genome` and `tpm_counts`. Genomes should be stored in the `genome` folder, annotations in the
-`gene_model` folder and tpm_files and the corresponding targets in the `tpm_counts` folder.
-Further important folders are `saved_models` containing the models generated by the training
-process and `results` containing all other data that is generated by the scripts.
+`genome` and `tpm_counts`. Genomes (FASTAs) should be stored in the `genome` folder, annotations in the
+`gene_model` folder and RNA transcripts count tables (gene_id, count, target) in the `tpm_counts` folder. 
+The folder `saved_models` contains the models generated by the training
+process and `results` contains all other output data.
+
+After successfull installation deepCRE should look like this:
+
+```bash
+
+├── src
+│   └── deepCRE
+│       ├── create_target_file.py
+│       ├── create_validation_genes.py
+│       ├── deepcre_crosspredict.py
+│       ├── deepcre_interpret.py
+│       ├── deepcre_motifs.py
+│       ├── deepcre_predict.py
+│       ├── extract_sequences.py
+│       ├── gene_models
+│       │   └── Arabidopsis_thaliana.TAIR10.52.gtf
+│       ├── genome
+│       │   └── Arabidopsis_thaliana.TAIR10.dna.toplevel.fa
+│       ├── init.py
+│       ├── inputs
+│       │   ├── arabidopsis_predict_interpret_extract_demo.json
+│       │   └── arabidopsis_training_demo.json
+│       ├── parsing.py
+│       ├── tpm_counts
+│       │   └── arabidopsis_leaf_counts.csv
+│       ├── train_models.py
+│       ├── utils.py
+│       └── validation_genes.pickle
+└── test_folder
+    ├── check_outputs.py
+    ├── compare_predictions.py
+    ├── test_cross_predictions.py
+    └── test.py
+
+```
 
 In addition to these files, the framework relies on a JSON configuration file for every run of its core scripts. The
 JSON file serves as a flexible and organized way to define the parameters for each operation. Its general format is a
-list, where each entry corresponds to a separate run (e.g., training, inference, or motif extraction). Each entry in
+list, where each entry corresponds to a separate run (e.g., training or motif extraction). Each entry in
 the list is a dictionary, and each dictionary contains the parameters for the run as keys, with the corresponding
 settings specified as values. This structure allows users to specify multiple runs in a single file, facilitating
 efficient and reproducible workflows.
@@ -187,10 +218,11 @@ and "target".
 #### Create Validation Genes
 
 A second file to be used for data preprocessing is `create_validation_genes.py`. This script is used to generate a
-pickled dictionary containing for each species a list of genes. Only genes that don't have homologs on other chromosomes
+pickled dictionary containing for each species a list of genes. Only genes that don not have homologs on other chromosomes
 are included in the list, so that during the chromosome wise cross validation, no genes from the training set will also
-be included in the validation set as a homolog. The sccript needs a fasta file containing all proteins of a species
-and the results of a blast run where all proteins are basted against all proteins of the same species.
+be included in the validation set as a homolog. The script requires as input the results of a BLAST similarity search (https://blast.ncbi.nlm.nih.gov/Blast.cgi). 
+A fasta file containing all proteins/peptides for the gene_ids used for training
+are compared to each other to filtered for copies and homologous genes. This will avoid that similar genes are placed in the training and validation set.
 
 The script is run using the following command line parameters:
 
@@ -207,7 +239,7 @@ By default, the file will be saved in the `src/deepCRE` folder under the name
 
 #### Single Species Training Input Files
 
-Training models is the core functionality of the deepCRE toolkit and is implemenmted in the
+Training models is the core functionality of deepCRE and is implemenmted in the
 script `src/deepCRE/train_models.py`. Necessary for training are as
 mentioned previously a genome, corresponding annotation as well as the targets and validations
 genes, that were generated in the preprocessing steps.\
@@ -234,12 +266,15 @@ unnamed file of a csv. **Type: string.**
 - model_case: can be one of four options. "ssr", "ssc", "msr" or "both" and determines the
 type of the model that will be trained. **Type: string.**
 
-Regarding the model case parameter, "ssr" will be the standard case, in which a model will be
-trained on a single species. "ssc" trains a model on a single species, but the sequences for
-training will be shuffled, so that the model can not learn any patterns. "both" will train a
-ssr-model, as well as a ssc-model. "msr" will train a model on multiple species. The inputs
-for msr training are somewhat different from the other cases. and will be described in more
-detail in the following.
+The training of models can be run with different options:
+- ssr : will be the standard case, in which a model will be
+trained on a single species. 
+- ssc : trains a model on a single species, but the sequences for
+training will be shuffled, so that the model can not learn from sequence context. 
+- both : will train a ssr-model, as well as a ssc-model. 
+- msr : will train a model on multiple species. The inputs
+for msr training are somewhat different from the other cases and will be described in more
+detail in the following sections.
 
 Other optional parameters are not necessary for each run, but can be used to further specify the
 training process. These are:
@@ -247,7 +282,7 @@ training process. These are:
 - pickle_file: This option determines the name of the file containing the validation genes. The file will be
 looked for in the `src/deepCRE` folder. For deviation from that, use full path instead of just
 the file name. **Type: string**, default is "validation_genes.pickle".
-- ignore_small_genes: This flag influences how the training data is generated. If set to True, genes
+- ignore_small_genes: This flag subsets the training data. If set to True, genes
 that are smaller than twice the length of the intragenic parameter will be ignored. This is done so that no duplication
 of sequences occurs in the extraction process. If set to false, the sequences that are too short will be zero-padded
 in the center. **Type: boolean**, default is true.
@@ -280,11 +315,11 @@ folder. **Type: string.**
 the gene_models folder. **Type: string.**
 - targets: either the full path to the targets file or the name of the targets file in the
 tpm_counts folder. **Type: string.**
-- pickle_key: Key for the species used in the pickle file containing the validation genes.
+- pickle_key: Key(s) for the species used in the pickle file containing the validation genes.
 **Type: string.**
 
 The model case parameter still needs to be set to "msr" to indicate that multiple species are to be trained on.
-Chromosomes are not needed to be specified, since in the MSR case, the validation will be executed in a chross
+Chromosomes are not needed to be specified, since in the MSR case, the validation will be executed in a cross
 species validation manner. The other optional parameters are still available and can be used to further specify the
 training process.
 
@@ -292,7 +327,7 @@ training process.
 
 The training process creates multiple output files. The most obvious and important one are the trained models. These
 are saved in the `saved_models` folder and are named according to the output_name parameter in the json configuration
-file. The models are saved in a h5 format and can be loaded and used for predictions or interpretation. The training
+file. The models are saved in a h5 format and can be loaded and used for predictions or explanation. The training
 process also creates a summary file, that is saved in the `results/training` folder. The summary file is a csv
 containing information about the training process in tabular fashion. For each of the models of the cross validation,
 loss, accuracy, auROC (area under the receiver operating characteristic curve) and auPR (area under the precision recall
@@ -309,16 +344,15 @@ files are saved in their respective folders (`"genome_<species1>(_<species2> ...
 `"tpm_<species1>(_<species2> ... ).csv"` in the `tpm_counts` folder and `"gtf_<species1>(_<species2> ... ).csv"` in
 the `gene_models` folder).
 
+We recommend to use the models with best performance for cross-predictions, interpretations and feature extractions.
+
 ### Prediction
 
 Having trained a model enables making predictions. The deepCRE framework provides two scripts for this purpose. The
 `deepcre_predict.py` script is used to make predictions on the training data set, while the `deepcre_crosspredict.py`
 script is used to make predictions on a different species. Both scripts require a json configuration file to specify
 the necessary parameters.
-The thing separating the cross predicion and self prediction is the fact, that the self prediction will use the
-models from the chromosome level cross prediction or species level cross predicion in such a way, that each gene will
-be predicted by a model, for which this gene was part of the validation set, and not the training set. The cross
-prediction will use user specified models to predict all genes presented in a genome.
+The difference between cross-prediction and self-prediction is that, in chromosome-level or species-level cross-prediction, each gene is predicted by a model where it was part of the validation set rather than the training set. Cross-prediction uses user-specified models to predict all genes in a genome.
 
 #### Self Prediction Input Files
 
@@ -417,8 +451,8 @@ species name must be appended to the chromosome name.
 
 #### Cross Prediction Output Files
 
-The cross prediction script creates a single csv output file containing the predictions for each gene contained in the
-specified genome (minus small genes depending on ignore_small_genes). The rows of the output file are the different
+The cross prediction script creates a single csv output file containing the predictions for each gene (minus small genes depending on ignore_small_genes). 
+The rows of the output file are the different
 genes with their ID in column "genes". For each model in prediction_models a column is created containing the model output
 as a value between 0 and 1.  The columns are named after the model file names. An additional column with the name
 "pred_probs" contains the average of all model outputs for the given gene. The model outputs can be converted to binary
@@ -433,9 +467,8 @@ prediction_models: `"<model_name>_deepcre_crosspredict_<output_base>_<time_stamp
 
 The inputs for the interpretation script (`src/deepCRE/deepcre_interpret.py`) are almost the same as for the self
 [prediction script](#self-prediction-input-files). The only difference is, that for the interpretation the target
-file needs to be provided, since explanations will only be calculated for correct predictions. This is because we
-want to learnt about biological patterns, and not wrong patterns learned by the neural network. The json
-configuration file therefore needs to contain the following parameters:
+file needs to be provided, since interpretation will only be calculated for correct predictions. The json
+configuration file needs to contain the following parameters:
 
 - genome
 - annotation
@@ -479,7 +512,7 @@ represents the contribution of the base at that position to the prediction of th
 The second file is called `"<training_output_name>_deepcre_interpret_<time_stamp>_shap_meta.csv"`
 and contains two columns, namely "gene_ids" and "preds". The gene_ids contain the IDs of the genes and the preds
 column contains the predictions of the model for the genes (which also are the true targets, since only correctly
-predicted genes are used for the interpretation). The genes in the meta file have the same order as the genes in the
+predicted genes are used for the explanation). The genes in the meta file have the same order as the genes in the
 shap scores file, so that the shap scores can be assigned to the correct genes.
 
 ### Motif Extraction
@@ -487,9 +520,9 @@ shap scores file, so that the shap scores can be assigned to the correct genes.
 #### Motif Extraction Input Files
 
 The inputs for the motif extraction script (`src/deepCRE/deepcre_motifs.py`) are once again almost the same as for
-the self [prediction script](#self-prediction-input-files). Just like for the interpretation, the target file needs
+the self [prediction script](#self-prediction-input-files). Just like for the explanation, the target file needs
 to be provided, since motifs and patterns should only be extracted from correctly calculated examples. The motifs
-can be calculated using saved explanations from the interpretation script. In case that is not wanted, an additional
+can be calculated using saved explanations from the script. In case that is not wanted, an additional
 parameter can be set to calculate the explanations on the fly. The json configuration file therefore needs to contain
 the following parameters:
 
