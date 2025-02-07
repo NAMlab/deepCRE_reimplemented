@@ -331,7 +331,7 @@ def main():
     reference_sequence = one_hot_encode(str(reference_sequence))
     mutation_probability = 0.5
     crossover_probability = 0.5
-    models = [load_model("saved_models/arabidopsis_1_SSR_train_ssr_models_240816_183905.h5")]
+    models = [load_model("/mnt/data/personal/gernot/Code/deepCRE_reimplemented/saved_models/paper_models/ara/arabidopsis_leaf_1_SSR_train_ssr_models_241104_110233.h5")]
     # models = [FakeModel()]
     run_folder = genetic_algorithm(number_of_nucleotides=number_of_nucleotides, number_of_generations=args.number_of_generations, population_size=args.population_size,
                       tournament_size=args.tournament_size, mutation_rate=args.mutation_rate, mutation_probability=mutation_probability,
