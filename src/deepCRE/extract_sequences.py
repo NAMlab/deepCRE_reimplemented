@@ -35,6 +35,19 @@ def onehot(seq):
     return encoded
 
 
+def complement(seq):
+    """Returns the complementary sequence of a DNA sequence.
+
+    Args:
+        seq (_type_): letter based DNA sequence
+
+    Returns:
+        _type_: complementary DNA sequence
+    """
+    comp = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
+    return "".join([comp[nt] for nt in seq])
+
+
 def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filter: List[str], genes_of_interest: List[str]) -> pd.DataFrame:
     """ extracts gene information from a genome annotation file into a pandas dataframe.
 
@@ -199,20 +212,20 @@ def extract_string(fasta_obj: Fasta, gene_df: pd.DataFrame, intragenic: int, ext
         vals = find_start_end(start=start, end=end, intragenic=intragenic, extragenic=extragenic, strand=strand)
         prom_start, prom_end, term_start, term_end, additional_padding = vals
         if prom_start > 0 and term_start > 0:
-            if prom_start < prom_end and term_start < term_end:
+            if strand == "+":
                 direction = 1
-            elif prom_start > prom_end and term_start > term_end:
+            elif strand == "-":
                 direction = -1
             else:
                 raise  ValueError("Issue..")
             promoter = fasta_obj[chrom][prom_start:prom_end:direction]
             terminator = fasta_obj[chrom][term_start:term_end:direction]
             padding = (central_padding + additional_padding) * "N"
+            gene_flanks = "".join(promoter) + padding + "".join(terminator) #type:ignore
             if strand == "+":
-                gene_flanks = "".join(promoter) + padding + "".join(terminator)
                 header = f"{chrom}_{gene_id}:{start}-{end}"  # Normal order for positive strand
             else:
-                gene_flanks = "".join(terminator) + padding + "".join(promoter)
+                gene_flanks = complement(gene_flanks)
                 header = f"{chrom}_{gene_id}:{end}-{start}"  # Invert start and end
             genes_seqs[header] = gene_flanks
         else:
@@ -310,4 +323,16 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    # with open("test.fa", "w") as f:
+    #     f.write(">test\n" + "A" * 100 + "C" * 100 + "G" * 100)
+    # chromosomes, starts, ends, strands, gene_ids = ["test"], [100], [200], ["-"], ["test_gene"]
+    # gene_df = pd.DataFrame(data={
+    #     "chromosome": chromosomes,
+    #     "start": starts,
+    #     "end": ends,
+    #     "strand": strands,
+    #     "gene_id": gene_ids
+    # })
+    # extract_string(fasta_obj=Fasta("test.fa", as_raw=True, sequence_always_upper=True, read_ahead=10000), gene_df=gene_df, intragenic=20, extragenic=50, output_file="output.fa", central_padding=10)
+
 
