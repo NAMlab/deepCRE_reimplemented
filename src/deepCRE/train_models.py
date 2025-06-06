@@ -108,8 +108,8 @@ def extract_gene(genome: Fasta, extragenic: int, intragenic: int, ignore_small_g
     prom_start, prom_end = start - extragenic, start + extractable_intragenic
     term_start, term_end = end - extractable_intragenic, end + extragenic
 
-    promoter = one_hot_encode(genome[chrom][prom_start:prom_end])
-    terminator = one_hot_encode(genome[chrom][term_start:term_end])
+    promoter = one_hot_encode(genome[chrom][prom_start:prom_end])               #type:ignore
+    terminator = one_hot_encode(genome[chrom][term_start:term_end])             #type:ignore
     extracted_size = promoter.shape[0] + terminator.shape[0]
     central_pad_size = expected_final_size - extracted_size
 
