@@ -35,6 +35,23 @@ def onehot(seq):
     return encoded
 
 
+def complement_nucleotide(nuc: str) -> str:
+    """returns complement of a nucleotide, returning "N" for unknown nucleotides.
+
+    Args:
+        nuc (str): nucteotide to find opposite for
+
+    Returns:
+        str: complementary nucleotide. "N" if input nuckleotide is unknown.
+    """
+    comp = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
+    if nuc.upper() in comp.keys():
+        return comp[nuc.upper()]
+    print(f"encountered unexpected nucleotide {nuc}. Will be complemented to \"N\".")
+    return "N"
+
+
+
 def complement(seq):
     """Returns the complementary sequence of a DNA sequence.
 
@@ -44,8 +61,7 @@ def complement(seq):
     Returns:
         _type_: complementary DNA sequence
     """
-    comp = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
-    return "".join([comp[nt] for nt in seq])
+    return "".join([complement_nucleotide(nt) for nt in seq])
 
 
 def find_genes(annotation_path: str, gene_name_attribute: str, feature_type_filter: List[str], genes_of_interest: List[str]) -> pd.DataFrame:
@@ -290,7 +306,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output_path", "-o", type=str, required=True, help="name / path of the file you want to save the extracted gene glanking regions to be saved at.")
     parser.add_argument("--intragenic", "-i", type=int, default=500, help="length of the sequence extracted inside the gene (downstream of TSS and upstream of TTS).")
     parser.add_argument("--extragenic", "-e", type=int, default=1000, help="length of the sequence extracted outside the gene (upstream of TSS and downstream of TTS).")
-    parser.add_argument("--overwrite", "-ow", type=str, choices=["true", "false"], default="false", help="allows to overwrite an existing file for the output.")
+    parser.add_argument("--overwrite", "-ow", action='store_true', default=False, help="allows to overwrite an existing file for the output.")
     parser.add_argument("--gene_name_attribute", "-g", type=str, default="gene_id", help="name of the attribute that contains the name of the gene. Can be found in the last column of both gff3 and gtf files.")
     parser.add_argument("--feature_type", "-ft", type=str, default="gene", help="type of features for which gene flanking reagions are supposed to be extracted. Will filter entries based on column 3 in gff3 (\"type\") and gff/gtf (\"feature\"). Multiple values can be separated by semicolons.")
     parser.add_argument("--genes_of_interest", "-goi", type=str, default="", help="list of genes to be extracted in the json format. Names must be matching the description in the genome annotation.")
