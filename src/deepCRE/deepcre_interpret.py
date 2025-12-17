@@ -36,6 +36,8 @@ def find_newest_interpretation_results(output_name: str, results_path: str = "")
     # ^ and $ mark start and end of a string. \d singnifies any digit. \d+ means a sequence of digits with at least length 1
     regex_string = f"^{output_name}_deepcre_interpret_\d+_\d+\.h5$"                                                        #type:ignore
     regex = re.compile(regex_string)
+    if not os.path.exists(path_to_interpretations):
+        raise ValueError("no interpretation results fitting the given parameters were found! Consider running the interpretation script (deepcre_interpret.py)")
     candidate_results = [result for result in os.listdir(path_to_interpretations) if regex.match(result)]
     if not candidate_results:
         raise ValueError("no interpretation results fitting the given parameters were found! Consider running the interpretation script (deepcre_interpret.py)")
