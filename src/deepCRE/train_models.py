@@ -12,7 +12,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLRO
 from tensorflow.keras.metrics import AUC                                                                        #type:ignore
 import pickle
 import numpy as np
-from pyfaidx import Fasta
+from pyfaidx import Fasta, FetchError
 from sklearn.utils import shuffle
 import re
 import sys
@@ -82,7 +82,7 @@ def find_newest_model_path(output_name: str, model_case: ModelCase, val_chromoso
 
 
 def extract_gene(genome: Fasta, extragenic: int, intragenic: int, ignore_small_genes: bool, expected_final_size: int,
-                 chrom: str, start: int, end: int, strand: str, ssc_training: bool = False, val_chromosome: Optional[str] = None) -> np.ndarray:
+                 chrom: str, start: int, end: int, strand: str, ssc_training: bool = False, val_chromosome: Optional[str] = None) -> Optional[np.ndarray]:
     """extracts the gene flanking region for a single gene and converts it to a numpy encoded one-hot encoding
 
     Args:
@@ -108,8 +108,11 @@ def extract_gene(genome: Fasta, extragenic: int, intragenic: int, ignore_small_g
     prom_start, prom_end = start - extragenic, start + extractable_intragenic
     term_start, term_end = end - extractable_intragenic, end + extragenic
 
-    promoter = one_hot_encode(genome[chrom][prom_start:prom_end])               #type:ignore
-    terminator = one_hot_encode(genome[chrom][term_start:term_end])             #type:ignore
+    try:
+        promoter = one_hot_encode(genome[chrom][prom_start:prom_end])               #type:ignore
+        terminator = one_hot_encode(genome[chrom][term_start:term_end])             #type:ignore
+    except FetchError:
+        return None
     extracted_size = promoter.shape[0] + terminator.shape[0]
     central_pad_size = expected_final_size - extracted_size
 
@@ -203,6 +206,9 @@ def extract_genes_prediction(genome: Fasta, annotation: pd.DataFrame, extragenic
             continue
 
         seq = extract_gene(genome, extragenic, intragenic, ignore_small_genes, expected_final_size, chrom, start, end, strand)
+        if seq is None:
+            print(f"Warning: gene {gene_id} on chromosome {chrom} could not be extracted. This gene will be skipped.")
+            continue
         if specie is not None:
             chrom = specie
         append_sequence_prediction(tpms=tpms, extracted_seqs=extracted_seqs, expected_final_size=expected_final_size, chrom=chrom, gene_id=gene_id, sequence_to_append=seq)
@@ -505,6 +511,10 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
         seq = extract_gene(genome=genome, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes,
                             expected_final_size=expected_final_size, chrom=chrom, start=start, end=end, strand=strand, ssc_training=ssc_training,
                             val_chromosome=val_chromosome)
+        if seq is None:
+            print(f"Warning: gene {gene_id} on chromosome {chrom} could not be extracted (probably too close to a boundary). This gene will be skipped.")
+            skipped_genes.append(gene_id)
+            continue
         added_val, added_train = append_sequence_training(include_as_validation_gene=include_in_validation_set, include_as_training_gene=include_in_training_set, train_targets=train_targets,
                                                           expected_final_size=expected_final_size, train_seqs=train_seqs, val_seqs=val_seqs, val_targets=val_targets, tpms=tpms, gene_id=gene_id, seq=seq)
         if added_train == 0 and added_val == 0:
