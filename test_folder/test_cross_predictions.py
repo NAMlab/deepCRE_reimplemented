@@ -12,10 +12,9 @@ model_names = "arabidopsis_1_SSR_train_ssr_models_240916_170010.h5;arabidopsis_2
 
 class TestCrossPredictions(unittest.TestCase):
 
-    def __init__(self):
-        super(TestCrossPredictions, self).__init__()
-        # TODO: comment this back in, only commented out to reduce number of test cases
-        # self.set_up_test_cases()
+    def __init__(self, methodName="runTest"):
+        super(TestCrossPredictions, self).__init__(methodName)
+        self.set_up_test_cases()
 
     def set_up_test_cases(self):
         optional_cols = itertools.product([True, False], repeat=5)
