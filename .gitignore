@@ -209,3 +209,6 @@ cython_debug/
 164 lines yanked                                                                                                                                                                                                                                                           
 
 
+
+# outputs written by test_folder/test_load_annotation.py
+test_folder/test_outputs/
