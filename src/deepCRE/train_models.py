@@ -535,7 +535,26 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
     train_seqs, val_seqs, train_targets, val_targets  = np.array(train_seqs), np.array(val_seqs), np.array(train_targets), np.array(val_targets)
     print(train_seqs.shape, val_seqs.shape)
     if train_seqs.size == 0 or val_seqs.size == 0:
-        raise ValueError("Validation sequences or training sequences are empty.")
+        # Naming the cause here matters: the usual reason for an empty validation
+        # set is that few genes on the validation chromosome are listed in the
+        # pickle file, which the bare message does not hint at.
+        diagnosis = ""
+        if val_seqs.size == 0 and model_case in [ModelCase.SSR, ModelCase.SSC]:
+            on_val_chromosome = int((annotation["Chromosome"] == val_chromosome).sum())
+            listed = len([gene for gene in validation_genes if gene in tpms.index])
+            diagnosis = (
+                f" The validation set is empty: chromosome '{val_chromosome}' holds "
+                f"{on_val_chromosome} annotated genes, and the pickle file lists "
+                f"{len(validation_genes)} genes for key '{pickled_key}' ({listed} of "
+                f"which have a target). Only genes that are both on the validation "
+                f"chromosome and in the pickle file can be used for validation. If "
+                f"the pickle list is very short relative to the genome, the assembly "
+                f"is probably too fragmented for the homology criterion that built "
+                f"it -- see build_pseudo_chromosomes.py."
+            )
+        raise ValueError(
+            f"Validation sequences or training sequences are empty.{diagnosis}"
+        )
 
     mask_sequences(train_seqs=train_seqs, val_seqs=val_seqs, extragenic=extragenic, intragenic=intragenic)
     return train_seqs, train_targets, val_seqs, val_targets
