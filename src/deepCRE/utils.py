@@ -83,10 +83,15 @@ def load_annotation(annotation_path: str) -> pd.DataFrame:
     gene_model = pr.read_gtf(f=annotation_path, as_df=True) if annotation_path.endswith(".gtf") else pr.read_gff3(f=annotation_path, as_df=True)
     gene_model = gene_model[gene_model['Feature'] == 'gene']
     columns = ['Chromosome', 'Start', 'End', 'Strand']
-    if 'gene_id' in gene_model.columns:
-        columns.append('gene_id')
-    else:
-        columns.append('ID')
+    # GTF files carry the gene name in a "gene_id" attribute, GFF3 files usually in
+    # "ID". Callers index the result by name, so the column is always handed back as
+    # "gene_id" -- without the rename, every GFF3 lacking a "gene_id" attribute fails
+    # downstream with "['gene_id'] not in index".
+    if 'gene_id' not in gene_model.columns:
+        if 'ID' not in gene_model.columns:
+            raise ValueError(f"The annotation {annotation_path} has neither a 'gene_id' nor an 'ID' attribute on its gene features, so genes cannot be named.")
+        gene_model = gene_model.rename(columns={'ID': 'gene_id'})
+    columns.append('gene_id')
     if 'gene_biotype' in gene_model.columns:
         gene_model = gene_model[gene_model['gene_biotype'] == 'protein_coding']
     gene_model = gene_model[columns]
