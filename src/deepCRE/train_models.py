@@ -451,6 +451,56 @@ def save_skipped_genes(skipped_genes: List[str], time_stamp: str) -> None:
             print(f"Some gene IDs in the gtf file were not found in TPM counts. Skipped gene IDs have been written to {file_name}.")
 
 
+def diagnose_empty_data_set(annotation: pd.DataFrame, tpms: pd.DataFrame, validation_genes: List[str], pickled_key: str,
+                            val_chromosome: str, model_case: ModelCase, empty_validation_set: bool) -> str:
+    """explains why no sequences could be extracted for training or validation
+
+    Checks the causes in order of severity. Gene ids that the annotation and the targets file do not
+    share at all make every gene unusable, and therefore mask every other cause: it is reported first.
+    Only if the two files do agree on gene ids is the empty validation set explained by the validation
+    gene list, which is the other common cause.
+
+    Args:
+        annotation (pd.DataFrame): gene annotations, containing at least a "gene_id" and a "Chromosome" column
+        tpms (pd.DataFrame): target values, indexed by gene id
+        validation_genes (List[str]): genes that are allowed into the validation set
+        pickled_key (str): key under which the validation genes were stored in the pickle file
+        val_chromosome (str): name of the validation chromosome
+        model_case (ModelCase): model case of the current run
+        empty_validation_set (bool): whether it is the validation set that came out empty
+
+    Returns:
+        str: human readable explanation, empty if no cause could be identified
+    """
+    annotated_genes = annotation["gene_id"]
+    matched = int(annotated_genes.isin(tpms.index).sum())
+    if matched == 0:
+        annotation_examples = list(annotated_genes[:3])
+        target_examples = list(tpms.index[:3])
+        return (
+            f" None of the {len(annotated_genes)} genes in the annotation appear in the targets file,"
+            f" which lists {len(tpms.index)} genes, so no gene could be used at all. The two files"
+            f" name their genes differently -- the annotation calls them e.g. {annotation_examples},"
+            f" the targets file e.g. {target_examples}. Annotation and targets have to describe the"
+            f" same gene set: check that the targets were derived from exactly this annotation, and"
+            f" not from a different annotation of the same genome."
+        )
+    if empty_validation_set and model_case in [ModelCase.SSR, ModelCase.SSC]:
+        on_val_chromosome = int((annotation["Chromosome"] == val_chromosome).sum())
+        listed = len([gene for gene in validation_genes if gene in tpms.index])
+        return (
+            f" The validation set is empty: chromosome '{val_chromosome}' holds "
+            f"{on_val_chromosome} annotated genes, and the pickle file lists "
+            f"{len(validation_genes)} genes for key '{pickled_key}' ({listed} of "
+            f"which have a target). Only genes that are both on the validation "
+            f"chromosome and in the pickle file can be used for validation. If "
+            f"the pickle list is very short relative to the genome, the assembly "
+            f"is probably too fragmented for the homology criterion that built "
+            f"it -- see build_pseudo_chromosomes.py."
+        )
+    return ""
+
+
 def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str, extragenic: int, intragenic: int, genes_pickled: str,
                            pickled_key: str, val_chromosome: str, model_case: ModelCase, ignore_small_genes: bool, train_val_split: bool, time_stamp: str,
                            validation_fraction: float, test_specie: str = "") -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -535,23 +585,11 @@ def extract_genes_training(genome_path: str, annotation_path: str, tpm_path: str
     train_seqs, val_seqs, train_targets, val_targets  = np.array(train_seqs), np.array(val_seqs), np.array(train_targets), np.array(val_targets)
     print(train_seqs.shape, val_seqs.shape)
     if train_seqs.size == 0 or val_seqs.size == 0:
-        # Naming the cause here matters: the usual reason for an empty validation
-        # set is that few genes on the validation chromosome are listed in the
-        # pickle file, which the bare message does not hint at.
-        diagnosis = ""
-        if val_seqs.size == 0 and model_case in [ModelCase.SSR, ModelCase.SSC]:
-            on_val_chromosome = int((annotation["Chromosome"] == val_chromosome).sum())
-            listed = len([gene for gene in validation_genes if gene in tpms.index])
-            diagnosis = (
-                f" The validation set is empty: chromosome '{val_chromosome}' holds "
-                f"{on_val_chromosome} annotated genes, and the pickle file lists "
-                f"{len(validation_genes)} genes for key '{pickled_key}' ({listed} of "
-                f"which have a target). Only genes that are both on the validation "
-                f"chromosome and in the pickle file can be used for validation. If "
-                f"the pickle list is very short relative to the genome, the assembly "
-                f"is probably too fragmented for the homology criterion that built "
-                f"it -- see build_pseudo_chromosomes.py."
-            )
+        # Naming the cause here matters: the bare message hints at neither of the two
+        # common causes, mismatched gene ids and a too short validation gene list.
+        diagnosis = diagnose_empty_data_set(annotation=annotation, tpms=tpms, validation_genes=validation_genes,
+                                            pickled_key=pickled_key, val_chromosome=val_chromosome,
+                                            model_case=model_case, empty_validation_set=bool(val_seqs.size == 0))
         raise ValueError(
             f"Validation sequences or training sequences are empty.{diagnosis}"
         )
