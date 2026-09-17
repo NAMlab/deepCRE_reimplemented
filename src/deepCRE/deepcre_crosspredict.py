@@ -42,16 +42,16 @@ def load_models(model_names: List[str]) -> Dict[str, Any]:
     return models
 
 
-def predict_other(extragenic: int, intragenic: int, curr_chromosome: str, model_names: List[str],
-                  extracted_genes: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+
+def predict_other(extragenic: int, intragenic: int, curr_chromosome: str, models: Dict[str, Any],
+                  extracted_genes: Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]) -> pd.DataFrame:
     """creates predictions for a given chromosome using the provided models.
 
     Args:
         extragenic (int): number of base pairs to be used for extragenic extraction.
         intragenic (int): number of base pairs to be used for intragenic extraction.
         curr_chromosome (str): name of the chromosome to be used for predictions.
-        model_names (List[str]): list of model names to be used for predictions. Can be the file name of models in
-            the saved_models folder or the full path to the model.
+        models (Dict[str, Any]): dictionary containing the models to be used for predictions. Key is the model name, value is the loaded model.
         extracted_genes (Dict[str, Tuple[np.ndarray, np.ndarray, np.ndarray]]): dictionary containing the extracted genes for each chromosome.
             Key are the chromosome names, values are tuples containing the extracted genes one hot encoded, the true targets and the gene ids
             all as numpy arrays.
@@ -60,7 +60,7 @@ def predict_other(extragenic: int, intragenic: int, curr_chromosome: str, model_
         ValueError: Is raised if two models have the same file names.
 
     Returns:
-        Tuple[pd.DataFrame, Dict[str, Any]]: Dataframe containing the predictions and the models used for the predictions.
+        pd.DataFrame: Dataframe containing the predictions.
     """
     no_genes = False
     try:
@@ -71,8 +71,6 @@ def predict_other(extragenic: int, intragenic: int, curr_chromosome: str, model_
     except KeyError:
         no_genes = True
         print(f"no genes found for Chromosome \"{curr_chromosome}\"")
-
-    models = load_models(model_names)
 
     if no_genes:
         df_dict = {model_name: np.zeros((0)) for model_name, model in models.items()}
@@ -86,7 +84,7 @@ def predict_other(extragenic: int, intragenic: int, curr_chromosome: str, model_
     else:
         result_df['true_targets'] = y
         result_df['genes'] = gene_ids
-    return result_df, models
+    return result_df
 
 
 def parse_args() -> argparse.Namespace:
@@ -187,8 +185,8 @@ def run_cross_predictions(run_infos: ParsedInputs, failed_runs: List[Tuple], inp
     run_info: RunInfo
     for i, run_info in enumerate(run_infos):           #type:ignore
         try:
-            models = run_info.general_info["prediction_models"]
-            model_file_name = get_filename_from_path(models[0])
+            model_names = run_info.general_info["prediction_models"]
+            model_file_name = get_filename_from_path(model_names[0])
             output_location = get_output_location(run_info=run_info, folder_name=folder_name, model_file_name=model_file_name, file_name=file_name, time_stamp=time_stamp)
             model_case = "msr" if run_info.general_info["annotation"].endswith(".csv") else "ssr"
             loaded_input_files = load_input_files(genome_file_name=run_info.general_info["genome"], annotation_file_name=run_info.general_info["annotation"], tpm_counts_file_name=run_info.general_info["targets"], model_case=model_case)
@@ -199,14 +197,16 @@ def run_cross_predictions(run_infos: ParsedInputs, failed_runs: List[Tuple], inp
             if model_case == "msr" and chromosomes_tuple == ():
                 chromosomes = extracted_genes.keys()
             results_dfs = []
+            models = load_models(model_names)
             for chrom in chromosomes:
-                results, _ = predict_other(extragenic=run_info.general_info["extragenic"], intragenic=run_info.general_info["intragenic"], curr_chromosome=chrom,
-                                           model_names=models, extracted_genes=extracted_genes)
+                results = predict_other(extragenic=run_info.general_info["extragenic"], intragenic=run_info.general_info["intragenic"], curr_chromosome=chrom,
+                                           models=models, extracted_genes=extracted_genes)
                 results_dfs.append(results)
             result = pd.concat(results_dfs)
             print(result.head())
             result.to_csv(output_location, index=False)
         except Exception as e:
+            raise e
             print(e)
             print(run_info)
             failed_runs.append((f"{model_file_name} -> {run_info.general_info['output_base']}", i, e))

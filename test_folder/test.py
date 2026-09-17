@@ -8,6 +8,7 @@ import h5py
 from BCBio import GFF
 import json
 import tensorflow as tf
+from tensorflow.keras.models import load_model #type:ignore
 
 from deepCRE.parsing import ModelCase
 from deepCRE.utils import load_input_files, make_absolute_path, get_time_stamp
@@ -103,8 +104,9 @@ def test_predict_other():
         ignore_small_genes = True
         extracted_genes = train.extract_genes_prediction(genome=genome, annotation=annotation, extragenic=extragenic, intragenic=intragenic, ignore_small_genes=ignore_small_genes, tpms=tpms, target_chromosomes=())
         results_dfs = []
+        models = load_model([output_name])
         for chrom in range(1, num_chromosomes + 1):
-            results, _ = cp.predict_other(extragenic=extragenic, intragenic=intragenic, curr_chromosome=str(chrom), model_names=output_name,
+            results, _ = cp.predict_other(extragenic=extragenic, intragenic=intragenic, curr_chromosome=str(chrom), models=models,
                                             extracted_genes=extracted_genes)
             results_dfs.append(results)
         result = pd.concat(results_dfs)
